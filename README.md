@@ -92,7 +92,6 @@ GITHUB_TOKEN=github_pat_... npm run report -- --skip-ai
 GitHub Copilot にローカルでログインしてから `--skip-ai` を外して実行します。
 
 ```bash
-copilot                  # 初回のみ。プロンプトで `/login` してログイン
 GITHUB_TOKEN=github_pat_... \
 COPILOT_GITHUB_TOKEN=github_pat_... \
 npm run report
