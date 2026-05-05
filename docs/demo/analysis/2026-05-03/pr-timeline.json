@@ -1,0 +1,1035 @@
+{
+  "id": "pr-timeline",
+  "format": "json",
+  "status": "ok",
+  "renderer": "gantt-chart",
+  "data": {
+    "weekStart": "2026-04-27T00:00:00.000Z",
+    "weekEnd": "2026-05-03T23:59:59.999Z",
+    "timezone": "Asia/Tokyo",
+    "timelines": [
+      {
+        "repo": {
+          "owner": "widgets-inc",
+          "name": "dashboard"
+        },
+        "number": 130,
+        "title": "chore(deps): update next.js to 15.0.4",
+        "author": "renovate[bot]",
+        "totalDurationHours": 0,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-05-06T22:00:00Z",
+            "endAt": "2026-05-06T22:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-06T22:00:00Z",
+            "endAt": "2026-05-06T22:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-06T22:00:00Z",
+            "endAt": "2026-05-06T22:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-06T22:00:00Z",
+            "endAt": "2026-05-06T22:00:00Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": null,
+          "readyForReviewAt": "2026-05-06T22:00:00Z",
+          "firstReaction": null,
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "open",
+          "mergedAt": null,
+          "closedAt": null
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 250,
+        "title": "feat: add rate limiting middleware",
+        "author": "alice",
+        "totalDurationHours": 13.5,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-05-05T05:00:00Z",
+            "endAt": "2026-05-05T05:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-05T05:00:00Z",
+            "endAt": "2026-05-05T17:30:00Z",
+            "durationHours": 12.5
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-05T17:30:00Z",
+            "endAt": "2026-05-05T17:30:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-05T17:30:00Z",
+            "endAt": "2026-05-05T18:30:00Z",
+            "durationHours": 1
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": null,
+          "readyForReviewAt": "2026-05-05T05:00:00Z",
+          "firstReaction": {
+            "at": "2026-05-05T17:30:00Z",
+            "by": "bob"
+          },
+          "firstApproveAt": "2026-05-05T17:30:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-05T18:30:00Z",
+          "closedAt": "2026-05-05T18:30:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 150,
+        "title": "build(deps): bump zod from 3.23.4 to 3.23.8",
+        "author": "dependabot[bot]",
+        "totalDurationHours": 1.5,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-05-04T02:00:00Z",
+            "endAt": "2026-05-04T02:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-04T02:00:00Z",
+            "endAt": "2026-05-04T03:25:00Z",
+            "durationHours": 1.4166666666666667
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-04T03:25:00Z",
+            "endAt": "2026-05-04T03:25:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-04T03:25:00Z",
+            "endAt": "2026-05-04T03:30:00Z",
+            "durationHours": 0.08333333333333333
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": null,
+          "readyForReviewAt": "2026-05-04T02:00:00Z",
+          "firstReaction": {
+            "at": "2026-05-04T03:25:00Z",
+            "by": "bob"
+          },
+          "firstApproveAt": "2026-05-04T03:25:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-04T03:30:00Z",
+          "closedAt": "2026-05-04T03:30:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 502,
+        "title": "feat: migrate entire frontend from Webpack to Vite",
+        "author": "bob",
+        "totalDurationHours": 270,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-22T10:00:00Z",
+            "endAt": "2026-04-27T08:00:00Z",
+            "durationHours": 118
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-27T08:00:00Z",
+            "endAt": "2026-04-30T16:00:00Z",
+            "durationHours": 80
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-30T16:00:00Z",
+            "endAt": "2026-05-03T09:00:00Z",
+            "durationHours": 65
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-03T09:00:00Z",
+            "endAt": "2026-05-03T16:00:00Z",
+            "durationHours": 7
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-22T10:00:00Z",
+          "readyForReviewAt": "2026-04-27T08:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-30T16:00:00Z",
+            "by": "carol"
+          },
+          "firstApproveAt": "2026-05-03T09:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 2,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-03T16:00:00Z",
+          "closedAt": "2026-05-03T16:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 507,
+        "title": "feat: redesign user onboarding flow",
+        "author": "alice",
+        "totalDurationHours": 243,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-23T11:00:00Z",
+            "endAt": "2026-04-27T09:00:00Z",
+            "durationHours": 94
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-27T09:00:00Z",
+            "endAt": "2026-04-28T15:00:00Z",
+            "durationHours": 30
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-28T15:00:00Z",
+            "endAt": "2026-05-02T09:00:00Z",
+            "durationHours": 90
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-02T09:00:00Z",
+            "endAt": "2026-05-03T14:00:00Z",
+            "durationHours": 29
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-23T11:00:00Z",
+          "readyForReviewAt": "2026-04-27T09:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-28T15:00:00Z",
+            "by": "bob"
+          },
+          "firstApproveAt": "2026-05-02T09:00:00Z",
+          "approveCount": 2,
+          "dismissCount": 0,
+          "reviewCommentCount": 6,
+          "postApproveCommitCount": 1,
+          "closingState": "merged",
+          "mergedAt": "2026-05-03T14:00:00Z",
+          "closedAt": "2026-05-03T14:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 504,
+        "title": "feat: replace session cookies with JWT tokens",
+        "author": "dave",
+        "totalDurationHours": 197,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-24T13:00:00Z",
+            "endAt": "2026-04-28T10:00:00Z",
+            "durationHours": 93
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-28T10:00:00Z",
+            "endAt": "2026-04-30T09:00:00Z",
+            "durationHours": 47
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-30T09:00:00Z",
+            "endAt": "2026-05-02T09:00:00Z",
+            "durationHours": 48
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-02T09:00:00Z",
+            "endAt": "2026-05-02T18:00:00Z",
+            "durationHours": 9
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-24T13:00:00Z",
+          "readyForReviewAt": "2026-04-28T10:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-30T09:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": "2026-05-02T09:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 4,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-02T18:00:00Z",
+          "closedAt": "2026-05-02T18:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 508,
+        "title": "feat: replace REST API with GraphQL",
+        "author": "carol",
+        "totalDurationHours": 241,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-22T14:00:00Z",
+            "endAt": "2026-04-27T10:00:00Z",
+            "durationHours": 116
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-27T10:00:00Z",
+            "endAt": "2026-04-28T09:00:00Z",
+            "durationHours": 23
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-28T09:00:00Z",
+            "endAt": "2026-05-02T15:00:00Z",
+            "durationHours": 102
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-02T15:00:00Z",
+            "endAt": "2026-05-02T15:00:00Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-22T14:00:00Z",
+          "readyForReviewAt": "2026-04-27T10:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-28T09:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 4,
+          "postApproveCommitCount": 0,
+          "closingState": "closed_unmerged",
+          "mergedAt": null,
+          "closedAt": "2026-05-02T15:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 302,
+        "title": "test: add integration tests for checkout flow",
+        "author": "carol",
+        "totalDurationHours": 46,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-30T15:00:00Z",
+            "endAt": "2026-05-01T09:00:00Z",
+            "durationHours": 18
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-01T09:00:00Z",
+            "endAt": "2026-05-01T13:00:00Z",
+            "durationHours": 4
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-01T13:00:00Z",
+            "endAt": "2026-05-02T11:00:00Z",
+            "durationHours": 22
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-02T11:00:00Z",
+            "endAt": "2026-05-02T13:00:00Z",
+            "durationHours": 2
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-30T15:00:00Z",
+          "readyForReviewAt": "2026-05-01T09:00:00Z",
+          "firstReaction": {
+            "at": "2026-05-01T13:00:00Z",
+            "by": "dave"
+          },
+          "firstApproveAt": "2026-05-02T11:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 2,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-02T13:00:00Z",
+          "closedAt": "2026-05-02T13:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 88,
+        "title": "feat: add real-time dashboard for system health metrics",
+        "author": "dave",
+        "totalDurationHours": 168,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-25T10:00:00Z",
+            "endAt": "2026-04-28T14:00:00Z",
+            "durationHours": 76
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-28T14:00:00Z",
+            "endAt": "2026-04-29T09:00:00Z",
+            "durationHours": 19
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-29T09:00:00Z",
+            "endAt": "2026-05-01T14:00:00Z",
+            "durationHours": 53
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-01T14:00:00Z",
+            "endAt": "2026-05-02T10:00:00Z",
+            "durationHours": 20
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-25T10:00:00Z",
+          "readyForReviewAt": "2026-04-28T14:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-29T09:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": "2026-05-01T14:00:00Z",
+          "approveCount": 2,
+          "dismissCount": 0,
+          "reviewCommentCount": 3,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-02T10:00:00Z",
+          "closedAt": "2026-05-02T10:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 506,
+        "title": "feat: add Stripe payment integration",
+        "author": "frank",
+        "totalDurationHours": 108.99999972222223,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-29T11:00:00Z",
+            "endAt": "2026-05-01T14:00:00Z",
+            "durationHours": 51
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-01T14:00:00Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 57.99999972222222
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-29T11:00:00Z",
+          "readyForReviewAt": "2026-05-01T14:00:00Z",
+          "firstReaction": null,
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "open",
+          "mergedAt": null,
+          "closedAt": null
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 55,
+        "title": "refactor: extract payment logic into dedicated service",
+        "author": "bob",
+        "totalDurationHours": 188,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-23T15:00:00Z",
+            "endAt": "2026-04-27T08:00:00Z",
+            "durationHours": 89
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-27T08:00:00Z",
+            "endAt": "2026-04-28T10:00:00Z",
+            "durationHours": 26
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-28T10:00:00Z",
+            "endAt": "2026-04-30T15:00:00Z",
+            "durationHours": 53
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-30T15:00:00Z",
+            "endAt": "2026-05-01T11:00:00Z",
+            "durationHours": 20
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-23T15:00:00Z",
+          "readyForReviewAt": "2026-04-27T08:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-28T10:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": "2026-04-30T15:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 2,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-05-01T11:00:00Z",
+          "closedAt": "2026-05-01T11:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 301,
+        "title": "docs: update API authentication guide with OAuth 2.0 examples",
+        "author": "frank",
+        "totalDurationHours": 9.5,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-30T04:30:00Z",
+            "endAt": "2026-04-30T09:00:00Z",
+            "durationHours": 4.5
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-30T09:00:00Z",
+            "endAt": "2026-04-30T12:00:00Z",
+            "durationHours": 3
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-30T12:00:00Z",
+            "endAt": "2026-04-30T12:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-30T12:00:00Z",
+            "endAt": "2026-04-30T14:00:00Z",
+            "durationHours": 2
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-30T04:30:00Z",
+          "readyForReviewAt": "2026-04-30T09:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-30T12:00:00Z",
+            "by": "bob"
+          },
+          "firstApproveAt": "2026-04-30T12:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-30T14:00:00Z",
+          "closedAt": "2026-04-30T14:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 300,
+        "title": "chore: upgrade React from 18 to 19 and update peer deps",
+        "author": "eve",
+        "totalDurationHours": 30,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-29T05:00:00Z",
+            "endAt": "2026-04-29T10:00:00Z",
+            "durationHours": 5
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-29T10:00:00Z",
+            "endAt": "2026-04-29T15:00:00Z",
+            "durationHours": 5
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-29T15:00:00Z",
+            "endAt": "2026-04-29T15:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-29T15:00:00Z",
+            "endAt": "2026-04-30T11:00:00Z",
+            "durationHours": 20
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-29T05:00:00Z",
+          "readyForReviewAt": "2026-04-29T10:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-29T15:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": "2026-04-29T15:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-30T11:00:00Z",
+          "closedAt": "2026-04-30T11:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 501,
+        "title": "feat: add dark mode to settings panel",
+        "author": "alice",
+        "totalDurationHours": 30,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-29T03:00:00Z",
+            "endAt": "2026-04-29T13:00:00Z",
+            "durationHours": 10
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-29T13:00:00Z",
+            "endAt": "2026-04-30T09:00:00Z",
+            "durationHours": 20
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-30T09:00:00Z",
+            "endAt": "2026-04-30T09:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-30T09:00:00Z",
+            "endAt": "2026-04-30T09:00:00Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-29T03:00:00Z",
+          "readyForReviewAt": "2026-04-29T13:00:00Z",
+          "firstReaction": null,
+          "firstApproveAt": "2026-04-30T08:30:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-30T09:00:00Z",
+          "closedAt": "2026-04-30T09:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "cli-tools"
+        },
+        "number": 500,
+        "title": "hotfix: revert broken deploy config",
+        "author": "alice",
+        "totalDurationHours": 6.5,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-29T22:00:00Z",
+            "endAt": "2026-04-30T02:10:00Z",
+            "durationHours": 4.166666666666667
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-30T02:10:00Z",
+            "endAt": "2026-04-30T04:30:00Z",
+            "durationHours": 2.3333333333333335
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-30T04:30:00Z",
+            "endAt": "2026-04-30T04:30:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-30T04:30:00Z",
+            "endAt": "2026-04-30T04:30:00Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-29T22:00:00Z",
+          "readyForReviewAt": "2026-04-30T02:10:00Z",
+          "firstReaction": null,
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-30T04:30:00Z",
+          "closedAt": "2026-04-30T04:30:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 503,
+        "title": "fix: broken production build due to missing env var",
+        "author": "carol",
+        "totalDurationHours": 2.9833333333333334,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-29T20:00:00Z",
+            "endAt": "2026-04-29T22:47:00Z",
+            "durationHours": 2.783333333333333
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-29T22:47:00Z",
+            "endAt": "2026-04-29T22:59:00Z",
+            "durationHours": 0.2
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-29T22:59:00Z",
+            "endAt": "2026-04-29T22:59:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-29T22:59:00Z",
+            "endAt": "2026-04-29T22:59:00Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-29T20:00:00Z",
+          "readyForReviewAt": "2026-04-29T22:47:00Z",
+          "firstReaction": null,
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-29T22:59:00Z",
+          "closedAt": "2026-04-29T22:59:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "api-server"
+        },
+        "number": 202,
+        "title": "feat: add request rate limiting to public API endpoints",
+        "author": "carol",
+        "totalDurationHours": 65,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-26T16:00:00Z",
+            "endAt": "2026-04-27T11:00:00Z",
+            "durationHours": 19
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-27T11:00:00Z",
+            "endAt": "2026-04-28T14:00:00Z",
+            "durationHours": 27
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-28T14:00:00Z",
+            "endAt": "2026-04-28T14:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-28T14:00:00Z",
+            "endAt": "2026-04-29T09:00:00Z",
+            "durationHours": 19
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-26T16:00:00Z",
+          "readyForReviewAt": "2026-04-27T11:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-28T14:00:00Z",
+            "by": "dave"
+          },
+          "firstApproveAt": "2026-04-28T14:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 2,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-29T09:00:00Z",
+          "closedAt": "2026-04-29T09:00:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "web-app"
+        },
+        "number": 101,
+        "title": "fix: login button unresponsive after failed auth attempt",
+        "author": "alice",
+        "totalDurationHours": 10,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-28T05:30:00Z",
+            "endAt": "2026-04-28T09:00:00Z",
+            "durationHours": 3.5
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-04-28T09:00:00Z",
+            "endAt": "2026-04-28T13:00:00Z",
+            "durationHours": 4
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-04-28T13:00:00Z",
+            "endAt": "2026-04-28T13:00:00Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-04-28T13:00:00Z",
+            "endAt": "2026-04-28T15:30:00Z",
+            "durationHours": 2.5
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-28T05:30:00Z",
+          "readyForReviewAt": "2026-04-28T09:00:00Z",
+          "firstReaction": {
+            "at": "2026-04-28T13:00:00Z",
+            "by": "bob"
+          },
+          "firstApproveAt": "2026-04-28T13:00:00Z",
+          "approveCount": 1,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "merged",
+          "mergedAt": "2026-04-28T15:30:00Z",
+          "closedAt": "2026-04-28T15:30:00Z"
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "cli-tools"
+        },
+        "number": 509,
+        "title": "wip: explore WebSocket support for live notifications",
+        "author": "dave",
+        "totalDurationHours": 446.74999972222224,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-04-15T09:15:00Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 446.74999972222224
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-04-15T09:15:00Z",
+          "readyForReviewAt": null,
+          "firstReaction": null,
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 0,
+          "postApproveCommitCount": 0,
+          "closingState": "open",
+          "mergedAt": null,
+          "closedAt": null
+        }
+      },
+      {
+        "repo": {
+          "owner": "acme-corp",
+          "name": "cli-tools"
+        },
+        "number": 505,
+        "title": "feat: add multi-language support (i18n)",
+        "author": "eve",
+        "totalDurationHours": 1239.9999997222221,
+        "segments": [
+          {
+            "state": "implementing",
+            "startAt": "2026-03-13T08:00:00Z",
+            "endAt": "2026-03-15T10:00:00Z",
+            "durationHours": 50
+          },
+          {
+            "state": "wait_review",
+            "startAt": "2026-03-15T10:00:00Z",
+            "endAt": "2026-03-20T10:00:00Z",
+            "durationHours": 120
+          },
+          {
+            "state": "fixing",
+            "startAt": "2026-03-20T10:00:00Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 1069.9999997222221
+          },
+          {
+            "state": "wait_merge",
+            "startAt": "2026-05-03T23:59:59.999Z",
+            "endAt": "2026-05-03T23:59:59.999Z",
+            "durationHours": 0
+          }
+        ],
+        "auxiliary": {
+          "firstCommitAt": "2026-03-13T08:00:00Z",
+          "readyForReviewAt": "2026-03-15T10:00:00Z",
+          "firstReaction": {
+            "at": "2026-03-20T10:00:00Z",
+            "by": "alice"
+          },
+          "firstApproveAt": null,
+          "approveCount": 0,
+          "dismissCount": 0,
+          "reviewCommentCount": 1,
+          "postApproveCommitCount": 0,
+          "closingState": "open",
+          "mergedAt": null,
+          "closedAt": null
+        }
+      }
+    ]
+  }
+}
