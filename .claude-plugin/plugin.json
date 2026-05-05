@@ -1,0 +1,8 @@
+{
+  "name": "gh-insights",
+  "version": "0.2.0",
+  "description": "Weekly GitHub PR insights — DORA, timelines, review correlation, AI summaries.",
+  "author": "gyvm",
+  "license": "MIT",
+  "keywords": ["github", "pull-request", "dora", "analytics", "weekly-report"]
+}

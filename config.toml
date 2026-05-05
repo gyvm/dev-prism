@@ -1,0 +1,52 @@
+timezone = "Asia/Tokyo"
+
+# Repositories to collect PRs from. Each entry is "owner/name" or "owner/*".
+# Wildcard "owner/*" expands to all non-archived repos owned by `owner`
+# (includes private repos when the token has access).
+repositories = [
+  "your-org/*",
+]
+
+[caps]
+maxPrs                = 50
+maxCommentsPerPr      = 80
+maxReviewThreadsPerPr = 60
+maxFilesPerPr         = 120
+maxCommitsPerPr       = 80
+maxBodyLength         = 4000
+
+[actors]
+botLoginPatterns = [
+  "^renovate$",
+  "^dependabot$",
+  "^copilot$",
+  "^github-actions$",
+  "\\[bot\\]$",
+  "-bot$",
+  "-integration$",
+  "^chatgpt-codex",
+]
+
+# [ai] is optional. Controls which model the Copilot SDK uses for AI analyses.
+# Omit model to use the Copilot SDK default.
+#
+# Verify available model IDs:
+#   - Run `/model` inside an interactive `copilot` CLI session to list models
+#     supported by your account (default: Claude Sonnet 4.5).
+#   - GitHub Copilot CLI docs: https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli
+#   - Copilot SDK (TypeScript) — exposes `client.listModels()`:
+#     https://github.com/github/copilot-sdk
+#
+[ai]
+model = "gpt-5.3-codex"
+
+# [analyses] is optional. By default, every skill in skills/ and every compute
+# analysis registered in src/pipeline/stages/analyze.ts runs with built-in defaults.
+#
+# Use [analyses] only to disable a skill or override a tunable parameter:
+#
+# [analyses]
+# disabled = ["03_debated-prs"]
+#
+# [analyses.overrides]
+# "dora-metrics" = { firstReviewThresholdHours = 24 }

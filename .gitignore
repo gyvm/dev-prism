@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.DS_Store
+.env
+.env.*
+tmp/
+*.png
+.playwright-mcp
+
+# Real PR data — never commit. data/demo/ is the only tracked subtree.
+data/raw/
+data/analysis/
+data/history/
+data/latest.json

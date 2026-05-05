@@ -1,0 +1,1875 @@
+{
+  "period": {
+    "id": "2026-05-03",
+    "start": "2026-04-27T00:00:00.000Z",
+    "end": "2026-05-03T23:59:59.999Z"
+  },
+  "pullRequests": [
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "cli-tools"
+      },
+      "number": 505,
+      "title": "feat: add multi-language support (i18n)",
+      "bodyText": "Adds i18n support using react-i18next. Currently includes English and Japanese locale files. Other languages can be added by contributing to the locales/ directory.",
+      "url": "https://github.com/acme-corp/cli-tools/pull/505",
+      "state": "OPEN",
+      "author": "eve",
+      "createdAt": "2026-03-15T10:00:00Z",
+      "mergedAt": null,
+      "closedAt": null,
+      "additions": 380,
+      "deletions": 45,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "COMMENTED",
+          "submittedAt": "2026-03-20T10:00:00Z",
+          "bodyText": "Great initiative. Have you looked at i18next? It handles pluralization and interpolation well."
+        }
+      ],
+      "reviewRequests": [
+        {
+          "requestedReviewer": "frank"
+        }
+      ],
+      "timelineEvents": [],
+      "comments": [
+        {
+          "author": "eve",
+          "bodyText": "Yes, planning to use react-i18next for the frontend and i18next-fs-backend for the CLI layer.",
+          "createdAt": "2026-03-20T12:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/cli-tools/pull/505#issuecomment-1"
+        }
+      ],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "e0f1a6b7c8d9",
+          "committedDate": "2026-03-13T08:05:00Z",
+          "messageHeadline": "feat: add i18n infrastructure with react-i18next",
+          "author": "eve",
+          "authoredDate": "2026-03-13T08:00:00Z"
+        },
+        {
+          "oid": "f1a6b7c8d9e0",
+          "committedDate": "2026-03-15T15:00:00Z",
+          "messageHeadline": "feat: add English and Japanese locale files",
+          "author": "eve",
+          "authoredDate": "2026-03-15T14:30:00Z"
+        },
+        {
+          "oid": "a7b8c9d0e1f2",
+          "committedDate": "2026-03-18T10:00:00Z",
+          "messageHeadline": "feat: wire i18n into all UI components",
+          "author": "eve",
+          "authoredDate": "2026-03-18T09:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/i18n/index.ts",
+          "additions": 45,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/locales/en.json",
+          "additions": 120,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/locales/ja.json",
+          "additions": 120,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/Header.tsx",
+          "additions": 25,
+          "deletions": 18,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/pages/Settings.tsx",
+          "additions": 15,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/pages/Dashboard.tsx",
+          "additions": 18,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/pages/Profile.tsx",
+          "additions": 12,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "package.json",
+          "additions": 5,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "cli-tools"
+      },
+      "number": 509,
+      "title": "wip: explore WebSocket support for live notifications",
+      "bodyText": "Spike to evaluate ws vs socket.io for real-time notifications. Not ready for review — just preserving the exploration work.",
+      "url": "https://github.com/acme-corp/cli-tools/pull/509",
+      "state": "OPEN",
+      "author": "dave",
+      "createdAt": "2026-04-15T10:00:00Z",
+      "mergedAt": null,
+      "closedAt": null,
+      "additions": 95,
+      "deletions": 0,
+      "isDraft": true,
+      "labels": [],
+      "reviews": [],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a0b1c2d3e4f5",
+          "committedDate": "2026-04-15T09:45:00Z",
+          "messageHeadline": "spike: prototype WebSocket server with ws library",
+          "author": "dave",
+          "authoredDate": "2026-04-15T09:15:00Z"
+        },
+        {
+          "oid": "b1c2d3e4f5a0",
+          "committedDate": "2026-04-15T14:00:00Z",
+          "messageHeadline": "spike: compare socket.io approach for same use case",
+          "author": "dave",
+          "authoredDate": "2026-04-15T13:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "spike/ws-prototype/server.ts",
+          "additions": 48,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "spike/socketio-prototype/server.ts",
+          "additions": 47,
+          "deletions": 0,
+          "changeType": "ADDED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 55,
+      "title": "refactor: extract payment logic into dedicated service",
+      "bodyText": "Payment logic was scattered across three pages and a utility file. Extracted into PaymentService with a clean interface. Deleted the old utility file.",
+      "url": "https://github.com/acme-corp/web-app/pull/55",
+      "state": "MERGED",
+      "author": "bob",
+      "createdAt": "2026-04-27T08:00:00Z",
+      "mergedAt": "2026-05-01T11:00:00Z",
+      "closedAt": "2026-05-01T11:00:00Z",
+      "additions": 210,
+      "deletions": 195,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "refactor"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-28T10:00:00Z",
+          "bodyText": "Move the error handling into the service layer too — right now callers still need to know about Stripe error codes"
+        },
+        {
+          "author": "carol",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-30T15:00:00Z",
+          "bodyText": "Much cleaner now. The error handling refactor really makes a difference."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "d4e5f6a1b2c3",
+          "committedDate": "2026-04-23T15:00:00Z",
+          "messageHeadline": "refactor: create PaymentService class",
+          "author": "bob",
+          "authoredDate": "2026-04-23T15:00:00Z"
+        },
+        {
+          "oid": "e5f6a1b2c3d4",
+          "committedDate": "2026-04-28T16:00:00Z",
+          "messageHeadline": "refactor: migrate checkout.tsx and cart.tsx to PaymentService",
+          "author": "bob",
+          "authoredDate": "2026-04-28T15:30:00Z"
+        },
+        {
+          "oid": "f6a1b2c3d4e5",
+          "committedDate": "2026-04-29T10:00:00Z",
+          "messageHeadline": "refactor: move Stripe error handling into service layer",
+          "author": "bob",
+          "authoredDate": "2026-04-29T09:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/services/PaymentService.ts",
+          "additions": 185,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/pages/checkout.tsx",
+          "additions": 20,
+          "deletions": 95,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/pages/cart.tsx",
+          "additions": 5,
+          "deletions": 55,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/utils/payment.ts",
+          "additions": 0,
+          "deletions": 45,
+          "changeType": "DELETED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 502,
+      "title": "feat: migrate entire frontend from Webpack to Vite",
+      "bodyText": "Full migration from Webpack 5 to Vite 6. Build time drops from 4m10s to 18s. All 30+ config files updated. Dynamic imports, environment variables, and custom aliases all verified.",
+      "url": "https://github.com/acme-corp/web-app/pull/502",
+      "state": "MERGED",
+      "author": "bob",
+      "createdAt": "2026-04-27T08:00:00Z",
+      "mergedAt": "2026-05-03T16:00:00Z",
+      "closedAt": "2026-05-03T16:00:00Z",
+      "additions": 1842,
+      "deletions": 523,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "chore"
+        },
+        {
+          "name": "refactor"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "carol",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-30T16:00:00Z",
+          "bodyText": "Build config looks good overall, but we need to keep the legacy webpack config available behind a flag for one release cycle."
+        },
+        {
+          "author": "carol",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-03T09:00:00Z",
+          "bodyText": "LGTM 👍 Thanks for the LEGACY_BUILD flag."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a4b5c6d7e8f9",
+          "committedDate": "2026-04-22T10:00:00Z",
+          "messageHeadline": "chore: add Vite config and remove Webpack",
+          "author": "bob",
+          "authoredDate": "2026-04-22T10:00:00Z"
+        },
+        {
+          "oid": "b5c6d7e8f9a4",
+          "committedDate": "2026-04-27T14:00:00Z",
+          "messageHeadline": "chore: update all import aliases for Vite",
+          "author": "bob",
+          "authoredDate": "2026-04-27T13:30:00Z"
+        },
+        {
+          "oid": "c6d7e8f9a4b5",
+          "committedDate": "2026-04-28T10:00:00Z",
+          "messageHeadline": "chore: migrate env var handling to import.meta.env",
+          "author": "bob",
+          "authoredDate": "2026-04-28T09:30:00Z"
+        },
+        {
+          "oid": "d7e8f9a4b5c6",
+          "committedDate": "2026-04-28T17:00:00Z",
+          "messageHeadline": "chore: fix dynamic imports and code splitting",
+          "author": "bob",
+          "authoredDate": "2026-04-28T16:30:00Z"
+        },
+        {
+          "oid": "e8f9a4b5c6d7",
+          "committedDate": "2026-04-29T09:00:00Z",
+          "messageHeadline": "chore: update CI build scripts for Vite",
+          "author": "bob",
+          "authoredDate": "2026-04-29T08:30:00Z"
+        },
+        {
+          "oid": "f9a4b5c6d7e8",
+          "committedDate": "2026-04-29T16:00:00Z",
+          "messageHeadline": "chore: fix CSS module handling in Vite",
+          "author": "bob",
+          "authoredDate": "2026-04-29T15:30:00Z"
+        },
+        {
+          "oid": "a5b6c7d8e9f0",
+          "committedDate": "2026-04-30T11:00:00Z",
+          "messageHeadline": "chore: resolve SVG import issues with vite-plugin-svgr",
+          "author": "bob",
+          "authoredDate": "2026-04-30T10:30:00Z"
+        },
+        {
+          "oid": "b6c7d8e9f0a5",
+          "committedDate": "2026-05-01T10:00:00Z",
+          "messageHeadline": "chore: fix worker bundle configuration",
+          "author": "bob",
+          "authoredDate": "2026-05-01T09:30:00Z"
+        },
+        {
+          "oid": "fix502a",
+          "authoredDate": "2026-05-01T10:00:00Z",
+          "committedDate": "2026-05-01T10:05:00Z",
+          "messageHeadline": "fix: keep legacy webpack config behind LEGACY_BUILD flag",
+          "author": "bob"
+        },
+        {
+          "oid": "c7d8e9f0a5b6",
+          "committedDate": "2026-05-01T15:00:00Z",
+          "messageHeadline": "chore: update storybook to use Vite builder",
+          "author": "bob",
+          "authoredDate": "2026-05-01T14:30:00Z"
+        },
+        {
+          "oid": "d8e9f0a5b6c7",
+          "committedDate": "2026-05-02T09:00:00Z",
+          "messageHeadline": "test: verify all 847 tests pass with Vite build",
+          "author": "bob",
+          "authoredDate": "2026-05-02T08:30:00Z"
+        },
+        {
+          "oid": "fix502b",
+          "authoredDate": "2026-05-02T11:30:00Z",
+          "committedDate": "2026-05-02T11:35:00Z",
+          "messageHeadline": "docs: document the LEGACY_BUILD escape hatch",
+          "author": "bob"
+        },
+        {
+          "oid": "e9f0a5b6c7d8",
+          "committedDate": "2026-05-02T17:00:00Z",
+          "messageHeadline": "chore: cleanup leftover webpack.config.js and babel presets",
+          "author": "bob",
+          "authoredDate": "2026-05-02T16:30:00Z"
+        },
+        {
+          "oid": "f0a5b6c7d8e9",
+          "committedDate": "2026-05-03T08:00:00Z",
+          "messageHeadline": "docs: update CONTRIBUTING.md with new build commands",
+          "author": "bob",
+          "authoredDate": "2026-05-03T07:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "vite.config.ts",
+          "additions": 95,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "webpack.config.js",
+          "additions": 0,
+          "deletions": 180,
+          "changeType": "DELETED"
+        },
+        {
+          "path": "babel.config.js",
+          "additions": 0,
+          "deletions": 45,
+          "changeType": "DELETED"
+        },
+        {
+          "path": "package.json",
+          "additions": 28,
+          "deletions": 42,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/main.tsx",
+          "additions": 5,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/vite-env.d.ts",
+          "additions": 3,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": ".env.example",
+          "additions": 12,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/config/env.ts",
+          "additions": 22,
+          "deletions": 18,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/workers/backgroundSync.ts",
+          "additions": 15,
+          "deletions": 20,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": ".storybook/main.ts",
+          "additions": 18,
+          "deletions": 30,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/build.sh",
+          "additions": 10,
+          "deletions": 15,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/dev.sh",
+          "additions": 8,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "additions": 12,
+          "deletions": 18,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/assets/logo.svg",
+          "additions": 0,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/icons/index.ts",
+          "additions": 35,
+          "deletions": 28,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tsconfig.json",
+          "additions": 8,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tsconfig.build.json",
+          "additions": 6,
+          "deletions": 4,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/styles/globals.css",
+          "additions": 0,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/utils/lazyLoad.ts",
+          "additions": 25,
+          "deletions": 30,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/pages/index.ts",
+          "additions": 8,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "additions": 18,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "README.md",
+          "additions": 5,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/hooks/useAsyncModule.ts",
+          "additions": 20,
+          "deletions": 25,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/store/index.ts",
+          "additions": 3,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/router/index.ts",
+          "additions": 4,
+          "deletions": 6,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "jest.config.js",
+          "additions": 0,
+          "deletions": 28,
+          "changeType": "DELETED"
+        },
+        {
+          "path": "vitest.config.ts",
+          "additions": 32,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/test/setup.ts",
+          "additions": 8,
+          "deletions": 6,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/test/mocks/svgMock.ts",
+          "additions": 5,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "postcss.config.js",
+          "additions": 3,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tailwind.config.ts",
+          "additions": 2,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/lib/analytics.ts",
+          "additions": 4,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 507,
+      "title": "feat: redesign user onboarding flow",
+      "bodyText": "Complete redesign of the multi-step onboarding wizard. New flow: account setup → team invite → workspace config → tutorial. Tracks completion analytics.",
+      "url": "https://github.com/acme-corp/api-server/pull/507",
+      "state": "MERGED",
+      "author": "alice",
+      "createdAt": "2026-04-27T09:00:00Z",
+      "mergedAt": "2026-05-03T14:00:00Z",
+      "closedAt": "2026-05-03T14:00:00Z",
+      "additions": 450,
+      "deletions": 180,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "bob",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-28T15:00:00Z",
+          "bodyText": "The step progression logic is unclear — it's not obvious when a step is considered complete vs skipped. Also the analytics hooks are missing."
+        },
+        {
+          "author": "carol",
+          "state": "COMMENTED",
+          "submittedAt": "2026-04-28T17:00:00Z",
+          "bodyText": "Agree with Bob. The step state machine needs clearer transitions."
+        },
+        {
+          "author": "bob",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-30T11:00:00Z",
+          "bodyText": "Step logic is better, but error recovery is broken now — if the team invite API fails, the wizard gets stuck."
+        },
+        {
+          "author": "carol",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-02T09:00:00Z",
+          "bodyText": "LGTM after the error handling fix."
+        },
+        {
+          "author": "bob",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-03T10:00:00Z",
+          "bodyText": "All issues resolved. Ship it."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [
+        {
+          "author": "alice",
+          "bodyText": "Pushed the step state machine refactor. Each step now has explicit `pending/active/complete/skipped` states.",
+          "createdAt": "2026-04-29T18:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/507#issuecomment-1"
+        },
+        {
+          "author": "bob",
+          "bodyText": "The state machine is clearer now. But the team invite step can still get stuck if the API times out — needs a retry or skip fallback.",
+          "createdAt": "2026-04-30T09:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/507#issuecomment-2"
+        },
+        {
+          "author": "alice",
+          "bodyText": "Added retry with exponential backoff (max 3 attempts) and a skip option after the third failure. Also added analytics events for each step transition.",
+          "createdAt": "2026-05-01T16:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/507#issuecomment-3"
+        }
+      ],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a8b9c0d1e2f3",
+          "committedDate": "2026-04-23T11:00:00Z",
+          "messageHeadline": "feat: scaffold new onboarding wizard component",
+          "author": "alice",
+          "authoredDate": "2026-04-23T11:00:00Z"
+        },
+        {
+          "oid": "b9c0d1e2f3a8",
+          "committedDate": "2026-04-27T14:00:00Z",
+          "messageHeadline": "feat: add step components for account setup and team invite",
+          "author": "alice",
+          "authoredDate": "2026-04-27T13:30:00Z"
+        },
+        {
+          "oid": "c0d1e2f3a8b9",
+          "committedDate": "2026-04-28T10:00:00Z",
+          "messageHeadline": "feat: add workspace config and tutorial steps",
+          "author": "alice",
+          "authoredDate": "2026-04-28T09:30:00Z"
+        },
+        {
+          "oid": "d1e2f3a8b9c0",
+          "committedDate": "2026-04-29T17:00:00Z",
+          "messageHeadline": "refactor: introduce explicit step state machine",
+          "author": "alice",
+          "authoredDate": "2026-04-29T16:30:00Z"
+        },
+        {
+          "oid": "e2f3a8b9c0d1",
+          "committedDate": "2026-04-30T09:00:00Z",
+          "messageHeadline": "refactor: clarify step completion and skip transitions",
+          "author": "alice",
+          "authoredDate": "2026-04-30T08:30:00Z"
+        },
+        {
+          "oid": "f3a8b9c0d1e2",
+          "committedDate": "2026-05-01T10:00:00Z",
+          "messageHeadline": "fix: add retry logic for team invite API failures",
+          "author": "alice",
+          "authoredDate": "2026-05-01T09:30:00Z"
+        },
+        {
+          "oid": "a9b0c1d2e3f4",
+          "committedDate": "2026-05-01T14:00:00Z",
+          "messageHeadline": "fix: add skip fallback after 3 failed team invite attempts",
+          "author": "alice",
+          "authoredDate": "2026-05-01T13:30:00Z"
+        },
+        {
+          "oid": "b0c1d2e3f4a9",
+          "committedDate": "2026-05-01T15:30:00Z",
+          "messageHeadline": "feat: add analytics tracking for step transitions",
+          "author": "alice",
+          "authoredDate": "2026-05-01T15:00:00Z"
+        },
+        {
+          "oid": "c1d2e3f4a9b0",
+          "committedDate": "2026-05-02T11:00:00Z",
+          "messageHeadline": "test: add unit tests for step state machine",
+          "author": "alice",
+          "authoredDate": "2026-05-02T10:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/components/Onboarding/OnboardingWizard.tsx",
+          "additions": 120,
+          "deletions": 80,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/Onboarding/steps/AccountSetup.tsx",
+          "additions": 65,
+          "deletions": 30,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/Onboarding/steps/TeamInvite.tsx",
+          "additions": 85,
+          "deletions": 40,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/Onboarding/steps/WorkspaceConfig.tsx",
+          "additions": 70,
+          "deletions": 20,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/components/Onboarding/stepMachine.ts",
+          "additions": 80,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/analytics/onboarding.ts",
+          "additions": 30,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 508,
+      "title": "feat: replace REST API with GraphQL",
+      "bodyText": "Proposes a full migration from REST to GraphQL using Apollo Server. Schema defined in schema.graphql. All existing REST endpoints would be deprecated.",
+      "url": "https://github.com/acme-corp/api-server/pull/508",
+      "state": "CLOSED",
+      "author": "carol",
+      "createdAt": "2026-04-27T10:00:00Z",
+      "mergedAt": null,
+      "closedAt": "2026-05-02T15:00:00Z",
+      "additions": 640,
+      "deletions": 25,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        },
+        {
+          "name": "discussion"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-28T09:00:00Z",
+          "bodyText": "This would silently break all existing API clients. We need a versioning strategy and migration period before removing REST endpoints."
+        },
+        {
+          "author": "dave",
+          "state": "COMMENTED",
+          "submittedAt": "2026-04-28T11:00:00Z",
+          "bodyText": "Too risky without a proper deprecation strategy. Also our mobile clients are pinned to the REST API and can't update quickly."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [
+        {
+          "author": "carol",
+          "bodyText": "REST has been causing performance issues with complex queries — clients are making 5–8 chained requests for a single screen. GraphQL would solve that with a single query.",
+          "createdAt": "2026-04-27T10:10:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/508#issuecomment-1"
+        },
+        {
+          "author": "alice",
+          "bodyText": "Agreed on the problem. But the solution should be additive — add a /graphql endpoint alongside REST, not replace it. Give clients time to migrate over 6–12 months.",
+          "createdAt": "2026-04-28T10:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/508#issuecomment-2"
+        },
+        {
+          "author": "bob",
+          "bodyText": "Agree with Alice. Let's also check if REST + DataLoader could solve the N+1 problem first before committing to GraphQL.",
+          "createdAt": "2026-04-29T09:00:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/508#issuecomment-3"
+        },
+        {
+          "author": "carol",
+          "bodyText": "Fair points. I'll open a separate RFC for the opt-in GraphQL endpoint approach. Closing this PR.",
+          "createdAt": "2026-05-02T14:50:00Z",
+          "updatedAt": null,
+          "url": "https://github.com/acme-corp/api-server/pull/508#issuecomment-4"
+        }
+      ],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "d2e3f4a9b0c1",
+          "committedDate": "2026-04-22T14:00:00Z",
+          "messageHeadline": "feat: add Apollo Server with initial schema",
+          "author": "carol",
+          "authoredDate": "2026-04-22T14:00:00Z"
+        },
+        {
+          "oid": "e3f4a9b0c1d2",
+          "committedDate": "2026-04-27T16:00:00Z",
+          "messageHeadline": "feat: migrate user and auth resolvers to GraphQL",
+          "author": "carol",
+          "authoredDate": "2026-04-27T15:30:00Z"
+        },
+        {
+          "oid": "f4a9b0c1d2e3",
+          "committedDate": "2026-04-28T08:00:00Z",
+          "messageHeadline": "feat: migrate project and workspace resolvers",
+          "author": "carol",
+          "authoredDate": "2026-04-28T07:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/graphql/schema.graphql",
+          "additions": 220,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/graphql/resolvers/user.ts",
+          "additions": 145,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/graphql/resolvers/project.ts",
+          "additions": 130,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/graphql/server.ts",
+          "additions": 65,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/app.ts",
+          "additions": 15,
+          "deletions": 10,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "package.json",
+          "additions": 5,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "package-lock.json",
+          "additions": 60,
+          "deletions": 15,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 202,
+      "title": "feat: add request rate limiting to public API endpoints",
+      "bodyText": "Implements sliding window rate limiting using Redis. Limits are configurable per route. Returns 429 with Retry-After header when exceeded.",
+      "url": "https://github.com/acme-corp/api-server/pull/202",
+      "state": "MERGED",
+      "author": "carol",
+      "createdAt": "2026-04-27T11:00:00Z",
+      "mergedAt": "2026-04-29T09:00:00Z",
+      "closedAt": "2026-04-29T09:00:00Z",
+      "additions": 85,
+      "deletions": 12,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "dave",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-28T14:00:00Z",
+          "bodyText": "Solid implementation, the sliding window approach makes sense for our traffic patterns"
+        },
+        {
+          "author": "alice",
+          "state": "COMMENTED",
+          "submittedAt": "2026-04-28T16:00:00Z",
+          "bodyText": "Nice work. Worth noting the Redis dependency in the deployment docs."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "b2c3d4e5f6a1",
+          "committedDate": "2026-04-26T16:00:00Z",
+          "messageHeadline": "feat: add rate limiter middleware with Redis backend",
+          "author": "carol",
+          "authoredDate": "2026-04-26T16:00:00Z"
+        },
+        {
+          "oid": "c3d4e5f6a1b2",
+          "committedDate": "2026-04-27T14:20:00Z",
+          "messageHeadline": "feat: apply rate limiting to /api/v1 routes",
+          "author": "carol",
+          "authoredDate": "2026-04-27T13:50:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/middleware/rateLimiter.ts",
+          "additions": 68,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/app.ts",
+          "additions": 17,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 101,
+      "title": "fix: login button unresponsive after failed auth attempt",
+      "bodyText": "After a failed login attempt, the button enters a disabled state and never recovers. Added a reset on the error boundary so users can retry without refreshing the page.",
+      "url": "https://github.com/acme-corp/web-app/pull/101",
+      "state": "MERGED",
+      "author": "alice",
+      "createdAt": "2026-04-28T09:00:00Z",
+      "mergedAt": "2026-04-28T15:30:00Z",
+      "closedAt": "2026-04-28T15:30:00Z",
+      "additions": 18,
+      "deletions": 6,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "bug"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "bob",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-28T13:00:00Z",
+          "bodyText": "LGTM, good catch"
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a1b2c3d4e5f6",
+          "committedDate": "2026-04-28T05:30:00Z",
+          "messageHeadline": "fix: reset login button state after auth error",
+          "author": "alice",
+          "authoredDate": "2026-04-28T05:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/components/LoginForm.tsx",
+          "additions": 18,
+          "deletions": 6,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 504,
+      "title": "feat: replace session cookies with JWT tokens",
+      "bodyText": "Migrates auth from server-side sessions to stateless JWT. Access token TTL is 15m, refresh token is 7d. Resolves scalability issues with session storage.",
+      "url": "https://github.com/acme-corp/api-server/pull/504",
+      "state": "MERGED",
+      "author": "dave",
+      "createdAt": "2026-04-28T10:00:00Z",
+      "mergedAt": "2026-05-02T18:00:00Z",
+      "closedAt": "2026-05-02T18:00:00Z",
+      "additions": 220,
+      "deletions": 85,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "security"
+        },
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-30T11:00:00Z",
+          "bodyText": "JWT rotation logic is missing. Please add a refresh-token endpoint and document the expiry strategy before merging."
+        },
+        {
+          "author": "alice",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-02T09:00:00Z",
+          "bodyText": "Refresh-token flow looks solid. Approved."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [
+        {
+          "isResolved": false,
+          "isOutdated": false,
+          "path": "src/auth/jwt.ts",
+          "line": 34,
+          "startLine": 30,
+          "comments": [
+            {
+              "author": "alice",
+              "bodyText": "Token expiry should be configurable via environment variable, not hardcoded to 15m.",
+              "createdAt": "2026-04-30T09:00:00Z",
+              "updatedAt": null,
+              "url": "https://github.com/acme-corp/api-server/pull/504#discussion_r1",
+              "path": "src/auth/jwt.ts",
+              "line": 34
+            },
+            {
+              "author": "dave",
+              "bodyText": "Agreed. Will address in a follow-up PR to keep this diff focused.",
+              "createdAt": "2026-04-30T11:00:00Z",
+              "updatedAt": null,
+              "url": "https://github.com/acme-corp/api-server/pull/504#discussion_r2",
+              "path": "src/auth/jwt.ts",
+              "line": 34
+            }
+          ]
+        },
+        {
+          "isResolved": false,
+          "isOutdated": false,
+          "path": "src/middleware/auth.ts",
+          "line": 58,
+          "startLine": null,
+          "comments": [
+            {
+              "author": "bob",
+              "bodyText": "Should we also invalidate old tokens on logout? Right now a stolen token stays valid until expiry.",
+              "createdAt": "2026-05-01T08:00:00Z",
+              "updatedAt": null,
+              "url": "https://github.com/acme-corp/api-server/pull/504#discussion_r3",
+              "path": "src/middleware/auth.ts",
+              "line": 58
+            },
+            {
+              "author": "dave",
+              "bodyText": "Good point. Need a token blocklist for that. Tracking in issue #510.",
+              "createdAt": "2026-05-01T09:00:00Z",
+              "updatedAt": null,
+              "url": "https://github.com/acme-corp/api-server/pull/504#discussion_r4",
+              "path": "src/middleware/auth.ts",
+              "line": 58
+            }
+          ]
+        }
+      ],
+      "commits": [
+        {
+          "oid": "b7c8d9e0f1a6",
+          "committedDate": "2026-04-24T13:00:00Z",
+          "messageHeadline": "feat: implement JWT issuance and validation",
+          "author": "dave",
+          "authoredDate": "2026-04-24T13:00:00Z"
+        },
+        {
+          "oid": "c8d9e0f1a6b7",
+          "committedDate": "2026-04-29T14:00:00Z",
+          "messageHeadline": "feat: add refresh token rotation logic",
+          "author": "dave",
+          "authoredDate": "2026-04-29T13:30:00Z"
+        },
+        {
+          "oid": "d9e0f1a6b7c8",
+          "committedDate": "2026-04-30T10:00:00Z",
+          "messageHeadline": "refactor: remove session middleware and Redis session store",
+          "author": "dave",
+          "authoredDate": "2026-04-30T09:30:00Z"
+        },
+        {
+          "oid": "fix504a",
+          "authoredDate": "2026-04-30T17:00:00Z",
+          "committedDate": "2026-04-30T17:05:00Z",
+          "messageHeadline": "feat: add /auth/refresh endpoint and rotation policy",
+          "author": "dave"
+        },
+        {
+          "oid": "fix504b",
+          "authoredDate": "2026-05-01T08:00:00Z",
+          "committedDate": "2026-05-01T08:05:00Z",
+          "messageHeadline": "docs: document JWT rotation strategy",
+          "author": "dave"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/auth/jwt.ts",
+          "additions": 95,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/middleware/auth.ts",
+          "additions": 60,
+          "deletions": 45,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/middleware/session.ts",
+          "additions": 0,
+          "deletions": 40,
+          "changeType": "DELETED"
+        },
+        {
+          "path": "src/routes/auth.ts",
+          "additions": 65,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 88,
+      "title": "feat: add real-time dashboard for system health metrics",
+      "bodyText": "Adds a /metrics/dashboard endpoint that aggregates CPU, memory, request latency, and error rates. Metrics are streamed via SSE. Includes a data retention policy (7 days default).",
+      "url": "https://github.com/acme-corp/api-server/pull/88",
+      "state": "MERGED",
+      "author": "dave",
+      "createdAt": "2026-04-28T14:00:00Z",
+      "mergedAt": "2026-05-02T10:00:00Z",
+      "closedAt": "2026-05-02T10:00:00Z",
+      "additions": 320,
+      "deletions": 45,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-04-29T09:00:00Z",
+          "bodyText": "Looks good overall. Please add a data retention policy so old metrics don't accumulate indefinitely."
+        },
+        {
+          "author": "bob",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-01T14:00:00Z",
+          "bodyText": "Retention policy is solid. Ship it."
+        },
+        {
+          "author": "carol",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-01T16:00:00Z",
+          "bodyText": "LGTM"
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a2b3c4d5e6f7",
+          "committedDate": "2026-04-25T10:00:00Z",
+          "messageHeadline": "feat: add metrics aggregation service",
+          "author": "dave",
+          "authoredDate": "2026-04-25T10:00:00Z"
+        },
+        {
+          "oid": "b3c4d5e6f7a2",
+          "committedDate": "2026-04-28T18:00:00Z",
+          "messageHeadline": "feat: add SSE endpoint for dashboard streaming",
+          "author": "dave",
+          "authoredDate": "2026-04-28T17:30:00Z"
+        },
+        {
+          "oid": "c4d5e6f7a2b3",
+          "committedDate": "2026-04-29T20:00:00Z",
+          "messageHeadline": "feat: add 7-day data retention with cron cleanup",
+          "author": "dave",
+          "authoredDate": "2026-04-29T19:30:00Z"
+        },
+        {
+          "oid": "d5e6f7a2b3c4",
+          "committedDate": "2026-04-30T09:00:00Z",
+          "messageHeadline": "test: add unit tests for retention policy",
+          "author": "dave",
+          "authoredDate": "2026-04-30T08:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/services/MetricsService.ts",
+          "additions": 145,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/routes/metrics.ts",
+          "additions": 88,
+          "deletions": 20,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/jobs/metricsCleanup.ts",
+          "additions": 52,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/config/metrics.ts",
+          "additions": 35,
+          "deletions": 25,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 300,
+      "title": "chore: upgrade React from 18 to 19 and update peer deps",
+      "bodyText": "Ran the official React 19 codemod, updated peer dependencies, and verified all tests pass. No breaking changes in our usage.",
+      "url": "https://github.com/acme-corp/web-app/pull/300",
+      "state": "MERGED",
+      "author": "eve",
+      "createdAt": "2026-04-29T10:00:00Z",
+      "mergedAt": "2026-04-30T11:00:00Z",
+      "closedAt": "2026-04-30T11:00:00Z",
+      "additions": 42,
+      "deletions": 38,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "chore"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-29T15:00:00Z",
+          "bodyText": "Ran the upgrade locally, all tests pass. Good to merge."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "e6f7a2b3c4d5",
+          "committedDate": "2026-04-29T05:00:00Z",
+          "messageHeadline": "chore: upgrade React to 19.0.0 and update peer deps",
+          "author": "eve",
+          "authoredDate": "2026-04-29T05:00:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "package.json",
+          "additions": 8,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "package-lock.json",
+          "additions": 34,
+          "deletions": 30,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 501,
+      "title": "feat: add dark mode to settings panel",
+      "bodyText": "Adds a dark mode toggle to the user settings panel. Persists preference to localStorage and applies via CSS custom properties.",
+      "url": "https://github.com/acme-corp/web-app/pull/501",
+      "state": "MERGED",
+      "author": "alice",
+      "createdAt": "2026-04-29T13:00:00Z",
+      "mergedAt": "2026-04-30T09:00:00Z",
+      "closedAt": "2026-04-30T09:00:00Z",
+      "additions": 110,
+      "deletions": 25,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "alice",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-30T08:30:00Z",
+          "bodyText": "Looks good to me"
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "d6e7f8a3b4c5",
+          "committedDate": "2026-04-29T03:00:00Z",
+          "messageHeadline": "feat: add dark mode CSS custom properties",
+          "author": "alice",
+          "authoredDate": "2026-04-29T03:00:00Z"
+        },
+        {
+          "oid": "e7f8a3b4c5d6",
+          "committedDate": "2026-04-29T17:00:00Z",
+          "messageHeadline": "feat: add dark mode toggle component",
+          "author": "alice",
+          "authoredDate": "2026-04-29T16:30:00Z"
+        },
+        {
+          "oid": "f8a3b4c5d6e7",
+          "committedDate": "2026-04-29T18:30:00Z",
+          "messageHeadline": "feat: persist dark mode preference to localStorage",
+          "author": "alice",
+          "authoredDate": "2026-04-29T18:00:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/components/DarkModeToggle.tsx",
+          "additions": 65,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/pages/Settings.tsx",
+          "additions": 30,
+          "deletions": 20,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/styles/theme.css",
+          "additions": 15,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 503,
+      "title": "fix: broken production build due to missing env var",
+      "bodyText": "NODE_ENV was missing from the production Dockerfile ENV block. Build fails at startup. One-line fix.",
+      "url": "https://github.com/acme-corp/api-server/pull/503",
+      "state": "MERGED",
+      "author": "carol",
+      "createdAt": "2026-04-29T22:47:00Z",
+      "mergedAt": "2026-04-29T22:59:00Z",
+      "closedAt": "2026-04-29T22:59:00Z",
+      "additions": 3,
+      "deletions": 0,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "hotfix"
+        }
+      ],
+      "reviews": [],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a6b7c8d9e0f1",
+          "committedDate": "2026-04-29T20:00:00Z",
+          "messageHeadline": "fix: add NODE_ENV to Dockerfile production ENV block",
+          "author": "carol",
+          "authoredDate": "2026-04-29T20:00:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "Dockerfile",
+          "additions": 3,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "cli-tools"
+      },
+      "number": 500,
+      "title": "hotfix: revert broken deploy config",
+      "bodyText": "The deploy config pushed in #498 broke staging. Reverting to the last known-good state. No time for a formal review — staging is down.",
+      "url": "https://github.com/acme-corp/cli-tools/pull/500",
+      "state": "MERGED",
+      "author": "alice",
+      "createdAt": "2026-04-30T02:10:00Z",
+      "mergedAt": "2026-04-30T04:30:00Z",
+      "closedAt": "2026-04-30T04:30:00Z",
+      "additions": 8,
+      "deletions": 8,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "hotfix"
+        }
+      ],
+      "reviews": [],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "c5d6e7f8a3b4",
+          "committedDate": "2026-04-29T22:00:00Z",
+          "messageHeadline": "revert: undo deploy config change from #498",
+          "author": "alice",
+          "authoredDate": "2026-04-29T22:00:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "deploy/config.yml",
+          "additions": 8,
+          "deletions": 8,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "api-server"
+      },
+      "number": 301,
+      "title": "docs: update API authentication guide with OAuth 2.0 examples",
+      "bodyText": "The existing auth docs only covered API key auth. Added OAuth 2.0 PKCE flow examples with curl and JavaScript snippets, and updated the token refresh section.",
+      "url": "https://github.com/acme-corp/api-server/pull/301",
+      "state": "MERGED",
+      "author": "frank",
+      "createdAt": "2026-04-30T09:00:00Z",
+      "mergedAt": "2026-04-30T14:00:00Z",
+      "closedAt": "2026-04-30T14:00:00Z",
+      "additions": 95,
+      "deletions": 22,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "documentation"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "bob",
+          "state": "APPROVED",
+          "submittedAt": "2026-04-30T12:00:00Z",
+          "bodyText": "Examples are clear and accurate. The PKCE section was missing before."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "f7a2b3c4d5e6",
+          "committedDate": "2026-04-30T04:30:00Z",
+          "messageHeadline": "docs: add OAuth 2.0 PKCE flow examples to auth guide",
+          "author": "frank",
+          "authoredDate": "2026-04-30T04:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/authentication.md",
+          "additions": 95,
+          "deletions": 22,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 302,
+      "title": "test: add integration tests for checkout flow",
+      "bodyText": "Adds Playwright integration tests covering the full checkout flow: add to cart → enter payment → order confirmation. Covers happy path and card decline scenario.",
+      "url": "https://github.com/acme-corp/web-app/pull/302",
+      "state": "MERGED",
+      "author": "carol",
+      "createdAt": "2026-05-01T09:00:00Z",
+      "mergedAt": "2026-05-02T13:00:00Z",
+      "closedAt": "2026-05-02T13:00:00Z",
+      "additions": 145,
+      "deletions": 0,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "testing"
+        }
+      ],
+      "reviews": [
+        {
+          "author": "dave",
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-05-01T13:00:00Z",
+          "bodyText": "Looks close. One concern with error handling — see inline comment."
+        },
+        {
+          "author": "dave",
+          "state": "APPROVED",
+          "submittedAt": "2026-05-02T11:00:00Z",
+          "bodyText": "Thanks for addressing the feedback."
+        }
+      ],
+      "reviewRequests": [],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "a3b4c5d6e7f8",
+          "committedDate": "2026-04-30T15:00:00Z",
+          "messageHeadline": "test: add Playwright tests for checkout happy path",
+          "author": "carol",
+          "authoredDate": "2026-04-30T15:00:00Z"
+        },
+        {
+          "oid": "b4c5d6e7f8a3",
+          "committedDate": "2026-05-01T14:00:00Z",
+          "messageHeadline": "test: add card decline and retry scenarios",
+          "author": "carol",
+          "authoredDate": "2026-05-01T13:30:00Z"
+        },
+        {
+          "oid": "fix302a",
+          "authoredDate": "2026-05-02T08:30:00Z",
+          "committedDate": "2026-05-02T08:35:00Z",
+          "messageHeadline": "fix: improve error handling per review",
+          "author": "carol"
+        }
+      ],
+      "files": [
+        {
+          "path": "tests/e2e/checkout.spec.ts",
+          "additions": 145,
+          "deletions": 0,
+          "changeType": "ADDED"
+        }
+      ]
+    },
+    {
+      "repo": {
+        "owner": "acme-corp",
+        "name": "web-app"
+      },
+      "number": 506,
+      "title": "feat: add Stripe payment integration",
+      "bodyText": "Integrates Stripe Checkout for one-time purchases and Stripe Billing for subscriptions. Includes webhook handler for payment events. Needs review from alice (security), bob (backend), carol (frontend).",
+      "url": "https://github.com/acme-corp/web-app/pull/506",
+      "state": "OPEN",
+      "author": "frank",
+      "createdAt": "2026-05-01T14:00:00Z",
+      "mergedAt": null,
+      "closedAt": null,
+      "additions": 485,
+      "deletions": 30,
+      "isDraft": false,
+      "labels": [
+        {
+          "name": "feature"
+        }
+      ],
+      "reviews": [],
+      "reviewRequests": [
+        {
+          "requestedReviewer": "alice"
+        },
+        {
+          "requestedReviewer": "bob"
+        },
+        {
+          "requestedReviewer": "carol"
+        }
+      ],
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        {
+          "oid": "b8c9d0e1f2a7",
+          "committedDate": "2026-04-29T11:00:00Z",
+          "messageHeadline": "feat: add Stripe client and checkout session creation",
+          "author": "frank",
+          "authoredDate": "2026-04-29T11:00:00Z"
+        },
+        {
+          "oid": "c9d0e1f2a7b8",
+          "committedDate": "2026-05-01T16:00:00Z",
+          "messageHeadline": "feat: add webhook handler for payment.succeeded events",
+          "author": "frank",
+          "authoredDate": "2026-05-01T15:30:00Z"
+        },
+        {
+          "oid": "d0e1f2a7b8c9",
+          "committedDate": "2026-05-02T09:00:00Z",
+          "messageHeadline": "feat: add Stripe Billing subscription flow",
+          "author": "frank",
+          "authoredDate": "2026-05-02T08:30:00Z"
+        },
+        {
+          "oid": "e1f2a7b8c9d0",
+          "committedDate": "2026-05-02T14:00:00Z",
+          "messageHeadline": "feat: add checkout UI components",
+          "author": "frank",
+          "authoredDate": "2026-05-02T13:30:00Z"
+        },
+        {
+          "oid": "f2a7b8c9d0e1",
+          "committedDate": "2026-05-02T17:00:00Z",
+          "messageHeadline": "test: add unit tests for payment service",
+          "author": "frank",
+          "authoredDate": "2026-05-02T16:30:00Z"
+        }
+      ],
+      "files": [
+        {
+          "path": "src/services/StripeService.ts",
+          "additions": 165,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/routes/webhooks.ts",
+          "additions": 85,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/CheckoutButton.tsx",
+          "additions": 55,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/components/PricingPlans.tsx",
+          "additions": 95,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "src/pages/Billing.tsx",
+          "additions": 75,
+          "deletions": 25,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "src/app.ts",
+          "additions": 10,
+          "deletions": 5,
+          "changeType": "MODIFIED"
+        }
+      ]
+    },
+    {
+      "repo": { "owner": "acme-corp", "name": "web-app" },
+      "number": 150,
+      "title": "build(deps): bump zod from 3.23.4 to 3.23.8",
+      "bodyText": "Bumps zod from 3.23.4 to 3.23.8.",
+      "url": "https://github.com/acme-corp/web-app/pull/150",
+      "state": "MERGED",
+      "author": "dependabot[bot]",
+      "createdAt": "2026-05-04T02:00:00Z",
+      "mergedAt": "2026-05-04T03:30:00Z",
+      "closedAt": "2026-05-04T03:30:00Z",
+      "additions": 4,
+      "deletions": 4,
+      "labels": [{ "name": "dependencies" }],
+      "reviews": [
+        { "author": "bob", "state": "APPROVED", "submittedAt": "2026-05-04T03:25:00Z", "bodyText": "LGTM" }
+      ],
+      "reviewRequests": [],
+      "isDraft": false,
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        { "oid": "deadbeef00010002000300040005000600070008", "committedDate": "2026-05-04T01:55:00Z", "messageHeadline": "build(deps): bump zod from 3.23.4 to 3.23.8", "author": "dependabot[bot]" }
+      ],
+      "files": [
+        { "path": "package.json", "additions": 1, "deletions": 1, "changeType": "MODIFIED" },
+        { "path": "package-lock.json", "additions": 3, "deletions": 3, "changeType": "MODIFIED" }
+      ]
+    },
+    {
+      "repo": { "owner": "acme-corp", "name": "api-server" },
+      "number": 250,
+      "title": "feat: add rate limiting middleware",
+      "bodyText": "外部APIへの呼び出しにレートリミットを導入。",
+      "url": "https://github.com/acme-corp/api-server/pull/250",
+      "state": "MERGED",
+      "author": "alice",
+      "createdAt": "2026-05-05T05:00:00Z",
+      "mergedAt": "2026-05-05T18:30:00Z",
+      "closedAt": "2026-05-05T18:30:00Z",
+      "additions": 80,
+      "deletions": 12,
+      "labels": [{ "name": "feature" }],
+      "reviews": [
+        { "author": "coderabbitai[bot]", "state": "COMMENTED", "submittedAt": "2026-05-05T05:30:00Z", "bodyText": "可読性のために定数化を提案。" },
+        { "author": "bob", "state": "APPROVED", "submittedAt": "2026-05-05T17:30:00Z", "bodyText": "looks good" }
+      ],
+      "reviewRequests": [],
+      "isDraft": false,
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        { "oid": "cafeb0ba00010002000300040005000600070008", "committedDate": "2026-05-05T04:55:00Z", "messageHeadline": "feat: add rate limiting middleware", "author": "alice" }
+      ],
+      "files": [
+        { "path": "src/middleware/rateLimit.ts", "additions": 80, "deletions": 0, "changeType": "ADDED" },
+        { "path": "src/server.ts", "additions": 0, "deletions": 12, "changeType": "MODIFIED" }
+      ]
+    },
+    {
+      "repo": { "owner": "widgets-inc", "name": "dashboard" },
+      "number": 130,
+      "title": "chore(deps): update next.js to 15.0.4",
+      "bodyText": "Renovate auto-update.",
+      "url": "https://github.com/widgets-inc/dashboard/pull/130",
+      "state": "OPEN",
+      "author": "renovate[bot]",
+      "createdAt": "2026-05-06T22:00:00Z",
+      "mergedAt": null,
+      "closedAt": null,
+      "additions": 6,
+      "deletions": 6,
+      "labels": [{ "name": "dependencies" }, { "name": "javascript" }],
+      "reviews": [],
+      "reviewRequests": [],
+      "isDraft": false,
+      "timelineEvents": [],
+      "comments": [],
+      "reviewThreads": [],
+      "commits": [
+        { "oid": "feedface00010002000300040005000600070008", "committedDate": "2026-05-06T21:55:00Z", "messageHeadline": "chore(deps): update next.js to 15.0.4", "author": "renovate[bot]" }
+      ],
+      "files": [
+        { "path": "package.json", "additions": 2, "deletions": 2, "changeType": "MODIFIED" },
+        { "path": "package-lock.json", "additions": 4, "deletions": 4, "changeType": "MODIFIED" }
+      ]
+    }
+  ]
+}
