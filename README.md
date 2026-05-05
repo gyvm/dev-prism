@@ -249,15 +249,6 @@ npm run build       # tsc
 
 デバッグの定石: 一度 `npm run report` で `data/raw/<period>.json` を作っておき、以降は `npm run report -- --use-raw data/raw/<period>.json --skip-ai` で API を叩かず analyze + render だけを高速に回せます。
 
-## Claude Code プラグインとして
-
-このリポジトリは `.claude-plugin/plugin.json` を同梱しており、Claude Code のローカルプラグインとして配布できます。
-
-```text
-/plugin marketplace add /path/to/gh-insights
-/plugin install gh-insights@local
-```
-
 ## License
 
 MIT License. 詳細は [LICENSE](./LICENSE) を参照してください。
