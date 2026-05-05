@@ -6,6 +6,7 @@ coverage
 .env.*
 tmp/
 *.png
+!docs/images/*.png
 .playwright-mcp
 
 # Real PR data — never commit. data/demo/ is the only tracked subtree.
