@@ -1,0 +1,30 @@
+{
+  "period": "2026-05-03",
+  "generatedAt": "2026-05-05T14:50:48.426Z",
+  "results": [
+    {
+      "id": "dora-metrics",
+      "status": "ok"
+    },
+    {
+      "id": "pr-timeline",
+      "status": "ok"
+    },
+    {
+      "id": "review-correlation",
+      "status": "ok"
+    },
+    {
+      "id": "01_project-progress",
+      "status": "ok"
+    },
+    {
+      "id": "02_follow-up-prs",
+      "status": "ok"
+    },
+    {
+      "id": "03_debated-prs",
+      "status": "ok"
+    }
+  ]
+}

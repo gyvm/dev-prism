@@ -1,0 +1,12 @@
+{
+  "id": "dora-metrics",
+  "format": "json",
+  "status": "ok",
+  "renderer": "metric-cards",
+  "data": {
+    "deploymentFrequency": 15,
+    "leadTimeForChangesHours": 25,
+    "changeFailureRatePercent": 13.333333333333334,
+    "mttrHours": 1.2666666666666668
+  }
+}

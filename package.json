@@ -14,7 +14,7 @@
     "test": "vitest run",
     "collect": "tsx src/cli/collect.ts",
     "report": "tsx src/cli/report.ts",
-    "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir dist/demo/reports --index dist/demo/index.html --analysis-dir dist/demo/analysis"
+    "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
   },
   "dependencies": {
     "@github/copilot-sdk": "^0.3.0",

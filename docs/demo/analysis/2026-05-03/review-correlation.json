@@ -1,0 +1,144 @@
+{
+  "id": "review-correlation",
+  "format": "json",
+  "status": "ok",
+  "renderer": "bipartite-graph",
+  "data": {
+    "authors": [
+      {
+        "login": "alice",
+        "prCount": 5,
+        "kind": "human"
+      },
+      {
+        "login": "carol",
+        "prCount": 4,
+        "kind": "human"
+      },
+      {
+        "login": "dave",
+        "prCount": 3,
+        "kind": "human"
+      },
+      {
+        "login": "bob",
+        "prCount": 2,
+        "kind": "human"
+      },
+      {
+        "login": "eve",
+        "prCount": 2,
+        "kind": "human"
+      },
+      {
+        "login": "frank",
+        "prCount": 2,
+        "kind": "human"
+      },
+      {
+        "login": "dependabot[bot]",
+        "prCount": 1,
+        "kind": "bot"
+      },
+      {
+        "login": "renovate[bot]",
+        "prCount": 1,
+        "kind": "bot"
+      }
+    ],
+    "reviewers": [
+      {
+        "login": "alice",
+        "reviewCount": 7,
+        "kind": "human"
+      },
+      {
+        "login": "bob",
+        "reviewCount": 6,
+        "kind": "human"
+      },
+      {
+        "login": "carol",
+        "reviewCount": 4,
+        "kind": "human"
+      },
+      {
+        "login": "dave",
+        "reviewCount": 3,
+        "kind": "human"
+      },
+      {
+        "login": "coderabbitai[bot]",
+        "reviewCount": 1,
+        "kind": "bot"
+      }
+    ],
+    "pairs": [
+      {
+        "author": "alice",
+        "reviewer": "bob",
+        "count": 3
+      },
+      {
+        "author": "carol",
+        "reviewer": "dave",
+        "count": 3
+      },
+      {
+        "author": "eve",
+        "reviewer": "alice",
+        "count": 2
+      },
+      {
+        "author": "bob",
+        "reviewer": "carol",
+        "count": 2
+      },
+      {
+        "author": "carol",
+        "reviewer": "alice",
+        "count": 2
+      },
+      {
+        "author": "dave",
+        "reviewer": "alice",
+        "count": 2
+      },
+      {
+        "author": "bob",
+        "reviewer": "alice",
+        "count": 1
+      },
+      {
+        "author": "alice",
+        "reviewer": "carol",
+        "count": 1
+      },
+      {
+        "author": "dave",
+        "reviewer": "bob",
+        "count": 1
+      },
+      {
+        "author": "dave",
+        "reviewer": "carol",
+        "count": 1
+      },
+      {
+        "author": "frank",
+        "reviewer": "bob",
+        "count": 1
+      },
+      {
+        "author": "dependabot[bot]",
+        "reviewer": "bob",
+        "count": 1
+      },
+      {
+        "author": "alice",
+        "reviewer": "coderabbitai[bot]",
+        "count": 1
+      }
+    ]
+  }
+}

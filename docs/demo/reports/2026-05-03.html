@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub PR 週次レポート - 2026-05-03</title>
+  <style>:root { color-scheme: light; --bg-default:#f7f9fc; --bg-muted:#eef3f8; --panel:#ffffff; --panel-subtle:#f5f8fb; --fg-default:#202733; --fg-muted:#586574; --fg-subtle:#728091; --border-default:#d6dee8; --border-muted:#e2e8f0; --accent-cyan:#0891b2; --accent-blue:#2563eb; --success:#1f8f5f; --attention:#b7791f; --danger:#c2413a; --timeline-rail:#eef3f8; --timeline-grid:rgba(88,101,116,.13); --tooltip-border:rgba(214,222,232,.95); --tooltip-bg:rgba(255,255,255,.98); --shadow:0 1px 2px rgba(32,39,51,.04), 0 8px 24px rgba(32,39,51,.06); --role-human:var(--accent-blue); --role-human-fill:rgba(37,99,235,.10); --role-human-line:rgba(37,99,235,.20); --role-both:var(--accent-cyan); --role-both-fill:rgba(8,145,178,.10); --role-both-line:rgba(8,145,178,.22); --role-bot:var(--attention); --role-bot-fill:rgba(183,121,31,.12); --role-bot-line:rgba(183,121,31,.24); }
+* { box-sizing:border-box; }
+body { margin:0; font-family:"Avenir Next", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:var(--bg-default); color:var(--fg-default); line-height:1.5; }
+body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.58), rgba(255,255,255,0) 280px); }
+main { position:relative; max-width:1180px; margin:0 auto; padding:36px 20px 60px; }
+header { margin-bottom:24px; padding:0 2px; }
+h1 { margin:0; font-size:34px; font-weight:650; line-height:1.12; letter-spacing:0; overflow-wrap:anywhere; color:var(--fg-default); }
+h2 { margin:0; font-size:18px; line-height:1.25; letter-spacing:0; }
+.report-meta { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 0; padding:0; }
+.report-meta-item { display:grid; gap:2px; min-width:150px; padding:9px 12px; border:1px solid var(--border-muted); border-radius:8px; background:rgba(255,255,255,.62); }
+.report-meta-period { min-width:min(100%, 380px); }
+.report-meta dt { color:var(--fg-subtle); font-size:11px; font-weight:700; line-height:1.2; }
+.report-meta dd { margin:0; color:var(--fg-default); font-size:13px; line-height:1.35; overflow-wrap:anywhere; }
+section { background:var(--panel); border:1px solid var(--border-default); border-radius:12px; padding:20px; margin-top:18px; box-shadow:var(--shadow); }
+section > h2 { margin-bottom:16px; }
+.section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.section-head > div { min-width:0; }
+.section-copy { margin:5px 0 0; color:var(--fg-muted); font-size:12px; line-height:1.45; }
+.metric-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; }
+.metric-card { --metric-tone:var(--accent-cyan); position:relative; border:1px solid var(--border-muted); border-top:2px solid var(--metric-tone); border-radius:8px; padding:12px 13px; min-height:96px; background:var(--panel); box-shadow:inset 0 1px 0 rgba(255,255,255,.72); cursor:help; transition:background-color .12s ease, border-color .12s ease; }
+.metric-card-deploy { --metric-tone:#0891b2; }
+.metric-card-lead-time { --metric-tone:#b7791f; }
+.metric-card-failure-rate { --metric-tone:#c2413a; }
+.metric-card-mttr { --metric-tone:#1f8f5f; }
+.metric-card:hover, .metric-card:focus-visible { z-index:3; border-color:var(--tooltip-border); background:var(--panel-subtle); }
+.metric-card:focus-visible { outline:2px solid rgba(37,99,235,.28); outline-offset:2px; }
+.metric-label { display:block; color:var(--fg-muted); font-size:13px; font-weight:650; }
+.metric-card strong { display:block; font-size:28px; line-height:1.08; margin:13px 0 0; letter-spacing:0; color:var(--metric-tone); }
+.metric-card-tooltip { position:absolute; left:10px; right:10px; top:calc(100% + 8px); z-index:4; margin:0; padding:10px 12px; border:1px solid var(--tooltip-border); border-radius:10px; background:var(--tooltip-bg); color:var(--fg-default); box-shadow:0 8px 28px rgba(32,39,51,.10); opacity:0; visibility:hidden; transform:translateY(-3px); pointer-events:none; font-size:12px; line-height:1.45; backdrop-filter:blur(8px); transition:opacity .12s ease, transform .12s ease, visibility .12s ease; }
+.metric-card:hover .metric-card-tooltip, .metric-card:focus-visible .metric-card-tooltip { opacity:1; visibility:visible; transform:translateY(0); }
+.timeline-list { display:grid; gap:10px; }
+.timeline-row { display:grid; grid-template-columns:minmax(240px, 340px) minmax(0, 1fr); gap:18px; align-items:center; min-width:0; transition:opacity .14s ease, filter .14s ease; }
+.timeline-meta .pr-title, .timeline-meta .pr-ref { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.timeline-meta .pr-title { color:var(--fg-default); text-decoration:none; font-size:13px; font-weight:650; }
+.timeline-meta .pr-title:hover { color:var(--accent-blue); text-decoration:underline; }
+.timeline-meta .pr-title-line { display:flex; align-items:baseline; gap:5px; min-width:0; }
+.timeline-meta .pr-title { min-width:0; }
+.timeline-meta .pr-ref { display:block; margin-top:2px; color:var(--fg-subtle); font-size:11px; }
+.timeline-meta .pr-author { flex:0 0 auto; white-space:nowrap; color:var(--fg-muted); font-size:11px; cursor:default; }
+.timeline-meta .pr-author-prefix { flex:0 0 auto; color:var(--fg-subtle); font-size:11px; }
+.timeline-meta .pr-ref[data-repo], .timeline-meta .pr-author[data-author] { cursor:pointer; }
+.timeline-meta .pr-ref[data-repo]:hover, .timeline-meta .pr-author[data-author]:hover { color:var(--accent-blue); text-decoration:underline; }
+.timeline-list[data-hovered-filter] .timeline-row:not(.timeline-axis-row) { opacity:.28; filter:grayscale(1); }
+.timeline-list[data-hovered-filter] .timeline-row.timeline-filter-active { opacity:1; filter:none; }
+.timeline-track-wrap { width:100%; }
+.timeline-track { position:relative; height:18px; border-radius:999px; background:var(--timeline-rail); overflow:hidden; border:1px solid var(--border-muted); cursor:help; background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100%/7 - 1px), var(--timeline-grid) calc(100%/7 - 1px), var(--timeline-grid) calc(100%/7)); }
+.timeline-axis { display:grid; grid-template-columns:repeat(7, 1fr); padding:0 1px; margin-bottom:7px; }
+.timeline-axis span { color:var(--fg-subtle); font-size:11px; text-align:left; }
+.timeline-axis span:not(:first-child) { padding-left:5px; border-left:1px solid var(--border-muted); }
+.timeline-axis-row { align-items:end; }
+.timeline-axis-row .timeline-meta { color:var(--fg-subtle); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.timeline-legend { display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:12px; color:var(--fg-muted); }
+.legend-item { display:inline-flex; align-items:center; gap:6px; }
+.legend-swatch { display:inline-block; width:10px; height:10px; border-radius:999px; }
+.segment { position:absolute; top:2px; bottom:2px; border-radius:999px; }
+.timeline-row[data-closed-unmerged="true"] .timeline-track { background:repeating-linear-gradient(135deg, var(--timeline-rail) 0 6px, rgba(120,120,120,.18) 6px 12px); border-style:dashed; }
+.timeline-row[data-closed-unmerged="true"] .segment { filter:grayscale(.85) opacity(.55); }
+.timeline-row[data-closed-unmerged="true"] .timeline-track::after { content:"✕"; position:absolute; top:50%; right:4px; transform:translateY(-50%); color:var(--danger); font-size:11px; font-weight:700; line-height:1; pointer-events:none; }
+.timeline-row[data-closed-unmerged="true"] .pr-title { color:var(--fg-muted); text-decoration:line-through; text-decoration-thickness:1px; }
+.legend-swatch-closed { background:repeating-linear-gradient(135deg, var(--fg-subtle) 0 3px, transparent 3px 6px); border:1px dashed var(--fg-subtle); border-radius:2px; }
+.timeline-tooltip { position:fixed; z-index:20; max-width:min(420px, calc(100vw - 20px)); padding:10px 12px; border:1px solid var(--tooltip-border); border-radius:10px; background:var(--tooltip-bg); color:var(--fg-default); box-shadow:0 8px 28px rgba(32,39,51,.10); pointer-events:none; font-size:12px; line-height:1.45; backdrop-filter:blur(8px); }
+.timeline-tooltip[hidden] { display:none; }
+.timeline-tooltip-title { margin-bottom:6px; color:var(--fg-muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.timeline-tooltip ol { display:grid; gap:5px; margin:0; padding:0; list-style:none; }
+.timeline-tooltip li { display:flex; align-items:flex-start; gap:7px; white-space:nowrap; }
+.timeline-tooltip-swatch { flex:0 0 auto; width:8px; height:8px; border-radius:999px; margin-top:5px; }
+.implementing { background:var(--accent-cyan); } .wait_review { background:var(--attention); } .in_review { background:var(--accent-blue); } .fixing { background:var(--danger); } .wait_merge { background:var(--success); }
+.timeline-tooltip dl { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; margin:8px 0 0; padding-top:8px; border-top:1px solid var(--tooltip-border); }
+.timeline-tooltip dt { color:var(--fg-muted); font-size:11px; font-weight:600; }
+.timeline-tooltip dd { margin:0; font-size:11px; }
+.review-correlation { overflow:hidden; }
+.review-correlation .bg-root { position:relative; width:100%; overflow-x:auto; padding-bottom:2px; }
+.bg-grid { position:relative; display:grid; grid-template-columns:var(--bg-left-w) var(--bg-col-gap) var(--bg-right-w); width:var(--bg-total-w); min-width:640px; height:var(--bg-height); margin:0 auto; }
+.bg-authors { grid-column:1; }
+.bg-reviewers { grid-column:3; }
+.bg-col { display:flex; flex-direction:column; gap:var(--bg-row-gap); padding-top:var(--bg-header-h); }
+.bg-col-header { position:absolute; top:0; height:calc(var(--bg-header-h) - 8px); display:flex; flex-direction:column; justify-content:flex-start; gap:2px; border-bottom:1px solid var(--border-default); padding-bottom:6px; width:var(--bg-left-w); }
+.bg-reviewers .bg-col-header { left:calc(var(--bg-left-w) + var(--bg-col-gap)); width:var(--bg-right-w); }
+.bg-col-header strong { font-size:12px; color:var(--fg-muted); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.bg-col-header small { font-size:11px; color:var(--fg-subtle); }
+.bg-edges { position:absolute; inset:0; pointer-events:none; width:100%; height:100%; }
+.bg-edges line { transition:stroke-width .12s ease, opacity .12s ease; opacity:.42; }
+.bg-root:not([data-hovered]) .bg-edges line { opacity:.24; }
+.bg-root[data-hovered] .bg-edges line { opacity:.05; }
+.bg-root[data-hovered] .bg-edges line.bg-active { opacity:.78; stroke:var(--accent-cyan); stroke-width:calc(var(--w) * 1.65); }
+.bg-node { position:relative; height:var(--bg-row-h); display:flex; align-items:center; gap:10px; padding:0 12px; border-radius:10px; border:1px solid var(--border-muted); background:linear-gradient(180deg, var(--panel), var(--panel-subtle)); overflow:hidden; transition:opacity .12s ease, background-color .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.bg-node-empty { border-color:transparent; background:transparent; }
+.bg-bar { position:absolute; left:0; top:0; bottom:0; width:var(--bar-w); background:var(--role-fill); border-right:1px solid var(--role-line); z-index:0; }
+.bg-dot { position:relative; z-index:1; width:10px; height:10px; border-radius:999px; background:var(--role-color); flex:0 0 auto; box-shadow:0 0 0 3px rgba(255,255,255,.72); }
+.bg-label { position:relative; z-index:1; font-size:13px; font-weight:650; color:var(--fg-default); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; }
+.bg-count { position:relative; z-index:1; font-size:12px; color:var(--fg-muted); flex:0 0 auto; }
+.bg-root[data-hovered] .bg-node { opacity:.35; }
+.bg-root[data-hovered] .bg-node.bg-active { opacity:1; border-color:var(--accent-cyan); background:#f0fbfd; box-shadow:0 0 0 2px rgba(8,145,178,.10); }
+.bg-root[data-hovered] .bg-node.bg-active .bg-bar { background:rgba(8,145,178,.12); border-color:rgba(8,145,178,.24); }
+.bg-legend { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:13px; padding:0 2px; font-size:12px; color:var(--fg-muted); }
+.bg-legend-item { display:inline-flex; align-items:center; gap:6px; }
+.bg-legend-hint { margin-left:auto; }
+.ai-markdown ul { margin:8px 0 0; padding-left:22px; }
+.ai-markdown p { margin:0 0 10px; }
+.ai-markdown h2 { margin-top:0; }
+.empty { color:var(--fg-muted); margin:0; }</style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>GitHub PR 週次レポート</h1>
+      <dl class="report-meta" aria-label="レポート情報">
+        <div class="report-meta-item report-meta-period">
+          <dt>対象期間</dt>
+          <dd>2026年4月27日(月) - 2026年5月3日(日)</dd>
+        </div>
+        <div class="report-meta-item">
+          <dt>タイムゾーン</dt>
+          <dd>Asia/Tokyo</dd>
+        </div>
+        <div class="report-meta-item">
+          <dt>生成日時</dt>
+          <dd>2026年5月5日(火) 23:50 JST</dd>
+        </div>
+      </dl>
+    </header>
+    <section>
+    <h2>DORAメトリクス</h2>
+    <div class="metric-grid">
+      <article class="metric-card metric-card-deploy" tabindex="0" aria-describedby="metric-card-tooltip-deploy">
+            <span class="metric-label">デプロイ頻度</span>
+            <strong>15</strong>
+            <p class="metric-card-tooltip" id="metric-card-tooltip-deploy" role="tooltip">対象週にマージされたPR数。未マージPRは含めません。</p>
+          </article><article class="metric-card metric-card-lead-time" tabindex="0" aria-describedby="metric-card-tooltip-lead-time">
+            <span class="metric-label">変更のリードタイム</span>
+            <strong>1.0d</strong>
+            <p class="metric-card-tooltip" id="metric-card-tooltip-lead-time" role="tooltip">PR作成からマージまでの時間の中央値。未マージPRは含めません。</p>
+          </article><article class="metric-card metric-card-failure-rate" tabindex="0" aria-describedby="metric-card-tooltip-failure-rate">
+            <span class="metric-label">変更失敗率</span>
+            <strong>13.3%</strong>
+            <p class="metric-card-tooltip" id="metric-card-tooltip-failure-rate" role="tooltip">hotfix / revert / incident ラベル付きでマージされたPR数 ÷ 週内マージPR数。障害を直接計測せず、ラベルで失敗修正を判定しています。</p>
+          </article><article class="metric-card metric-card-mttr" tabindex="0" aria-describedby="metric-card-tooltip-mttr">
+            <span class="metric-label">MTTR</span>
+            <strong>1.3h</strong>
+            <p class="metric-card-tooltip" id="metric-card-tooltip-mttr" role="tooltip">hotfix / revert / incident ラベル付きでマージされたPRの、作成からマージまでの平均時間。該当PRがない場合は N/A です。</p>
+          </article>
+    </div>
+  </section>
+<section>
+    <div class="section-head">
+      <div>
+        <h2>PRタイムライン</h2>
+      </div>
+      <div class="timeline-legend" aria-label="Timeline legend"><span class="legend-item"><span class="legend-swatch implementing"></span>実装中</span><span class="legend-item"><span class="legend-swatch wait_review"></span>レビュー待ち</span><span class="legend-item"><span class="legend-swatch fixing"></span>レビュー修正中</span><span class="legend-item"><span class="legend-swatch wait_merge"></span>マージ待ち</span><span class="legend-item legend-closed-unmerged"><span class="legend-swatch legend-swatch-closed"></span>クローズ (未マージ)</span></div>
+    </div>
+    <div class="timeline-list" data-component="timeline">
+      <article class="timeline-row timeline-axis-row" aria-hidden="true">
+        <div class="timeline-meta">プルリクエスト</div>
+        <div class="timeline-track-wrap"><div class="timeline-axis"><span>4/27</span><span>4/28</span><span>4/29</span><span>4/30</span><span>5/1</span><span>5/2</span><span>5/3</span></div></div>
+      </article>
+      <article class="timeline-row" data-repo="acme-corp/web-app" data-author="bob" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/4 01:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/22 19:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/27 17:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;5/1 01:00 (@carol)&quot;],[&quot;最初の承認&quot;,&quot;5/3 18:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;2&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/502" target="_blank" rel="noopener">feat: migrate entire frontend from Webpack to Vite</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="bob">@bob</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#502</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:4.7619047697782815%;" data-state="implementing" data-start="2026-04-22T10:00:00Z" data-end="2026-04-27T08:00:00Z" data-duration-minutes="7080" data-label="4/22 19:00 - 4/27 17:00 / 7080分 (4d22h) / 実装中"></span><span class="segment wait_review" style="left:4.7619047697782815%;width:47.619047697782825%;" data-state="wait_review" data-start="2026-04-27T08:00:00Z" data-end="2026-04-30T16:00:00Z" data-duration-minutes="4800" data-label="4/27 17:00 - 5/1 01:00 / 4800分 (3d8h) / レビュー待ち"></span><span class="segment fixing" style="left:52.3809524675611%;width:38.690476254448534%;" data-state="fixing" data-start="2026-04-30T16:00:00Z" data-end="2026-05-03T09:00:00Z" data-duration-minutes="3900" data-label="5/1 01:00 - 5/3 18:00 / 3900分 (2d17h) / レビュー修正中"></span><span class="segment wait_merge" style="left:91.07142872200964%;width:4.166666673555996%;" data-state="wait_merge" data-start="2026-05-03T09:00:00Z" data-end="2026-05-03T16:00:00Z" data-duration-minutes="420" data-label="5/3 18:00 - 5/4 01:00 / 420分 (7h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="alice" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/3 23:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/23 20:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/27 18:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/29 00:00 (@bob)&quot;],[&quot;最初の承認&quot;,&quot;5/2 18:00&quot;],[&quot;承認回数&quot;,&quot;2 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;6&quot;],[&quot;承認後の追加コミット&quot;,&quot;1&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/507" target="_blank" rel="noopener">feat: redesign user onboarding flow</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="alice">@alice</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#507</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:5.357142866000567%;" data-state="implementing" data-start="2026-04-23T11:00:00Z" data-end="2026-04-27T09:00:00Z" data-duration-minutes="5640" data-label="4/23 20:00 - 4/27 18:00 / 5640分 (3d22h) / 実装中"></span><span class="segment wait_review" style="left:5.357142866000567%;width:17.857142886668555%;" data-state="wait_review" data-start="2026-04-27T09:00:00Z" data-end="2026-04-28T15:00:00Z" data-duration-minutes="1800" data-label="4/27 18:00 - 4/29 00:00 / 1800分 (1d6h) / レビュー待ち"></span><span class="segment fixing" style="left:23.214285752669124%;width:53.57142866000566%;" data-state="fixing" data-start="2026-04-28T15:00:00Z" data-end="2026-05-02T09:00:00Z" data-duration-minutes="5400" data-label="4/29 00:00 - 5/2 18:00 / 5400分 (3d18h) / レビュー修正中"></span><span class="segment wait_merge" style="left:76.78571441267479%;width:17.26190479044628%;" data-state="wait_merge" data-start="2026-05-02T09:00:00Z" data-end="2026-05-03T14:00:00Z" data-duration-minutes="1740" data-label="5/2 18:00 - 5/3 23:00 / 1740分 (1d5h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="dave" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/3 03:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/24 22:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/28 19:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/30 18:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;5/2 18:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;4&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/504" target="_blank" rel="noopener">feat: replace session cookies with JWT tokens</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="dave">@dave</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#504</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:20.238095271557697%;" data-state="implementing" data-start="2026-04-24T13:00:00Z" data-end="2026-04-28T10:00:00Z" data-duration-minutes="5580" data-label="4/24 22:00 - 4/28 19:00 / 5580分 (3d21h) / 実装中"></span><span class="segment wait_review" style="left:20.238095271557697%;width:27.976190522447407%;" data-state="wait_review" data-start="2026-04-28T10:00:00Z" data-end="2026-04-30T09:00:00Z" data-duration-minutes="2820" data-label="4/28 19:00 - 4/30 18:00 / 2820分 (1d23h) / レビュー待ち"></span><span class="segment fixing" style="left:48.2142857940051%;width:28.571428618669685%;" data-state="fixing" data-start="2026-04-30T09:00:00Z" data-end="2026-05-02T09:00:00Z" data-duration-minutes="2880" data-label="4/30 18:00 - 5/2 18:00 / 2880分 (2d) / レビュー修正中"></span><span class="segment wait_merge" style="left:76.78571441267479%;width:5.357142866000575%;" data-state="wait_merge" data-start="2026-05-02T09:00:00Z" data-end="2026-05-02T18:00:00Z" data-duration-minutes="540" data-label="5/2 18:00 - 5/3 03:00 / 540分 (9h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="carol" data-closed-unmerged="true" data-aux="[[&quot;状態&quot;,&quot;クローズ 5/3 00:00 ※未マージ&quot;],[&quot;最初のコミット&quot;,&quot;4/22 23:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/27 19:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/28 18:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;4&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/508" target="_blank" rel="noopener">feat: replace REST API with GraphQL</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="carol">@carol</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#508</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:5.952380962222852%;" data-state="implementing" data-start="2026-04-22T14:00:00Z" data-end="2026-04-27T10:00:00Z" data-duration-minutes="6960" data-label="4/22 23:00 - 4/27 19:00 / 6960分 (4d20h) / 実装中"></span><span class="segment wait_review" style="left:5.952380962222852%;width:13.690476213112559%;" data-state="wait_review" data-start="2026-04-27T10:00:00Z" data-end="2026-04-28T09:00:00Z" data-duration-minutes="1380" data-label="4/27 19:00 - 4/28 18:00 / 1380分 (23h) / レビュー待ち"></span><span class="segment fixing" style="left:19.64285717533541%;width:60.71428581467308%;" data-state="fixing" data-start="2026-04-28T09:00:00Z" data-end="2026-05-02T15:00:00Z" data-duration-minutes="6120" data-label="4/28 18:00 - 5/3 00:00 / 6120分 (4d6h) / レビュー修正中"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="carol" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/2 22:00)&quot;],[&quot;最初のコミット&quot;,&quot;5/1 00:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;5/1 18:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;5/1 22:00 (@dave)&quot;],[&quot;最初の承認&quot;,&quot;5/2 20:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;2&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/302" target="_blank" rel="noopener">test: add integration tests for checkout flow</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="carol">@carol</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#302</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:51.78571437133881%;width:10.714285732001139%;" data-state="implementing" data-start="2026-04-30T15:00:00Z" data-end="2026-05-01T09:00:00Z" data-duration-minutes="1080" data-label="00:00 - 18:00 / 1080分 (18h) / 実装中"></span><span class="segment wait_review" style="left:62.50000010333995%;width:2.3809523848891456%;" data-state="wait_review" data-start="2026-05-01T09:00:00Z" data-end="2026-05-01T13:00:00Z" data-duration-minutes="240" data-label="18:00 - 22:00 / 240分 (4h) / レビュー待ち"></span><span class="segment fixing" style="left:64.8809524882291%;width:13.095238116890274%;" data-state="fixing" data-start="2026-05-01T13:00:00Z" data-end="2026-05-02T11:00:00Z" data-duration-minutes="1320" data-label="5/1 22:00 - 5/2 20:00 / 1320分 (22h) / レビュー修正中"></span><span class="segment wait_merge" style="left:77.97619060511937%;width:1.1904761924445673%;" data-state="wait_merge" data-start="2026-05-02T11:00:00Z" data-end="2026-05-02T13:00:00Z" data-duration-minutes="120" data-label="20:00 - 22:00 / 120分 (2h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="dave" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/2 19:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/25 19:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/28 23:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/29 18:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;5/1 23:00&quot;],[&quot;承認回数&quot;,&quot;2 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;3&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/88" target="_blank" rel="noopener">feat: add real-time dashboard for system health metrics</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="dave">@dave</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#88</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:22.61904765644684%;" data-state="implementing" data-start="2026-04-25T10:00:00Z" data-end="2026-04-28T14:00:00Z" data-duration-minutes="4560" data-label="4/25 19:00 - 4/28 23:00 / 4560分 (3d4h) / 実装中"></span><span class="segment wait_review" style="left:22.61904765644684%;width:11.309523828223417%;" data-state="wait_review" data-start="2026-04-28T14:00:00Z" data-end="2026-04-29T09:00:00Z" data-duration-minutes="1140" data-label="4/28 23:00 - 4/29 18:00 / 1140分 (19h) / レビュー待ち"></span><span class="segment fixing" style="left:33.92857148467026%;width:31.547619099781123%;" data-state="fixing" data-start="2026-04-29T09:00:00Z" data-end="2026-05-01T14:00:00Z" data-duration-minutes="3180" data-label="4/29 18:00 - 5/1 23:00 / 3180分 (2d5h) / レビュー修正中"></span><span class="segment wait_merge" style="left:65.47619058445137%;width:11.904761924445706%;" data-state="wait_merge" data-start="2026-05-01T14:00:00Z" data-end="2026-05-02T10:00:00Z" data-duration-minutes="1200" data-label="5/1 23:00 - 5/2 19:00 / 1200分 (20h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="frank" data-aux="[[&quot;状態&quot;,&quot;オープン中&quot;],[&quot;最初のコミット&quot;,&quot;4/29 20:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;5/1 23:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;-&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;0&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/506" target="_blank" rel="noopener">feat: add Stripe payment integration</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="frank">@frank</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#506</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:35.11904767711483%;width:30.35714290733655%;" data-state="implementing" data-start="2026-04-29T11:00:00Z" data-end="2026-05-01T14:00:00Z" data-duration-minutes="3060" data-label="4/29 20:00 - 5/1 23:00 / 3060分 (2d3h) / 実装中"></span><span class="segment wait_review" style="left:65.47619058445137%;width:34.52380941554863%;" data-state="wait_review" data-start="2026-05-01T14:00:00Z" data-end="2026-05-03T23:59:59.999Z" data-duration-minutes="3480" data-label="5/1 23:00 - 5/4 08:59 / 3480分 (2d10h) / レビュー待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="bob" data-aux="[[&quot;状態&quot;,&quot;マージ済み (5/1 20:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/24 00:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/27 17:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/28 19:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;5/1 00:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;2&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/55" target="_blank" rel="noopener">refactor: extract payment logic into dedicated service</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="bob">@bob</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#55</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:4.7619047697782815%;" data-state="implementing" data-start="2026-04-23T15:00:00Z" data-end="2026-04-27T08:00:00Z" data-duration-minutes="5340" data-label="4/24 00:00 - 4/27 17:00 / 5340分 (3d17h) / 実装中"></span><span class="segment wait_review" style="left:4.7619047697782815%;width:15.476190501779413%;" data-state="wait_review" data-start="2026-04-27T08:00:00Z" data-end="2026-04-28T10:00:00Z" data-duration-minutes="1560" data-label="4/27 17:00 - 4/28 19:00 / 1560分 (1d2h) / レビュー待ち"></span><span class="segment fixing" style="left:20.238095271557697%;width:31.54761909978111%;" data-state="fixing" data-start="2026-04-28T10:00:00Z" data-end="2026-04-30T15:00:00Z" data-duration-minutes="3180" data-label="4/28 19:00 - 5/1 00:00 / 3180分 (2d5h) / レビュー修正中"></span><span class="segment wait_merge" style="left:51.78571437133881%;width:11.904761924445706%;" data-state="wait_merge" data-start="2026-04-30T15:00:00Z" data-end="2026-05-01T11:00:00Z" data-duration-minutes="1200" data-label="00:00 - 20:00 / 1200分 (20h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="frank" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/30 23:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/30 13:30&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/30 18:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/30 21:00 (@bob)&quot;],[&quot;最初の承認&quot;,&quot;4/30 21:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;1&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/301" target="_blank" rel="noopener">docs: update API authentication guide with OAuth 2.0 examples</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="frank">@frank</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#301</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:45.53571436100482%;width:2.6785714330002817%;" data-state="implementing" data-start="2026-04-30T04:30:00Z" data-end="2026-04-30T09:00:00Z" data-duration-minutes="270" data-label="13:30 - 18:00 / 270分 (4h30m) / 実装中"></span><span class="segment wait_review" style="left:48.2142857940051%;width:1.7857142886668564%;" data-state="wait_review" data-start="2026-04-30T09:00:00Z" data-end="2026-04-30T12:00:00Z" data-duration-minutes="180" data-label="18:00 - 21:00 / 180分 (3h) / レビュー待ち"></span><span class="segment wait_merge" style="left:50.00000008267196%;width:1.1904761924445673%;" data-state="wait_merge" data-start="2026-04-30T12:00:00Z" data-end="2026-04-30T14:00:00Z" data-duration-minutes="120" data-label="21:00 - 23:00 / 120分 (2h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="eve" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/30 20:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/29 14:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/29 19:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/30 00:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;4/30 00:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;1&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/300" target="_blank" rel="noopener">chore: upgrade React from 18 to 19 and update peer deps</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="eve">@eve</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#300</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:31.547619099781116%;width:2.9761904811114293%;" data-state="implementing" data-start="2026-04-29T05:00:00Z" data-end="2026-04-29T10:00:00Z" data-duration-minutes="300" data-label="14:00 - 19:00 / 300分 (5h) / 実装中"></span><span class="segment wait_review" style="left:34.52380958089255%;width:2.9761904811114235%;" data-state="wait_review" data-start="2026-04-29T10:00:00Z" data-end="2026-04-29T15:00:00Z" data-duration-minutes="300" data-label="4/29 19:00 - 4/30 00:00 / 300分 (5h) / レビュー待ち"></span><span class="segment wait_merge" style="left:37.50000006200397%;width:11.904761924445706%;" data-state="wait_merge" data-start="2026-04-29T15:00:00Z" data-end="2026-04-30T11:00:00Z" data-duration-minutes="1200" data-label="00:00 - 20:00 / 1200分 (20h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="alice" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/30 18:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/29 12:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/29 22:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;-&quot;],[&quot;最初の承認&quot;,&quot;4/30 17:30&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;0&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/501" target="_blank" rel="noopener">feat: add dark mode to settings panel</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="alice">@alice</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#501</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:30.35714290733655%;width:5.952380962222847%;" data-state="implementing" data-start="2026-04-29T03:00:00Z" data-end="2026-04-29T13:00:00Z" data-duration-minutes="600" data-label="12:00 - 22:00 / 600分 (10h) / 実装中"></span><span class="segment wait_review" style="left:36.3095238695594%;width:11.904761924445706%;" data-state="wait_review" data-start="2026-04-29T13:00:00Z" data-end="2026-04-30T09:00:00Z" data-duration-minutes="1200" data-label="4/29 22:00 - 4/30 18:00 / 1200分 (20h) / レビュー待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/cli-tools" data-author="alice" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/30 13:30)&quot;],[&quot;最初のコミット&quot;,&quot;4/30 07:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/30 11:10&quot;],[&quot;最初のレビュー反応&quot;,&quot;-&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;0&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/cli-tools/pull/500" target="_blank" rel="noopener">hotfix: revert broken deploy config</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="alice">@alice</span></span>
+              <span class="pr-ref" data-repo="acme-corp/cli-tools">acme-corp/cli-tools#500</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:41.666666735559964%;width:2.480158734259519%;" data-state="implementing" data-start="2026-04-29T22:00:00Z" data-end="2026-04-30T02:10:00Z" data-duration-minutes="250" data-label="07:00 - 11:10 / 250分 (4h10m) / 実装中"></span><span class="segment wait_review" style="left:44.14682546981948%;width:1.3888888911853359%;" data-state="wait_review" data-start="2026-04-30T02:10:00Z" data-end="2026-04-30T04:30:00Z" data-duration-minutes="140" data-label="11:10 - 13:30 / 140分 (2h20m) / レビュー待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="carol" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/30 07:59)&quot;],[&quot;最初のコミット&quot;,&quot;4/30 05:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/30 07:47&quot;],[&quot;最初のレビュー反応&quot;,&quot;-&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;0&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/503" target="_blank" rel="noopener">fix: broken production build due to missing env var</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="carol">@carol</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#503</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:40.47619054311539%;width:1.6567460344853624%;" data-state="implementing" data-start="2026-04-29T20:00:00Z" data-end="2026-04-29T22:47:00Z" data-duration-minutes="167" data-label="05:00 - 07:47 / 167分 (2h47m) / 実装中"></span><span class="segment wait_review" style="left:42.13293657760075%;width:0.5%;" data-state="wait_review" data-start="2026-04-29T22:47:00Z" data-end="2026-04-29T22:59:00Z" data-duration-minutes="12" data-label="07:47 - 07:59 / 12分 / レビュー待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/api-server" data-author="carol" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/29 18:00)&quot;],[&quot;最初のコミット&quot;,&quot;4/27 01:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/27 20:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/28 23:00 (@dave)&quot;],[&quot;最初の承認&quot;,&quot;4/28 23:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;2&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/api-server/pull/202" target="_blank" rel="noopener">feat: add request rate limiting to public API endpoints</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="carol">@carol</span></span>
+              <span class="pr-ref" data-repo="acme-corp/api-server">acme-corp/api-server#202</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:6.547619058445138%;" data-state="implementing" data-start="2026-04-26T16:00:00Z" data-end="2026-04-27T11:00:00Z" data-duration-minutes="1140" data-label="01:00 - 20:00 / 1140分 (19h) / 実装中"></span><span class="segment wait_review" style="left:6.547619058445138%;width:16.071428598001702%;" data-state="wait_review" data-start="2026-04-27T11:00:00Z" data-end="2026-04-28T14:00:00Z" data-duration-minutes="1620" data-label="4/27 20:00 - 4/28 23:00 / 1620分 (1d3h) / レビュー待ち"></span><span class="segment wait_merge" style="left:22.61904765644684%;width:11.309523828223417%;" data-state="wait_merge" data-start="2026-04-28T14:00:00Z" data-end="2026-04-29T09:00:00Z" data-duration-minutes="1140" data-label="4/28 23:00 - 4/29 18:00 / 1140分 (19h) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/web-app" data-author="alice" data-aux="[[&quot;状態&quot;,&quot;マージ済み (4/29 00:30)&quot;],[&quot;最初のコミット&quot;,&quot;4/28 14:30&quot;],[&quot;レビュー依頼時刻&quot;,&quot;4/28 18:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;4/28 22:00 (@bob)&quot;],[&quot;最初の承認&quot;,&quot;4/28 22:00&quot;],[&quot;承認回数&quot;,&quot;1 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;1&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/web-app/pull/101" target="_blank" rel="noopener">fix: login button unresponsive after failed auth attempt</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="alice">@alice</span></span>
+              <span class="pr-ref" data-repo="acme-corp/web-app">acme-corp/web-app#101</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:17.559523838557414%;width:2.083333336777998%;" data-state="implementing" data-start="2026-04-28T05:30:00Z" data-end="2026-04-28T09:00:00Z" data-duration-minutes="210" data-label="14:30 - 18:00 / 210分 (3h30m) / 実装中"></span><span class="segment wait_review" style="left:19.64285717533541%;width:2.38095238488914%;" data-state="wait_review" data-start="2026-04-28T09:00:00Z" data-end="2026-04-28T13:00:00Z" data-duration-minutes="240" data-label="18:00 - 22:00 / 240分 (4h) / レビュー待ち"></span><span class="segment wait_merge" style="left:22.023809560224553%;width:1.4880952405557146%;" data-state="wait_merge" data-start="2026-04-28T13:00:00Z" data-end="2026-04-28T15:30:00Z" data-duration-minutes="150" data-label="4/28 22:00 - 4/29 00:30 / 150分 (2h30m) / マージ待ち"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/cli-tools" data-author="dave" data-aux="[[&quot;状態&quot;,&quot;オープン中&quot;],[&quot;最初のコミット&quot;,&quot;4/15 18:15&quot;],[&quot;レビュー依頼時刻&quot;,&quot;-&quot;],[&quot;最初のレビュー反応&quot;,&quot;-&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;0&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/cli-tools/pull/509" target="_blank" rel="noopener">wip: explore WebSocket support for live notifications</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="dave">@dave</span></span>
+              <span class="pr-ref" data-repo="acme-corp/cli-tools">acme-corp/cli-tools#509</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment implementing" style="left:0%;width:100%;" data-state="implementing" data-start="2026-04-15T09:15:00Z" data-end="2026-05-03T23:59:59.999Z" data-duration-minutes="26805" data-label="4/15 18:15 - 5/4 08:59 / 26805分 (18d14h) / 実装中"></span></div>
+            </div>
+          </article><article class="timeline-row" data-repo="acme-corp/cli-tools" data-author="eve" data-aux="[[&quot;状態&quot;,&quot;オープン中&quot;],[&quot;最初のコミット&quot;,&quot;3/13 17:00&quot;],[&quot;レビュー依頼時刻&quot;,&quot;3/15 19:00&quot;],[&quot;最初のレビュー反応&quot;,&quot;3/20 19:00 (@alice)&quot;],[&quot;最初の承認&quot;,&quot;-&quot;],[&quot;承認回数&quot;,&quot;0 (うち取消 0)&quot;],[&quot;レビュー反応数&quot;,&quot;1&quot;],[&quot;承認後の追加コミット&quot;,&quot;0&quot;]]">
+            <div class="timeline-meta">
+              <span class="pr-title-line"><a class="pr-title" href="https://github.com/acme-corp/cli-tools/pull/505" target="_blank" rel="noopener">feat: add multi-language support (i18n)</a><span class="pr-author-prefix">by</span><span class="pr-author" data-author="eve">@eve</span></span>
+              <span class="pr-ref" data-repo="acme-corp/cli-tools">acme-corp/cli-tools#505</span>
+            </div>
+            <div class="timeline-track-wrap">
+              <div class="timeline-track"><span class="segment fixing" style="left:0%;width:100%;" data-state="fixing" data-start="2026-03-20T10:00:00Z" data-end="2026-05-03T23:59:59.999Z" data-duration-minutes="64200" data-label="3/20 19:00 - 5/4 08:59 / 64200分 (44d14h) / レビュー修正中"></span></div>
+            </div>
+          </article>
+    </div>
+    <script>(function(){
+  var roots = document.querySelectorAll('[data-component="timeline"]');
+  var tooltip = null;
+  function ensureTooltip(){
+    if (tooltip) return tooltip;
+    tooltip = document.createElement('div');
+    tooltip.className = 'timeline-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.hidden = true;
+    document.body.appendChild(tooltip);
+    return tooltip;
+  }
+  function escapeText(value){
+    return String(value || '').replace(/[&<>"']/g, function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+    });
+  }
+  function hideTooltip(){
+    if (!tooltip) return;
+    tooltip.hidden = true;
+    tooltip.innerHTML = '';
+  }
+  function positionTooltip(event){
+    if (!tooltip || tooltip.hidden) return;
+    var offset = 14;
+    var x = event.clientX + offset;
+    var y = event.clientY + offset;
+    var rect = tooltip.getBoundingClientRect();
+    var maxX = window.innerWidth - rect.width - 10;
+    var maxY = window.innerHeight - rect.height - 10;
+    tooltip.style.left = Math.max(10, Math.min(x, maxX)) + 'px';
+    tooltip.style.top = Math.max(10, Math.min(y, maxY)) + 'px';
+  }
+  function buildAuxHtml(track){
+    var row = track.closest('.timeline-row');
+    if (!row) return '';
+    var raw = row.getAttribute('data-aux');
+    if (!raw) return '';
+    var rows;
+    try { rows = JSON.parse(raw); } catch (e) { return ''; }
+    if (!Array.isArray(rows) || rows.length === 0) return '';
+    var dl = rows.map(function(pair){
+      var label = pair?.[0] ?? '';
+      var value = pair?.[1] ?? '';
+      return '<dt>' + escapeText(label) + '</dt><dd>' + escapeText(value) + '</dd>';
+    }).join('');
+    return '<dl>' + dl + '</dl>';
+  }
+  function showTrackTooltip(track, event){
+    var segments = Array.prototype.slice.call(track.querySelectorAll('.segment[data-label]'));
+    if (segments.length === 0) return;
+    var items = segments.map(function(segment){
+      var state = segment.getAttribute('data-state') || '';
+      var label = segment.getAttribute('data-label') || '';
+      return '<li><span class="timeline-tooltip-swatch ' + escapeText(state) + '"></span><span>' + escapeText(label) + '</span></li>';
+    }).join('');
+    var aux = buildAuxHtml(track);
+    var tip = ensureTooltip();
+    var html = '<div class="timeline-tooltip-title">ステータス詳細</div><ol>' + items + '</ol>' + aux;
+    tip.innerHTML = html;
+    tip.hidden = false;
+    positionTooltip(event);
+  }
+  roots.forEach(function(root){
+    function clear(){
+      root.removeAttribute('data-hovered-filter');
+      root.querySelectorAll('.timeline-filter-active').forEach(function(el){
+        el.classList.remove('timeline-filter-active');
+      });
+    }
+    function activateFilter(kind, value){
+      var attr = kind === 'repo' ? 'data-repo' : 'data-author';
+      root.setAttribute('data-hovered-filter', kind + ':' + value);
+      root.querySelectorAll('.timeline-row[' + attr + ']').forEach(function(row){
+        if (row.getAttribute(attr) === value) {
+          row.classList.add('timeline-filter-active');
+        }
+      });
+    }
+    root.addEventListener('mouseover', function(e){
+      var target = e.target;
+      if (!target || !target.closest) return;
+      var track = target.closest('.timeline-track');
+      if (track && root.contains(track)) {
+        showTrackTooltip(track, e);
+      }
+      var authorEl = target.closest('.pr-author[data-author]');
+      if (authorEl && root.contains(authorEl)) {
+        var author = authorEl.getAttribute('data-author');
+        var authorFilter = 'author:' + author;
+        if (!author || root.getAttribute('data-hovered-filter') === authorFilter) return;
+        clear();
+        activateFilter('author', author);
+        return;
+      }
+      var repoEl = target.closest('.pr-ref[data-repo]');
+      if (!repoEl || !root.contains(repoEl)) return;
+      var repo = repoEl.getAttribute('data-repo');
+      var repoFilter = 'repo:' + repo;
+      if (!repo || root.getAttribute('data-hovered-filter') === repoFilter) return;
+      clear();
+      activateFilter('repo', repo);
+    });
+    root.addEventListener('mousemove', function(e){
+      var target = e.target;
+      if (!target || !target.closest || !target.closest('.timeline-track')) return;
+      positionTooltip(e);
+    });
+    root.addEventListener('mouseout', function(e){
+      var target = e.target;
+      if (!target || !target.closest) return;
+      var track = target.closest('.timeline-track');
+      if (!track || !root.contains(track)) return;
+      var related = e.relatedTarget;
+      if (related && related.closest && related.closest('.timeline-track') === track) return;
+      hideTooltip();
+    });
+    root.addEventListener('mouseleave', function(){
+      clear();
+      hideTooltip();
+    });
+  });
+  window.addEventListener('scroll', hideTooltip, true);
+  window.addEventListener('blur', hideTooltip);
+})();</script>
+  </section>
+<section class="review-correlation">
+    <div class="section-head">
+      <div>
+        <h2>レビュー相関</h2>
+        <p class="section-copy">作成者とレビュアーのペアをレビュー数で重み付けして表示。</p>
+      </div>
+    </div>
+    <div class="bg-root" data-component="bipartite" style="--bg-row-h:36px;--bg-row-gap:8px;--bg-header-h:44px;--bg-left-w:280px;--bg-right-w:280px;--bg-col-gap:168px;--bg-total-w:728px;--bg-height:396px">
+      <div class="bg-grid">
+        <div class="bg-col bg-authors">
+          <div class="bg-col-header"><strong>PR作成者</strong><small>(プルリク作成数)</small></div>
+          <div class="bg-node" data-node-id="author:alice" data-login="alice" data-side="left" data-role="both" data-total="5" data-default-count="5" data-default-bar-w="100.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:100.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">alice</span>
+    <span class="bg-count">5</span>
+  </div><div class="bg-node" data-node-id="author:carol" data-login="carol" data-side="left" data-role="both" data-total="4" data-default-count="4" data-default-bar-w="80.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:80.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">carol</span>
+    <span class="bg-count">4</span>
+  </div><div class="bg-node" data-node-id="author:dave" data-login="dave" data-side="left" data-role="both" data-total="3" data-default-count="3" data-default-bar-w="60.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:60.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">dave</span>
+    <span class="bg-count">3</span>
+  </div><div class="bg-node" data-node-id="author:bob" data-login="bob" data-side="left" data-role="both" data-total="2" data-default-count="2" data-default-bar-w="40.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:40.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">bob</span>
+    <span class="bg-count">2</span>
+  </div><div class="bg-node" data-node-id="author:eve" data-login="eve" data-side="left" data-role="human" data-total="2" data-default-count="2" data-default-bar-w="40.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:40.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">eve</span>
+    <span class="bg-count">2</span>
+  </div><div class="bg-node" data-node-id="author:frank" data-login="frank" data-side="left" data-role="human" data-total="2" data-default-count="2" data-default-bar-w="40.0%" style="--role-color:var(--role-human);--role-fill:var(--role-human-fill);--role-line:var(--role-human-line);--bar-w:40.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">frank</span>
+    <span class="bg-count">2</span>
+  </div><div class="bg-node" data-node-id="author:dependabot[bot]" data-login="dependabot[bot]" data-side="left" data-role="bot" data-total="1" data-default-count="1" data-default-bar-w="20.0%" style="--role-color:var(--role-bot);--role-fill:var(--role-bot-fill);--role-line:var(--role-bot-line);--bar-w:20.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">dependabot[bot]</span>
+    <span class="bg-count">1</span>
+  </div><div class="bg-node" data-node-id="author:renovate[bot]" data-login="renovate[bot]" data-side="left" data-role="bot" data-total="1" data-default-count="1" data-default-bar-w="20.0%" style="--role-color:var(--role-bot);--role-fill:var(--role-bot-fill);--role-line:var(--role-bot-line);--bar-w:20.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">renovate[bot]</span>
+    <span class="bg-count">1</span>
+  </div>
+        </div>
+        <svg class="bg-edges" width="728" height="396" viewBox="0 0 728 396" aria-hidden="true"><line data-author="alice" data-reviewer="bob" data-count="3" x1="280" y1="62" x2="448" y2="106" stroke="var(--role-human)" stroke-width="6.00" stroke-linecap="round" style="--w:6.00" /><line data-author="carol" data-reviewer="dave" data-count="3" x1="280" y1="106" x2="448" y2="194" stroke="var(--role-human)" stroke-width="6.00" stroke-linecap="round" style="--w:6.00" /><line data-author="eve" data-reviewer="alice" data-count="2" x1="280" y1="238" x2="448" y2="62" stroke="var(--role-human)" stroke-width="4.00" stroke-linecap="round" style="--w:4.00" /><line data-author="bob" data-reviewer="carol" data-count="2" x1="280" y1="194" x2="448" y2="150" stroke="var(--role-human)" stroke-width="4.00" stroke-linecap="round" style="--w:4.00" /><line data-author="carol" data-reviewer="alice" data-count="2" x1="280" y1="106" x2="448" y2="62" stroke="var(--role-human)" stroke-width="4.00" stroke-linecap="round" style="--w:4.00" /><line data-author="dave" data-reviewer="alice" data-count="2" x1="280" y1="150" x2="448" y2="62" stroke="var(--role-human)" stroke-width="4.00" stroke-linecap="round" style="--w:4.00" /><line data-author="bob" data-reviewer="alice" data-count="1" x1="280" y1="194" x2="448" y2="62" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="alice" data-reviewer="carol" data-count="1" x1="280" y1="62" x2="448" y2="150" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="dave" data-reviewer="bob" data-count="1" x1="280" y1="150" x2="448" y2="106" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="dave" data-reviewer="carol" data-count="1" x1="280" y1="150" x2="448" y2="150" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="frank" data-reviewer="bob" data-count="1" x1="280" y1="282" x2="448" y2="106" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="dependabot[bot]" data-reviewer="bob" data-count="1" x1="280" y1="326" x2="448" y2="106" stroke="var(--role-bot)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /><line data-author="alice" data-reviewer="coderabbitai[bot]" data-count="1" x1="280" y1="62" x2="448" y2="238" stroke="var(--role-human)" stroke-width="2.00" stroke-linecap="round" style="--w:2.00" /></svg>
+        <div class="bg-col bg-reviewers">
+          <div class="bg-col-header"><strong>レビュアー</strong><small>(レビュープルリク数)</small></div>
+          <div class="bg-node" data-node-id="reviewer:alice" data-login="alice" data-side="right" data-role="both" data-total="7" data-default-count="7" data-default-bar-w="100.0%" style="--role-color:var(--role-both);--role-fill:var(--role-both-fill);--role-line:var(--role-both-line);--bar-w:100.0%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">alice</span>
+    <span class="bg-count">7</span>
+  </div><div class="bg-node" data-node-id="reviewer:bob" data-login="bob" data-side="right" data-role="both" data-total="6" data-default-count="6" data-default-bar-w="85.7%" style="--role-color:var(--role-both);--role-fill:var(--role-both-fill);--role-line:var(--role-both-line);--bar-w:85.7%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">bob</span>
+    <span class="bg-count">6</span>
+  </div><div class="bg-node" data-node-id="reviewer:carol" data-login="carol" data-side="right" data-role="both" data-total="4" data-default-count="4" data-default-bar-w="57.1%" style="--role-color:var(--role-both);--role-fill:var(--role-both-fill);--role-line:var(--role-both-line);--bar-w:57.1%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">carol</span>
+    <span class="bg-count">4</span>
+  </div><div class="bg-node" data-node-id="reviewer:dave" data-login="dave" data-side="right" data-role="both" data-total="3" data-default-count="3" data-default-bar-w="42.9%" style="--role-color:var(--role-both);--role-fill:var(--role-both-fill);--role-line:var(--role-both-line);--bar-w:42.9%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">dave</span>
+    <span class="bg-count">3</span>
+  </div><div class="bg-node" data-node-id="reviewer:coderabbitai[bot]" data-login="coderabbitai[bot]" data-side="right" data-role="bot" data-total="1" data-default-count="1" data-default-bar-w="14.3%" style="--role-color:var(--role-bot);--role-fill:var(--role-bot-fill);--role-line:var(--role-bot-line);--bar-w:14.3%">
+    <div class="bg-bar"></div>
+    <span class="bg-dot"></span>
+    <span class="bg-label">coderabbitai[bot]</span>
+    <span class="bg-count">1</span>
+  </div>
+        </div>
+      </div>
+      <div class="bg-legend">
+        <span class="bg-legend-item"><span class="bg-dot" style="background:var(--role-human)"></span>人間</span>
+        <span class="bg-legend-item"><span class="bg-dot" style="background:var(--role-both)"></span>両方のロール</span>
+        <span class="bg-legend-item"><span class="bg-dot" style="background:var(--role-bot)"></span>ボット</span>
+        <span class="bg-legend-hint">ホバーで関連ノードと接続を強調</span>
+      </div>
+    </div>
+    <script>(function(){
+  var roots = document.querySelectorAll('[data-component="bipartite"]');
+  roots.forEach(function(root){
+    function resetNode(node){
+      var count = node.querySelector('.bg-count');
+      if (count) count.textContent = node.getAttribute('data-default-count') || '';
+      node.style.setProperty('--bar-w', node.getAttribute('data-default-bar-w') || '0%');
+    }
+    function clear(){
+      root.removeAttribute('data-hovered');
+      root.querySelectorAll('.bg-active').forEach(function(el){ el.classList.remove('bg-active'); });
+      root.querySelectorAll('.bg-node').forEach(resetNode);
+    }
+    function showPairCount(nodeId, pairCount){
+      root.querySelectorAll('.bg-node[data-node-id="' + CSS.escape(nodeId) + '"]').forEach(function(n){
+        var total = Number(n.getAttribute('data-total') || 0);
+        var count = n.querySelector('.bg-count');
+        var pct = total > 0 ? Math.max(8, (pairCount / total) * 100) : 0;
+        n.style.setProperty('--bar-w', pct.toFixed(1) + '%');
+        if (count) count.textContent = pairCount + '/' + total;
+      });
+    }
+    function activate(node){
+      var login = node.getAttribute('data-login');
+      var side = node.getAttribute('data-side');
+      var nodeId = node.getAttribute('data-node-id');
+      if (!login || !side || !nodeId) return;
+      root.setAttribute('data-hovered', nodeId);
+      var related = new Set([nodeId]);
+      root.querySelectorAll('.bg-edges line').forEach(function(line){
+        var a = line.getAttribute('data-author');
+        var r = line.getAttribute('data-reviewer');
+        var count = Number(line.getAttribute('data-count') || 0);
+        if (side === 'left' && a === login){
+          line.classList.add('bg-active');
+          var reviewerNodeId = 'reviewer:' + r;
+          related.add(reviewerNodeId);
+          showPairCount(reviewerNodeId, count);
+        } else if (side === 'right' && r === login){
+          line.classList.add('bg-active');
+          var authorNodeId = 'author:' + a;
+          related.add(authorNodeId);
+          showPairCount(authorNodeId, count);
+        }
+      });
+      related.forEach(function(relatedNodeId){
+        root.querySelectorAll('.bg-node[data-node-id="' + CSS.escape(relatedNodeId) + '"]').forEach(function(n){
+          n.classList.add('bg-active');
+        });
+      });
+    }
+    root.addEventListener('mouseover', function(e){
+      var n = e.target.closest('.bg-node[data-node-id]');
+      if (!n || !root.contains(n)) return;
+      var nodeId = n.getAttribute('data-node-id');
+      if (root.getAttribute('data-hovered') === nodeId) return;
+      clear();
+      activate(n);
+    });
+    root.addEventListener('mouseleave', clear);
+  });
+})();</script>
+  </section>
+<section class="ai-markdown"><h2>全体進捗</h2>
+<p>週全体は、フロントエンド基盤刷新と認証・決済・オンボーディングの機能強化を進めつつ、運用安定化の即応とAPI移行方針の整理まで前進した。</p>
+<h3>フロントエンド基盤の刷新</h3>
+<p>フロントエンドはWebpack 5からVite 6へ全面移行し、ビルド時間を4分10秒から18秒まで短縮したうえで、環境変数・動的import・エイリアス・CI/Storybook/Test基盤まで置き換えた。あわせてReact 19へのアップグレードも完了した。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a>, <a href="https://github.com/acme-corp/web-app/pull/300">acme-corp/web-app#300</a></p>
+<h3>オンボーディングフローの再設計</h3>
+<p>オンボーディングは「account setup→team invite→workspace config→tutorial」の新フローへ再設計し、ステップ状態を <code>pending/active/complete/skipped</code> で明示化した。レビュー指摘を受けて、team invite失敗時の指数バックオフ再試行（最大3回）とスキップ導線、遷移分析イベントを追加した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></p>
+<h3>認証・API保護の強化</h3>
+<p>認証はセッションCookieからJWT（15分アクセストークン/7日リフレッシュ）へ移行し、リフレッシュエンドポイントとローテーション方針の実装・文書化まで完了した。公開APIにはRedisベースのスライディングウィンドウ型レート制限を導入し、超過時429とRetry-Afterを返す運用にした。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a>, <a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a>, <a href="https://github.com/acme-corp/api-server/pull/301">acme-corp/api-server#301</a></p>
+<h3>決済領域の整備と拡張着手</h3>
+<p>既存の分散していた決済処理をPaymentServiceへ集約し、呼び出し側に漏れていたStripeエラー処理もサービス層へ移して保守性を上げた。さらにStripe Checkout/BillingとWebhook対応の実装を進め、レビュー待ちの状態まで到達した。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/55">acme-corp/web-app#55</a>, <a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a>, <a href="https://github.com/acme-corp/web-app/pull/302">acme-corp/web-app#302</a></p>
+<h3>運用安定化と可観測性の改善</h3>
+<p>CPU・メモリ・レイテンシ・エラー率をSSE配信するリアルタイムメトリクスダッシュボードを追加し、7日保持のクリーンアップジョブも組み込んだ。あわせて、ステージング停止を招いたデプロイ設定の緊急リバートと、本番Docker起動不全の環境変数欠落修正を短時間で反映した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/88">acme-corp/api-server#88</a>, <a href="https://github.com/acme-corp/cli-tools/pull/500">acme-corp/cli-tools#500</a>, <a href="https://github.com/acme-corp/api-server/pull/503">acme-corp/api-server#503</a></p>
+<h3>UX改善とAPI移行方針の整理</h3>
+<p>ユーザー向けには設定画面のダークモード追加と、認証失敗後にログインボタンが復帰しない不具合の修正を反映した。一方でREST全廃を前提にしたGraphQL全面移行案はクローズし、段階移行のRFCへ方針転換した。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/501">acme-corp/web-app#501</a>, <a href="https://github.com/acme-corp/web-app/pull/101">acme-corp/web-app#101</a>, <a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></p>
+</section>
+<section class="ai-markdown"><h2>フォローアップが必要なPR</h2>
+<p>対象条件: PR本文・コメント・レビューに、未対応TODO、別PR/後続チケット、未解決レビュー、延期された実装、または後続リファクタの明示的な根拠があるもの。</p>
+<h3>📌 TODO（明示された後続アクション）</h3>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong> — JWT有効期限の環境変数化と、ログアウト時のトークン無効化（ブロックリスト）を後続対応する。根拠: 未解決スレッドで「Will address in a follow-up PR to keep this diff focused.」「Need a token blocklist for that. Tracking in issue #510.」と明記。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a></strong> — セキュリティ・バックエンド・フロントエンド観点のレビュー対応を進める。根拠: PR本文に「Needs review from alice (security), bob (backend), carol (frontend).」と記載。</li>
+</ul>
+<h3>🔍 NOTE（関連Issue・参考情報）</h3>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong> — REST全面置換案は取り下げ、併存型GraphQLを別RFCで検討する方針。根拠: コメントで「I'll open a separate RFC for the opt-in GraphQL endpoint approach. Closing this PR.」と記載。</li>
+</ul>
+<h3>❓ 要確認（対応の有無が不明）</h3>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a></strong> — Redis依存のデプロイメントドキュメント追記が完了しているか確認が必要。根拠: レビューで「Worth noting the Redis dependency in the deployment docs.」と指摘がある一方、対応完了の記述はない。</li>
+</ul>
+</section>
+<section class="ai-markdown"><h2>議論があったPR</h2>
+<p>対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。</p>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong>: REST全面置換か、RESTを維持した段階的なGraphQL導入かで方針が分かれた。結果: 全面置換案は取り下げられ、別RFCで「併設アプローチ」を検討する方向に転換。根拠: CHANGES_REQUESTEDで互換性と移行期間が要求され、PRコメントでも「/graphqlを追加して移行期間を設けるべき」と合意され、作者がクローズ宣言。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></strong>: オンボーディングのステップ状態遷移定義と、team invite失敗時の復旧戦略が争点になった。結果: 状態機械の明確化に加えて、指数バックオフ再試行と3回失敗後のskipフォールバックが追加されて承認。根拠: Bobの2回のCHANGES_REQUESTEDとCarolの補足コメント後、修正報告コメントと最終APPROVEDが記録。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong>: JWT移行で、最低限必要な回転フローをPR内で完結させるか、設定性や失効制御を後続に分けるかが論点になった。結果: refresh endpointと回転ポリシー文書化はPR内で反映された一方、TTL環境変数化とログアウト時失効は後続対応に分離。根拠: CHANGES_REQUESTEDで回転ロジック追加が要求されてAPPROVEDに至り、未解決スレッドで「follow-up PR」「issue #510」が明示。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a></strong>: Webpack完全撤去を即時適用するか、移行期間の退避策を残すかが議論された。結果: 「LEGACY_BUILD」フラグで旧ビルドを1サイクル維持する折衷案に変更されて承認。根拠: CHANGES_REQUESTEDでレガシー維持が要求され、fixコミットでフラグ追加とドキュメント化後にAPPROVED。</li>
+</ul>
+</section>
+  </main>
+</body>
+</html>
