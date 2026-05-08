@@ -1,5 +1,5 @@
-import type { NormalizedPullRequest } from "../shared/types.js";
-import { getWeekBoundaries } from "../shared/timezone.js";
+import type { NormalizedPullRequest } from "./types.js";
+import { getWeekBoundaries } from "./timezone.js";
 
 function inRange(value: string | null | undefined, start: Date, end: Date): boolean {
   if (!value) return false;
@@ -9,6 +9,14 @@ function inRange(value: string | null | undefined, start: Date, end: Date): bool
 
 export function getReportWeek(date: Date, timezone: string): { start: Date; end: Date } {
   return getWeekBoundaries(date, timezone);
+}
+
+export function isMergedInWeek(
+  pr: NormalizedPullRequest,
+  start: Date,
+  end: Date,
+): boolean {
+  return inRange(pr.mergedAt, start, end);
 }
 
 export function hasPrActivityInWeek(

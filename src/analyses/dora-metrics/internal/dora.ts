@@ -3,7 +3,7 @@ import type {
   AggregateMetrics,
   DoraMetrics,
 } from "../../../shared/types.js";
-import { diffHours } from "./calculate.js";
+import { diffHours } from "../../../shared/datetime.js";
 import { average } from "./aggregate.js";
 
 const FAILURE_LABELS = new Set(["hotfix", "revert", "incident"]);

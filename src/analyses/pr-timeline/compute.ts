@@ -11,11 +11,16 @@ export type PrTimelineOutput = {
 
 export function compute(ctx: AnalysisContext): PrTimelineOutput {
   const limit = ctx.config["limit"] as number | undefined;
-  const weekEnd = ctx.weekEnd.toISOString();
-  const timelines = selectTimelinePrs(ctx.rawPrs, weekEnd, limit, ctx.isBotLogin);
+  const timelines = selectTimelinePrs(
+    ctx.rawPrs,
+    ctx.weekStart,
+    ctx.weekEnd,
+    limit,
+    ctx.isBotLogin,
+  );
   return {
     weekStart: ctx.weekStart.toISOString(),
-    weekEnd,
+    weekEnd: ctx.weekEnd.toISOString(),
     timezone: ctx.timezone,
     timelines,
   };

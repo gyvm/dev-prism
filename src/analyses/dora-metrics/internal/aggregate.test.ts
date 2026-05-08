@@ -78,4 +78,52 @@ describe("computeAggregateMetrics", () => {
     expect(result.medianLeadTimeHours).toBeNull();
     expect(result.p90LeadTimeHours).toBeNull();
   });
+
+  it("counts thresholdExceededCount only for PRs strictly above the threshold", () => {
+    const prs = [
+      // strictly under
+      makePrMetrics({ mergedAt: "2026-03-02T00:00:00.000Z", timeToFirstReviewHours: 6 }),
+      // exactly at the threshold — NOT counted (strict >)
+      makePrMetrics({ mergedAt: "2026-03-02T00:00:00.000Z", timeToFirstReviewHours: 24 }),
+      // over
+      makePrMetrics({ mergedAt: "2026-03-02T00:00:00.000Z", timeToFirstReviewHours: 25 }),
+      makePrMetrics({ mergedAt: "2026-03-02T00:00:00.000Z", timeToFirstReviewHours: 100 }),
+      // null (no review) — NOT counted toward exceeded; counted in noReviewCount instead
+      makePrMetrics({ mergedAt: null, timeToFirstReviewHours: null }),
+    ];
+
+    const result = computeAggregateMetrics(prs, 24);
+
+    expect(result.thresholdExceededCount).toBe(2);
+    expect(result.noReviewCount).toBe(1);
+  });
+
+  it("computes p90LeadTimeHours from merged PRs only", () => {
+    const prs = Array.from({ length: 10 }, (_, i) =>
+      makePrMetrics({
+        number: i + 1,
+        mergedAt: `2026-03-${String(i + 1).padStart(2, "0")}T00:00:00.000Z`,
+        leadTimeHours: (i + 1) * 10, // 10, 20, ..., 100
+      }),
+    );
+    // Add an unmerged PR with bogus leadTimeHours that should be ignored.
+    prs.push(makePrMetrics({ mergedAt: null, leadTimeHours: null }));
+
+    const result = computeAggregateMetrics(prs, 48);
+
+    // sorted [10..100], P90 (nearest-rank) = sorted[ceil(10*0.9)-1] = sorted[8] = 90
+    expect(result.p90LeadTimeHours).toBe(90);
+    expect(result.medianLeadTimeHours).toBe(55);
+    expect(result.mergedPrCount).toBe(10);
+  });
+
+  it("noReviewCount preserves current behavior: unmerged PRs without review are counted", () => {
+    const prs = [
+      makePrMetrics({ mergedAt: "2026-03-02T00:00:00.000Z", timeToFirstReviewHours: 6 }),
+      makePrMetrics({ mergedAt: null, timeToFirstReviewHours: null }), // unmerged, no review
+      makePrMetrics({ mergedAt: "2026-03-03T00:00:00.000Z", timeToFirstReviewHours: null }), // merged, no review
+    ];
+    const result = computeAggregateMetrics(prs, 48);
+    expect(result.noReviewCount).toBe(2);
+  });
 });
