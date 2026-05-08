@@ -77,6 +77,17 @@ export function createCopilotSdkRunner(
             skillDirectories: [...options.skillDirectories],
             onPermissionRequest: approveAll,
           });
+          session.on("assistant.usage", (event) => {
+            const usage = event.data;
+            const nanoAiu = usage.copilotUsage?.totalNanoAiu ?? 0;
+            process.stdout.write(
+              `[ai] skill=${skillId} model=${usage.model} ` +
+                `input=${usage.inputTokens ?? 0} output=${usage.outputTokens ?? 0} ` +
+                `reasoning=${usage.reasoningTokens ?? 0} ` +
+                `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0} ` +
+                `nanoAiu=${nanoAiu} duration=${usage.duration ?? 0}ms\n`,
+            );
+          });
           try {
             const result = await session.sendAndWait({ prompt }, timeoutMs);
             if (!result) {
