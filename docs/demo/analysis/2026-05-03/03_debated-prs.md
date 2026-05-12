@@ -2,7 +2,7 @@
 
 対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。
 
-- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: REST全面置換か、RESTを維持した段階的なGraphQL導入かで方針が分かれた。結果: 全面置換案は取り下げられ、別RFCで「併設アプローチ」を検討する方向に転換。根拠: CHANGES_REQUESTEDで互換性と移行期間が要求され、PRコメントでも「/graphqlを追加して移行期間を設けるべき」と合意され、作者がクローズ宣言。
-- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングのステップ状態遷移定義と、team invite失敗時の復旧戦略が争点になった。結果: 状態機械の明確化に加えて、指数バックオフ再試行と3回失敗後のskipフォールバックが追加されて承認。根拠: Bobの2回のCHANGES_REQUESTEDとCarolの補足コメント後、修正報告コメントと最終APPROVEDが記録。
-- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: JWT移行で、最低限必要な回転フローをPR内で完結させるか、設定性や失効制御を後続に分けるかが論点になった。結果: refresh endpointと回転ポリシー文書化はPR内で反映された一方、TTL環境変数化とログアウト時失効は後続対応に分離。根拠: CHANGES_REQUESTEDで回転ロジック追加が要求されてAPPROVEDに至り、未解決スレッドで「follow-up PR」「issue #510」が明示。
-- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: Webpack完全撤去を即時適用するか、移行期間の退避策を残すかが議論された。結果: 「LEGACY_BUILD」フラグで旧ビルドを1サイクル維持する折衷案に変更されて承認。根拠: CHANGES_REQUESTEDでレガシー維持が要求され、fixコミットでフラグ追加とドキュメント化後にAPPROVED。
+- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: Webpack全面撤去方針に対し「1リリースは旧構成をフラグで残すべき」という互換性の議論。結果: `LEGACY_BUILD` フラグ追加後に承認。根拠: Carolが `CHANGES_REQUESTED` で要求し、その後「LEGACY_BUILD flag」対応を確認して `APPROVED`。
+- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングの状態遷移定義と障害時リカバリー設計が争点。結果: 状態遷移の明確化、招待API失敗時の再試行とスキップ導入、分析イベント追加で承認。根拠: Bobの複数回 `CHANGES_REQUESTED` と Carol の同調コメントの後、修正報告コメントと最終 `APPROVED` がある。
+- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: セッション廃止後のJWT運用で「refreshフロー必須」と「失効・期限設定の扱い」が議論。結果: `/auth/refresh` とローテーション方針の追加で承認、期限の環境変数化とログアウト時失効は別対応に持ち越し。根拠: Aliceの `CHANGES_REQUESTED` 後に修正コミット `fix504a` `fix504b` と `APPROVED`、スレッドで issue #510 追跡が明示。
+- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: RESTを全面置換するGraphQL移行案に対し、互換性維持と段階移行を求める反対意見。結果: 置換案は採用されずクローズされ、追加導入RFCへ方針転換。根拠: Aliceの `CHANGES_REQUESTED` と Bob/Dave のリスク指摘に対し、作者が「別RFCを開く」とコメントしてPRを閉じている。

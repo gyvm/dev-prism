@@ -1,27 +1,27 @@
 ## 全体進捗
 
-週全体は、フロントエンド基盤刷新と認証・決済・オンボーディングの機能強化を進めつつ、運用安定化の即応とAPI移行方針の整理まで前進した。
+週全体は、フロントエンド基盤の大規模刷新と認証・決済・運用領域の機能強化を同時に進め、高リスク提案は方針見直しで収束させた。
 
-### フロントエンド基盤の刷新
-フロントエンドはWebpack 5からVite 6へ全面移行し、ビルド時間を4分10秒から18秒まで短縮したうえで、環境変数・動的import・エイリアス・CI/Storybook/Test基盤まで置き換えた。あわせてReact 19へのアップグレードも完了した。  
+### フロントエンド開発基盤の刷新
+Webpack から Vite への全面移行でビルド時間を「4分10秒→18秒」まで短縮し、レビュー指摘に対応して `LEGACY_BUILD` フラグで旧ビルドを1サイクル併存可能にした。あわせて React 19 へ更新し、依存関係を追従させた。  
 関連PR: [acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502), [acme-corp/web-app#300](https://github.com/acme-corp/web-app/pull/300)
 
-### オンボーディングフローの再設計
-オンボーディングは「account setup→team invite→workspace config→tutorial」の新フローへ再設計し、ステップ状態を `pending/active/complete/skipped` で明示化した。レビュー指摘を受けて、team invite失敗時の指数バックオフ再試行（最大3回）とスキップ導線、遷移分析イベントを追加した。  
-関連PR: [acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)
+### ユーザー体験フローの改善
+オンボーディングを4段ステップへ再設計し、状態遷移の明確化に加えて招待API失敗時の指数バックオフ再試行とスキップ導線、ステップ遷移分析を追加した。設定画面のダークモード導入と、認証失敗後にログインボタンが復帰しない不具合も解消した。  
+関連PR: [acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507), [acme-corp/web-app#501](https://github.com/acme-corp/web-app/pull/501), [acme-corp/web-app#101](https://github.com/acme-corp/web-app/pull/101)
 
-### 認証・API保護の強化
-認証はセッションCookieからJWT（15分アクセストークン/7日リフレッシュ）へ移行し、リフレッシュエンドポイントとローテーション方針の実装・文書化まで完了した。公開APIにはRedisベースのスライディングウィンドウ型レート制限を導入し、超過時429とRetry-Afterを返す運用にした。  
+### 認証と公開API保護の強化
+Session Cookie を JWT（15分/7日）へ移行し、レビュー要求に応えて refresh エンドポイントとローテーション方針を実装・文書化した。加えて Redis ベースのスライディングウィンドウ型レート制限を公開APIへ適用し、OAuth 2.0 PKCEガイドを更新した。  
 関連PR: [acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504), [acme-corp/api-server#202](https://github.com/acme-corp/api-server/pull/202), [acme-corp/api-server#301](https://github.com/acme-corp/api-server/pull/301)
 
-### 決済領域の整備と拡張着手
-既存の分散していた決済処理をPaymentServiceへ集約し、呼び出し側に漏れていたStripeエラー処理もサービス層へ移して保守性を上げた。さらにStripe Checkout/BillingとWebhook対応の実装を進め、レビュー待ちの状態まで到達した。  
-関連PR: [acme-corp/web-app#55](https://github.com/acme-corp/web-app/pull/55), [acme-corp/web-app#506](https://github.com/acme-corp/web-app/pull/506), [acme-corp/web-app#302](https://github.com/acme-corp/web-app/pull/302)
+### 決済ドメインの基盤化と実装前進
+分散していた決済処理を PaymentService に集約して呼び出し側の責務を削減し、エラーハンドリングもサービス層へ統合した。チェックアウトE2Eテストを追加して回帰を抑えつつ、Stripe Checkout/Billing と webhook 実装はレビュー待ちまで到達した。  
+関連PR: [acme-corp/web-app#55](https://github.com/acme-corp/web-app/pull/55), [acme-corp/web-app#302](https://github.com/acme-corp/web-app/pull/302), [acme-corp/web-app#506](https://github.com/acme-corp/web-app/pull/506)
 
-### 運用安定化と可観測性の改善
-CPU・メモリ・レイテンシ・エラー率をSSE配信するリアルタイムメトリクスダッシュボードを追加し、7日保持のクリーンアップジョブも組み込んだ。あわせて、ステージング停止を招いたデプロイ設定の緊急リバートと、本番Docker起動不全の環境変数欠落修正を短時間で反映した。  
+### 可観測性と本番安定化
+SSE配信のシステムヘルスダッシュボードを追加し、CPU・メモリ・遅延・エラー率の集約と7日保持のクリーンアップ運用を導入した。あわせてステージング障害のデプロイ設定ロールバックと、本番Docker起動失敗のENV不足修正を短時間で収束した。  
 関連PR: [acme-corp/api-server#88](https://github.com/acme-corp/api-server/pull/88), [acme-corp/cli-tools#500](https://github.com/acme-corp/cli-tools/pull/500), [acme-corp/api-server#503](https://github.com/acme-corp/api-server/pull/503)
 
-### UX改善とAPI移行方針の整理
-ユーザー向けには設定画面のダークモード追加と、認証失敗後にログインボタンが復帰しない不具合の修正を反映した。一方でREST全廃を前提にしたGraphQL全面移行案はクローズし、段階移行のRFCへ方針転換した。  
-関連PR: [acme-corp/web-app#501](https://github.com/acme-corp/web-app/pull/501), [acme-corp/web-app#101](https://github.com/acme-corp/web-app/pull/101), [acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)
+### API進化方針の整理
+REST全面置換のGraphQL移行案は、既存クライアント影響と移行戦略不足が指摘されクローズされた。代替として、REST併存の段階導入を前提にRFC化する方向へ合意した。  
+関連PR: [acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)

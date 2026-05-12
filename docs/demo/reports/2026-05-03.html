@@ -121,7 +121,7 @@ section > h2 { margin-bottom:16px; }
         </div>
         <div class="report-meta-item">
           <dt>生成日時</dt>
-          <dd>2026年5月5日(火) 23:50 JST</dd>
+          <dd>2026年5月13日(水) 00:11 JST</dd>
         </div>
       </dl>
     </header>
@@ -578,49 +578,46 @@ section > h2 { margin-bottom:16px; }
 })();</script>
   </section>
 <section class="ai-markdown"><h2>全体進捗</h2>
-<p>週全体は、フロントエンド基盤刷新と認証・決済・オンボーディングの機能強化を進めつつ、運用安定化の即応とAPI移行方針の整理まで前進した。</p>
-<h3>フロントエンド基盤の刷新</h3>
-<p>フロントエンドはWebpack 5からVite 6へ全面移行し、ビルド時間を4分10秒から18秒まで短縮したうえで、環境変数・動的import・エイリアス・CI/Storybook/Test基盤まで置き換えた。あわせてReact 19へのアップグレードも完了した。<br>
+<p>週全体は、フロントエンド基盤の大規模刷新と認証・決済・運用領域の機能強化を同時に進め、高リスク提案は方針見直しで収束させた。</p>
+<h3>フロントエンド開発基盤の刷新</h3>
+<p>Webpack から Vite への全面移行でビルド時間を「4分10秒→18秒」まで短縮し、レビュー指摘に対応して <code>LEGACY_BUILD</code> フラグで旧ビルドを1サイクル併存可能にした。あわせて React 19 へ更新し、依存関係を追従させた。<br>
 関連PR: <a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a>, <a href="https://github.com/acme-corp/web-app/pull/300">acme-corp/web-app#300</a></p>
-<h3>オンボーディングフローの再設計</h3>
-<p>オンボーディングは「account setup→team invite→workspace config→tutorial」の新フローへ再設計し、ステップ状態を <code>pending/active/complete/skipped</code> で明示化した。レビュー指摘を受けて、team invite失敗時の指数バックオフ再試行（最大3回）とスキップ導線、遷移分析イベントを追加した。<br>
-関連PR: <a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></p>
-<h3>認証・API保護の強化</h3>
-<p>認証はセッションCookieからJWT（15分アクセストークン/7日リフレッシュ）へ移行し、リフレッシュエンドポイントとローテーション方針の実装・文書化まで完了した。公開APIにはRedisベースのスライディングウィンドウ型レート制限を導入し、超過時429とRetry-Afterを返す運用にした。<br>
+<h3>ユーザー体験フローの改善</h3>
+<p>オンボーディングを4段ステップへ再設計し、状態遷移の明確化に加えて招待API失敗時の指数バックオフ再試行とスキップ導線、ステップ遷移分析を追加した。設定画面のダークモード導入と、認証失敗後にログインボタンが復帰しない不具合も解消した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a>, <a href="https://github.com/acme-corp/web-app/pull/501">acme-corp/web-app#501</a>, <a href="https://github.com/acme-corp/web-app/pull/101">acme-corp/web-app#101</a></p>
+<h3>認証と公開API保護の強化</h3>
+<p>Session Cookie を JWT（15分/7日）へ移行し、レビュー要求に応えて refresh エンドポイントとローテーション方針を実装・文書化した。加えて Redis ベースのスライディングウィンドウ型レート制限を公開APIへ適用し、OAuth 2.0 PKCEガイドを更新した。<br>
 関連PR: <a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a>, <a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a>, <a href="https://github.com/acme-corp/api-server/pull/301">acme-corp/api-server#301</a></p>
-<h3>決済領域の整備と拡張着手</h3>
-<p>既存の分散していた決済処理をPaymentServiceへ集約し、呼び出し側に漏れていたStripeエラー処理もサービス層へ移して保守性を上げた。さらにStripe Checkout/BillingとWebhook対応の実装を進め、レビュー待ちの状態まで到達した。<br>
-関連PR: <a href="https://github.com/acme-corp/web-app/pull/55">acme-corp/web-app#55</a>, <a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a>, <a href="https://github.com/acme-corp/web-app/pull/302">acme-corp/web-app#302</a></p>
-<h3>運用安定化と可観測性の改善</h3>
-<p>CPU・メモリ・レイテンシ・エラー率をSSE配信するリアルタイムメトリクスダッシュボードを追加し、7日保持のクリーンアップジョブも組み込んだ。あわせて、ステージング停止を招いたデプロイ設定の緊急リバートと、本番Docker起動不全の環境変数欠落修正を短時間で反映した。<br>
+<h3>決済ドメインの基盤化と実装前進</h3>
+<p>分散していた決済処理を PaymentService に集約して呼び出し側の責務を削減し、エラーハンドリングもサービス層へ統合した。チェックアウトE2Eテストを追加して回帰を抑えつつ、Stripe Checkout/Billing と webhook 実装はレビュー待ちまで到達した。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/55">acme-corp/web-app#55</a>, <a href="https://github.com/acme-corp/web-app/pull/302">acme-corp/web-app#302</a>, <a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a></p>
+<h3>可観測性と本番安定化</h3>
+<p>SSE配信のシステムヘルスダッシュボードを追加し、CPU・メモリ・遅延・エラー率の集約と7日保持のクリーンアップ運用を導入した。あわせてステージング障害のデプロイ設定ロールバックと、本番Docker起動失敗のENV不足修正を短時間で収束した。<br>
 関連PR: <a href="https://github.com/acme-corp/api-server/pull/88">acme-corp/api-server#88</a>, <a href="https://github.com/acme-corp/cli-tools/pull/500">acme-corp/cli-tools#500</a>, <a href="https://github.com/acme-corp/api-server/pull/503">acme-corp/api-server#503</a></p>
-<h3>UX改善とAPI移行方針の整理</h3>
-<p>ユーザー向けには設定画面のダークモード追加と、認証失敗後にログインボタンが復帰しない不具合の修正を反映した。一方でREST全廃を前提にしたGraphQL全面移行案はクローズし、段階移行のRFCへ方針転換した。<br>
-関連PR: <a href="https://github.com/acme-corp/web-app/pull/501">acme-corp/web-app#501</a>, <a href="https://github.com/acme-corp/web-app/pull/101">acme-corp/web-app#101</a>, <a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></p>
+<h3>API進化方針の整理</h3>
+<p>REST全面置換のGraphQL移行案は、既存クライアント影響と移行戦略不足が指摘されクローズされた。代替として、REST併存の段階導入を前提にRFC化する方向へ合意した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></p>
 </section>
 <section class="ai-markdown"><h2>フォローアップが必要なPR</h2>
 <p>対象条件: PR本文・コメント・レビューに、未対応TODO、別PR/後続チケット、未解決レビュー、延期された実装、または後続リファクタの明示的な根拠があるもの。</p>
 <h3>📌 TODO（明示された後続アクション）</h3>
 <ul>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong> — JWT有効期限の環境変数化と、ログアウト時のトークン無効化（ブロックリスト）を後続対応する。根拠: 未解決スレッドで「Will address in a follow-up PR to keep this diff focused.」「Need a token blocklist for that. Tracking in issue #510.」と明記。</li>
-<li><strong><a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a></strong> — セキュリティ・バックエンド・フロントエンド観点のレビュー対応を進める。根拠: PR本文に「Needs review from alice (security), bob (backend), carol (frontend).」と記載。</li>
-</ul>
-<h3>🔍 NOTE（関連Issue・参考情報）</h3>
-<ul>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong> — REST全面置換案は取り下げ、併存型GraphQLを別RFCで検討する方針。根拠: コメントで「I'll open a separate RFC for the opt-in GraphQL endpoint approach. Closing this PR.」と記載。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong> — JWT有効期限の環境変数化と、ログアウト時失効に向けたトークンブロックリスト対応を後続で実施。根拠: 未解決スレッドで「Token expiry should be configurable via environment variable, not hardcoded to 15m.」に対して作者が「Will address in a follow-up PR」、別スレッドでも「Need a token blocklist for that. Tracking in issue #510.」と明記。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a></strong> — セキュリティ・バックエンド・フロントエンド観点のレビュー実施。根拠: PR本文に「Needs review from alice (security), bob (backend), carol (frontend).」と明示され、レビューが未提出。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong> — REST置換ではなく併存方針でのGraphQL導入案をRFCとして起票。根拠: クローズ時コメントで作者が「I'll open a separate RFC for the opt-in GraphQL endpoint approach. Closing this PR.」と明記。</li>
 </ul>
 <h3>❓ 要確認（対応の有無が不明）</h3>
 <ul>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a></strong> — Redis依存のデプロイメントドキュメント追記が完了しているか確認が必要。根拠: レビューで「Worth noting the Redis dependency in the deployment docs.」と指摘がある一方、対応完了の記述はない。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a></strong> — Redis依存のデプロイメントドキュメント追記の要否確認。根拠: レビューで「Worth noting the Redis dependency in the deployment docs.」と指摘があるが、対応完了の記述はPRデータ上で確認できない。</li>
 </ul>
 </section>
 <section class="ai-markdown"><h2>議論があったPR</h2>
 <p>対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。</p>
 <ul>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong>: REST全面置換か、RESTを維持した段階的なGraphQL導入かで方針が分かれた。結果: 全面置換案は取り下げられ、別RFCで「併設アプローチ」を検討する方向に転換。根拠: CHANGES_REQUESTEDで互換性と移行期間が要求され、PRコメントでも「/graphqlを追加して移行期間を設けるべき」と合意され、作者がクローズ宣言。</li>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></strong>: オンボーディングのステップ状態遷移定義と、team invite失敗時の復旧戦略が争点になった。結果: 状態機械の明確化に加えて、指数バックオフ再試行と3回失敗後のskipフォールバックが追加されて承認。根拠: Bobの2回のCHANGES_REQUESTEDとCarolの補足コメント後、修正報告コメントと最終APPROVEDが記録。</li>
-<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong>: JWT移行で、最低限必要な回転フローをPR内で完結させるか、設定性や失効制御を後続に分けるかが論点になった。結果: refresh endpointと回転ポリシー文書化はPR内で反映された一方、TTL環境変数化とログアウト時失効は後続対応に分離。根拠: CHANGES_REQUESTEDで回転ロジック追加が要求されてAPPROVEDに至り、未解決スレッドで「follow-up PR」「issue #510」が明示。</li>
-<li><strong><a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a></strong>: Webpack完全撤去を即時適用するか、移行期間の退避策を残すかが議論された。結果: 「LEGACY_BUILD」フラグで旧ビルドを1サイクル維持する折衷案に変更されて承認。根拠: CHANGES_REQUESTEDでレガシー維持が要求され、fixコミットでフラグ追加とドキュメント化後にAPPROVED。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a></strong>: Webpack全面撤去方針に対し「1リリースは旧構成をフラグで残すべき」という互換性の議論。結果: <code>LEGACY_BUILD</code> フラグ追加後に承認。根拠: Carolが <code>CHANGES_REQUESTED</code> で要求し、その後「LEGACY_BUILD flag」対応を確認して <code>APPROVED</code>。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></strong>: オンボーディングの状態遷移定義と障害時リカバリー設計が争点。結果: 状態遷移の明確化、招待API失敗時の再試行とスキップ導入、分析イベント追加で承認。根拠: Bobの複数回 <code>CHANGES_REQUESTED</code> と Carol の同調コメントの後、修正報告コメントと最終 <code>APPROVED</code> がある。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong>: セッション廃止後のJWT運用で「refreshフロー必須」と「失効・期限設定の扱い」が議論。結果: <code>/auth/refresh</code> とローテーション方針の追加で承認、期限の環境変数化とログアウト時失効は別対応に持ち越し。根拠: Aliceの <code>CHANGES_REQUESTED</code> 後に修正コミット <code>fix504a</code> <code>fix504b</code> と <code>APPROVED</code>、スレッドで issue #510 追跡が明示。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong>: RESTを全面置換するGraphQL移行案に対し、互換性維持と段階移行を求める反対意見。結果: 置換案は採用されずクローズされ、追加導入RFCへ方針転換。根拠: Aliceの <code>CHANGES_REQUESTED</code> と Bob/Dave のリスク指摘に対し、作者が「別RFCを開く」とコメントしてPRを閉じている。</li>
 </ul>
 </section>
   </main>
