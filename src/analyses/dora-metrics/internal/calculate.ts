@@ -3,22 +3,10 @@ import type {
   PrMetrics,
   PrSizeBucket,
 } from "../../../shared/types.js";
-import { MetricsError } from "../../../shared/errors.js";
+import { diffHours } from "../../../shared/datetime.js";
 
 const SIZE_SMALL_MAX = 99;
 const SIZE_MEDIUM_MAX = 499;
-
-export function diffHours(start: string, end: string): number {
-  const startMs = new Date(start).getTime();
-  const endMs = new Date(end).getTime();
-  if (Number.isNaN(startMs)) {
-    throw new MetricsError(`Invalid start date: "${start}"`);
-  }
-  if (Number.isNaN(endMs)) {
-    throw new MetricsError(`Invalid end date: "${end}"`);
-  }
-  return (endMs - startMs) / (1000 * 60 * 60);
-}
 
 export function findFirstReviewDate(
   reviews: NormalizedPullRequest["reviews"],

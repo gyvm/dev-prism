@@ -4,9 +4,9 @@
   "status": "ok",
   "renderer": "metric-cards",
   "data": {
-    "deploymentFrequency": 15,
-    "leadTimeForChangesHours": 25,
-    "changeFailureRatePercent": 13.333333333333334,
+    "deploymentFrequency": 13,
+    "leadTimeForChangesHours": 28,
+    "changeFailureRatePercent": 15.384615384615385,
     "mttrHours": 1.2666666666666668
   }
 }

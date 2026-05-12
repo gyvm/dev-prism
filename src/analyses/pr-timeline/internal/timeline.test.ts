@@ -318,12 +318,16 @@ describe("buildPrTimeline", () => {
 });
 
 describe("selectTimelinePrs", () => {
+  // Wide window so existing fixtures (which span the whole month) are all "active in week".
+  const WIDE_START = new Date("2026-03-01T00:00:00.000Z");
+  const WIDE_END = new Date(WEEK_END);
+
   it("includes unmerged PRs (OPEN/CLOSED) in the timeline", () => {
     const prs = [
       makePr({ number: 1, mergedAt: null, closedAt: null, createdAt: "2026-03-25T00:00:00.000Z" }),
       makePr({ number: 2, mergedAt: null, closedAt: "2026-03-26T00:00:00.000Z", createdAt: "2026-03-25T00:00:00.000Z" }),
     ];
-    const result = selectTimelinePrs(prs, WEEK_END);
+    const result = selectTimelinePrs(prs, WIDE_START, WIDE_END);
     expect(result).toHaveLength(2);
   });
 
@@ -335,7 +339,7 @@ describe("selectTimelinePrs", () => {
         mergedAt: `2026-03-${String(i + 2).padStart(2, "0")}T00:00:00.000Z`,
       }),
     );
-    const result = selectTimelinePrs(prs, WEEK_END);
+    const result = selectTimelinePrs(prs, WIDE_START, WIDE_END);
     expect(result).toHaveLength(15);
   });
 
@@ -345,7 +349,7 @@ describe("selectTimelinePrs", () => {
       makePr({ number: 2, mergedAt: "2026-03-30T00:00:00.000Z", createdAt: "2026-03-29T00:00:00.000Z" }),
       makePr({ number: 3, mergedAt: "2026-03-29T00:00:00.000Z", createdAt: "2026-03-28T00:00:00.000Z" }),
     ];
-    const result = selectTimelinePrs(prs, WEEK_END, 2);
+    const result = selectTimelinePrs(prs, WIDE_START, WIDE_END, 2);
     expect(result).toHaveLength(2);
     expect(result[0]!.number).toBe(2);
     expect(result[1]!.number).toBe(3);
@@ -359,7 +363,27 @@ describe("selectTimelinePrs", () => {
         mergedAt: `2026-03-${String(i + 2).padStart(2, "0")}T00:00:00.000Z`,
       }),
     );
-    const result = selectTimelinePrs(prs, WEEK_END, 5);
+    const result = selectTimelinePrs(prs, WIDE_START, WIDE_END, 5);
     expect(result).toHaveLength(5);
+  });
+
+  it("excludes PRs whose only activity is outside the week", () => {
+    const weekStart = new Date("2026-03-23T00:00:00.000Z");
+    const weekEnd = new Date("2026-03-29T23:59:59.999Z");
+    const prs = [
+      makePr({
+        number: 100,
+        createdAt: "2026-03-10T00:00:00.000Z",
+        mergedAt: "2026-03-12T00:00:00.000Z", // pre-week, no other activity
+      }),
+      makePr({
+        number: 200,
+        createdAt: "2026-03-25T00:00:00.000Z",
+        mergedAt: "2026-03-25T12:00:00.000Z", // in-week
+      }),
+    ];
+    const result = selectTimelinePrs(prs, weekStart, weekEnd);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.number).toBe(200);
   });
 });

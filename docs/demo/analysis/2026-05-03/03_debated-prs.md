@@ -2,7 +2,7 @@
 
 対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。
 
-- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: Webpack完全撤廃を進める方針に対し、「1リリースは旧ビルドを残すべきか」が論点になった。結果: 「LEGACY_BUILD」フラグ付きで互換運用に変更され、根拠: 4/30の `CHANGES_REQUESTED` 後に「keep legacy webpack config behind LEGACY_BUILD flag」コミットが追加され、5/3に `APPROVED` へ転じた。  
-- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングのステップ状態遷移（complete/skippedの定義）と、チーム招待API失敗時の復旧方針が繰り返し議論された。結果: 状態機械の明確化に加えて再試行+スキップ fallback と遷移分析イベントが実装され、根拠: 複数回の `CHANGES_REQUESTED` と「wizard gets stuck」指摘の後に修正コメント・関連コミットが入り最終 `APPROVED` となった。  
-- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: セッションCookie廃止後のJWT運用で、回転ロジック必須化と有効期限・失効戦略の扱いが論点になった。結果: `/auth/refresh` と回転方針の文書化は反映されたが一部は未確認で、根拠: `CHANGES_REQUESTED` を受けて修正後に承認された一方、スレッドでTTL環境変数化やログアウト時無効化は「follow-up PR」「issue #510」へ持ち越しと記録されている。  
-- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: RESTをGraphQLへ全面置換する提案に対し、既存クライアント互換性と移行期間の設計トレードオフが争点になった。結果: 全面置換案は取り下げられて方向転換し、根拠: `CHANGES_REQUESTED` と追加コメントで「併存導入+段階移行」案が支持され、最終的に提案者が「別RFCを出す」としてPRをクローズした。
+- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: REST全面置換の是非と移行戦略が論点になり、既存クライアント破壊リスクに対して「段階的な併存移行」を求める意見が出た。結果: 全面置換案は取り下げられ、別RFCで再検討する方向に転換。根拠: CHANGES_REQUESTEDと複数の反対コメントの後、作者が「opt-in GraphQL endpoint案で別RFCを出す」としてPRをクローズ。
+- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングの状態遷移定義と失敗時リカバリの実装方針に対して、完了/スキップ判定の曖昧さとAPI失敗時の停止が繰り返し指摘された。結果: 状態機械の明確化、招待APIの指数バックオフ再試行と3回失敗後のスキップ導入で収束。根拠: Bobの2回のCHANGES_REQUESTED、Carolの同意コメント、その後の修正報告と最終承認。
+- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: JWT移行でリフレッシュトークン回転、有効期限の設定可能化、ログアウト時無効化の扱いが論点となった。結果: リフレッシュエンドポイント追加と方針文書化でマージされたが、一部の強化項目はフォローアップへ持ち越し。根拠: CHANGES_REQUESTEDで「refresh endpointとexpiry戦略」を要求し承認に至る一方、review threadで「expiryの環境変数化」「blocklist」は別対応として残存。
+- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: WebpackからViteへの全面移行で、即時切替か互換期間を設けるかのリリース方針が争点になった。結果: 「LEGACY_BUILD」フラグで旧ビルドを一時併存させる条件付きで合意。根拠: CarolのCHANGES_REQUESTEDで旧設定維持を要求し、対応後に承認コメントへ変更。
