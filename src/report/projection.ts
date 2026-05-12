@@ -6,7 +6,7 @@ import type {
   ReportInput,
   ReportPrInput,
 } from "./types.js";
-import { hasPrActivityInWeek, selectActiveWeekPrs } from "./week.js";
+import { hasPrActivityInWeek, selectActiveWeekPrs } from "../shared/week.js";
 
 function truncateText(value: string | null | undefined, maxLength: number): string | null {
   if (!value) return value ?? null;

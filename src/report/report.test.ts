@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { renderReportHtml } from "../pipeline/stages/render.js";
 import { buildReportInput } from "./projection.js";
-import { hasPrActivityInWeek, selectActiveWeekPrs } from "./week.js";
+import { hasPrActivityInWeek, selectActiveWeekPrs } from "../shared/week.js";
 import { makePr } from "../test-fixtures.js";
 
 describe("report week selection", () => {
