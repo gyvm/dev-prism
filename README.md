@@ -58,12 +58,14 @@ git clone https://github.com/<your-org>/pr-weekly-report.git && cd pr-weekly-rep
 リポジトリルートの `config.toml` で対象リポジトリを書き換えます。
 
 ```toml
+[general]
 timezone = "Asia/Tokyo"
 
 # 各エントリは "owner/name" または "owner/*"。
 # "owner/*" は archived を除く owner 配下の全リポジトリに展開されます
 # (トークンに権限があれば private も含む)。
-repositories = [
+[repositories]
+include = [
   "your-org/your-repo",
   "your-org/another-repo",
   # "your-org/*",
@@ -107,17 +109,17 @@ npm run demo
 
 ## 設定 (`config.toml`)
 
-| キー | 説明 |
-|---|---|
-| `timezone` | 週境界を計算するタイムゾーン (例: `Asia/Tokyo`) |
-| `repositories` | 対象リポジトリの配列。各要素は `"owner/name"` または `"owner/*"` (ワイルドカードは archived を除く owner 配下の全リポジトリに展開) |
-| `[caps]` | 1 PR あたりの取得上限 (コメント数、レビュースレッド数、ファイル数、本文長など)。GraphQL のページング負荷を抑える |
-| `[actors].botLoginPatterns` | bot と見なす GitHub login の正規表現配列。大文字小文字は区別しない |
-| `[ai].model` | AI 分析で使う Copilot SDK のモデル ID。省略時は SDK のデフォルト |
-| `[analyses].disabled` | 無効化したい分析 ID の配列 |
-| `[analyses].overrides` | 各分析の内部パラメータを上書き (例: `"dora-metrics" = { firstReviewThresholdHours = 24 }`) |
+設定はすべて TOML テーブル (`[セクション名]`) に属し、トップレベルに裸の key=value は置きません。`[repositories]` のみ必須で、他テーブルは省略可。省略時はコード側のデフォルトが適用されます。
 
-`[analyses]` を省略すると、`skills/` 配下の AI skill と `src/pipeline/stages/analyze.ts` の `COMPUTE_REGISTRY` に登録された compute 分析がすべて既定パラメータで実行されます。`disabled` と `overrides` は調整したいときだけ書きます。
+| セクション | キー | 説明 |
+|---|---|---|
+| `[general]` | `timezone` | 週境界を計算するタイムゾーン (例: `Asia/Tokyo`)。省略時は `UTC` |
+| `[repositories]` | `include` | 対象リポジトリの配列。各要素は `"owner/name"` または `"owner/*"` (ワイルドカードは archived を除く owner 配下の全リポジトリに展開) |
+| `[limits]` | `maxPrs` / `maxCommentsPerPr` / `maxReviewThreadsPerPr` / `maxFilesPerPr` / `maxCommitsPerPr` / `maxBodyLength` | 1 PR あたりの取得上限。GraphQL のページング負荷を抑える |
+| `[bots]` | `patterns` | bot と見なす GitHub login の正規表現配列。大文字小文字は区別しない |
+| `[ai]` | `model` | AI 分析で使う Copilot SDK のモデル ID。省略時は SDK のデフォルト |
+
+`skills/` 配下の AI skill と `src/pipeline/stages/analyze.ts` の `COMPUTE_REGISTRY` に登録された compute 分析は常に既定パラメータで実行されます。
 
 利用可能な Copilot モデル ID は `copilot` CLI 内で `/model` を実行するか、Copilot SDK の `client.listModels()` で確認できます。
 

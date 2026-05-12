@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { DEFAULT_CAPS } from "../../shared/config.js";
+import { DEFAULT_LIMITS } from "../../shared/config.js";
 import {
   analyzeStage,
   discoverAiSkillIds,
@@ -61,24 +61,19 @@ describe("analyzeStage", () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it("skips disabled compute analyses and AI skills with --skip-ai", async () => {
+  it("runs compute analyses and skips AI skills when skipAi is true", async () => {
     const result = await analyzeStage(period, [buildPr()], {
-      caps: DEFAULT_CAPS,
+      limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,
       skipAi: true,
       skillsRoot: "skills",
-      analyses: {
-        disabled: ["pr-timeline"],
-        overrides: {},
-      },
     });
 
     const byId = Object.fromEntries(result.results.map((r) => [r.id, r]));
     expect(byId["dora-metrics"]?.status).toBe("ok");
-    expect(byId["pr-timeline"]?.status).toBe("skipped");
-    expect(byId["pr-timeline"]?.reason).toMatch(/disabled/i);
+    expect(byId["pr-timeline"]?.status).toBe("ok");
     expect(byId["01_project-progress"]?.status).toBe("skipped");
     expect(byId["01_project-progress"]?.reason).toMatch(/skipped/i);
   });
@@ -91,16 +86,19 @@ describe("analyzeStage", () => {
       return `## ${skillId}\n\nstubbed output`;
     };
     const result = await analyzeStage(period, [buildPr()], {
-      caps: DEFAULT_CAPS,
+      limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,
       aiRunner: runner,
       skillsRoot: "skills",
-      analyses: { disabled: ["03_debated-prs", "02_follow-up-prs"], overrides: {} },
     });
 
-    expect(calls).toEqual([{ skillId: "01_project-progress", prCount: 1 }]);
+    expect(calls.map((c) => c.skillId).sort()).toEqual([
+      "01_project-progress",
+      "02_follow-up-prs",
+      "03_debated-prs",
+    ]);
     const ai = result.results.find((r) => r.id === "01_project-progress");
     expect(ai?.status).toBe("ok");
     expect(ai?.format).toBe("markdown");
@@ -109,7 +107,7 @@ describe("analyzeStage", () => {
 
   it("orders compute analyses then AI skills by directory prefix", async () => {
     const result = await analyzeStage(period, [buildPr()], {
-      caps: DEFAULT_CAPS,
+      limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,

@@ -1,6 +1,6 @@
 import type { NormalizedPullRequest } from "../shared/types.js";
 
-export type ReportCaps = Readonly<{
+export type ReportLimits = Readonly<{
   maxPrs: number;
   maxCommentsPerPr: number;
   maxReviewThreadsPerPr: number;

@@ -1,7 +1,7 @@
 import type { NormalizedPullRequest } from "../shared/types.js";
 import { formatRepoSlug } from "../shared/types.js";
 import type {
-  ReportCaps,
+  ReportLimits,
   ReportCommentInput,
   ReportInput,
   ReportPrInput,
@@ -29,25 +29,25 @@ function conversationCount(pr: NormalizedPullRequest): number {
   );
 }
 
-function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
+function projectPr(pr: NormalizedPullRequest, limits: ReportLimits): ReportPrInput {
   const truncation: string[] = [];
 
-  const comments = pr.comments.slice(0, caps.maxCommentsPerPr);
+  const comments = pr.comments.slice(0, limits.maxCommentsPerPr);
   if (pr.comments.length > comments.length) {
     truncation.push(`PR comments truncated to ${comments.length}`);
   }
 
-  const threads = pr.reviewThreads.slice(0, caps.maxReviewThreadsPerPr);
+  const threads = pr.reviewThreads.slice(0, limits.maxReviewThreadsPerPr);
   if (pr.reviewThreads.length > threads.length) {
     truncation.push(`Review threads truncated to ${threads.length}`);
   }
 
-  const files = (pr.files ?? []).slice(0, caps.maxFilesPerPr);
+  const files = (pr.files ?? []).slice(0, limits.maxFilesPerPr);
   if ((pr.files?.length ?? 0) > files.length) {
     truncation.push(`Changed files truncated to ${files.length}`);
   }
 
-  const commits = pr.commits.slice(0, caps.maxCommitsPerPr);
+  const commits = pr.commits.slice(0, limits.maxCommitsPerPr);
   if (pr.commits.length > commits.length) {
     truncation.push(`Commits truncated to ${commits.length}`);
   }
@@ -57,7 +57,7 @@ function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
     .map((review) => ({
       source: "review",
       author: review.author,
-      bodyText: truncateText(review.bodyText, caps.maxBodyLength) ?? "",
+      bodyText: truncateText(review.bodyText, limits.maxBodyLength) ?? "",
       createdAt: review.submittedAt ?? pr.createdAt,
       url: null,
       state: review.state,
@@ -70,7 +70,7 @@ function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
     url: pr.url ?? null,
     author: pr.author,
     state: pr.state ?? (pr.mergedAt ? "MERGED" : pr.closedAt ? "CLOSED" : "OPEN"),
-    bodyText: truncateText(pr.bodyText, caps.maxBodyLength),
+    bodyText: truncateText(pr.bodyText, limits.maxBodyLength),
     labels: pr.labels.map((label) => label.name),
     createdAt: pr.createdAt,
     mergedAt: pr.mergedAt,
@@ -82,7 +82,7 @@ function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
       ...comments.map((comment) => ({
         source: "pr_comment" as const,
         author: comment.author,
-        bodyText: truncateText(comment.bodyText, caps.maxBodyLength) ?? "",
+        bodyText: truncateText(comment.bodyText, limits.maxBodyLength) ?? "",
         createdAt: comment.createdAt,
         url: comment.url,
       })),
@@ -96,7 +96,7 @@ function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
       comments: thread.comments.map((comment) => ({
         source: "review_thread" as const,
         author: comment.author,
-        bodyText: truncateText(comment.bodyText, caps.maxBodyLength) ?? "",
+        bodyText: truncateText(comment.bodyText, limits.maxBodyLength) ?? "",
         createdAt: comment.createdAt,
         url: comment.url,
         path: comment.path,
@@ -107,7 +107,7 @@ function projectPr(pr: NormalizedPullRequest, caps: ReportCaps): ReportPrInput {
       author: review.author,
       state: review.state,
       submittedAt: review.submittedAt,
-      bodyText: truncateText(review.bodyText, caps.maxBodyLength),
+      bodyText: truncateText(review.bodyText, limits.maxBodyLength),
     })),
     files,
     commits,
@@ -121,14 +121,14 @@ export function buildReportInput(options: {
   timezone: string;
   weekStart: Date;
   weekEnd: Date;
-  caps: ReportCaps;
+  limits: ReportLimits;
 }): ReportInput {
   const warnings: string[] = [];
   const selected = selectActiveWeekPrs(
     options.pullRequests,
     options.weekStart,
     options.weekEnd,
-    options.caps.maxPrs,
+    options.limits.maxPrs,
   );
 
   const activeCount = options.pullRequests.filter((pr) =>
@@ -138,7 +138,7 @@ export function buildReportInput(options: {
     warnings.push(`Active PRs truncated to ${selected.length}`);
   }
 
-  const prs = selected.map((pr) => projectPr(pr, options.caps));
+  const prs = selected.map((pr) => projectPr(pr, options.limits));
   for (const rawPr of selected) {
     if (conversationCount(rawPr) === 0) {
       warnings.push(`${formatRepoSlug(rawPr.repo)}#${rawPr.number} has no collected conversation comments`);
