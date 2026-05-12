@@ -121,7 +121,7 @@ section > h2 { margin-bottom:16px; }
         </div>
         <div class="report-meta-item">
           <dt>生成日時</dt>
-          <dd>2026年5月8日(金) 16:18 JST</dd>
+          <dd>2026年5月13日(水) 00:51 JST</dd>
         </div>
       </dl>
     </header>
@@ -561,18 +561,49 @@ section > h2 { margin-bottom:16px; }
   });
 })();</script>
   </section>
-<section>
-        <h2>01_project-progress</h2>
-        <p class="empty">AI analysis unavailable: AI generation skipped</p>
-      </section>
-<section>
-        <h2>02_follow-up-prs</h2>
-        <p class="empty">AI analysis unavailable: AI generation skipped</p>
-      </section>
-<section>
-        <h2>03_debated-prs</h2>
-        <p class="empty">AI analysis unavailable: AI generation skipped</p>
-      </section>
+<section class="ai-markdown"><h2>全体進捗</h2>
+<p>週全体は、開発基盤の刷新と主要ユーザーフローの強化を進めながら、決済導入・運用安定化・API方針整理を同時に前進させた。</p>
+<h3>フロントエンド基盤刷新</h3>
+<p>Webフロントは Webpack から Vite へ全面移行し、レビュー対応として LEGACY_BUILD フラグで移行期間の後方互換を確保した。あわせて React 19 へ更新し、ビルドと依存関係の更新を完了した。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a>, <a href="https://github.com/acme-corp/web-app/pull/300">acme-corp/web-app#300</a></p>
+<h3>ユーザー導線の改善</h3>
+<p>オンボーディングは4ステップ構成へ再設計し、状態機械・再試行・スキップフォールバック・遷移分析を追加して途中離脱しにくい流れにした。設定画面にはダークモード切替と永続化を導入し、体験の選択性を広げた。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a>, <a href="https://github.com/acme-corp/web-app/pull/501">acme-corp/web-app#501</a></p>
+<h3>認証とAPI保護の強化</h3>
+<p>API認証はセッションCookieからJWTへ移行し、refreshエンドポイントとローテーション方針を実装した。公開APIにはRedisベースのスライディングウィンドウ制限を適用し、過負荷時に429とRetry-Afterを返す防御を追加した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a>, <a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a>, <a href="https://github.com/acme-corp/api-server/pull/301">acme-corp/api-server#301</a></p>
+<h3>決済機能の実装前進</h3>
+<p>分散していた決済ロジックを PaymentService に集約し、呼び出し側からStripe固有のエラー処理を分離した。Stripe Checkout/Billing とWebhookを含む統合実装は起票され、レビュー投入可能な状態まで進んだ。<br>
+関連PR: <a href="https://github.com/acme-corp/web-app/pull/55">acme-corp/web-app#55</a>, <a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a>, <a href="https://github.com/acme-corp/web-app/pull/302">acme-corp/web-app#302</a></p>
+<h3>運用安定化と障害対応</h3>
+<p>システムヘルスメトリクスのSSEダッシュボードと7日保持のクリーンアップジョブを追加し、監視運用を強化した。本番ENV不足の起動障害修正と壊れたデプロイ設定の緊急リバートで、停止リスクを短時間で解消した。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/88">acme-corp/api-server#88</a>, <a href="https://github.com/acme-corp/api-server/pull/503">acme-corp/api-server#503</a>, <a href="https://github.com/acme-corp/cli-tools/pull/500">acme-corp/cli-tools#500</a></p>
+<h3>API進化方針の収束</h3>
+<p>REST全面置換のGraphQL提案は、既存クライアントへの破壊的影響と移行計画不足がレビューで指摘され、クローズされた。結論として、REST併存の段階導入を別RFCで検討する方向が明確になった。<br>
+関連PR: <a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></p>
+</section>
+<section class="ai-markdown"><h2>フォローアップが必要なPR</h2>
+<p>対象条件: PR本文・コメント・レビューに、未対応TODO、別PR/後続チケット、未解決レビュー、延期された実装、または後続リファクタの明示的な根拠があるもの。</p>
+<h3>📌 TODO（明示された後続アクション）</h3>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong> — JWT有効期限の環境変数化と、ログアウト時のトークン無効化（ブロックリスト）を後続で実装する。根拠: 未解決スレッドで「Token expiry should be configurable via environment variable, not hardcoded to 15m.」への返答として「Will address in a follow-up PR」と明言し、別スレッドでも「Need a token blocklist for that. Tracking in issue #510.」と記載。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong> — REST置換ではなく併存前提のGraphQL方針をRFCとして再提案する。根拠: 作者コメントで「I'll open a separate RFC for the opt-in GraphQL endpoint approach. Closing this PR.」と明示。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/506">acme-corp/web-app#506</a></strong> — セキュリティ・バックエンド・フロントエンドの担当レビューを完了させる。根拠: PR本文に「Needs review from alice (security), bob (backend), carol (frontend).」とあり、レビューが未提出。</li>
+</ul>
+<h3>❓ 要確認（対応の有無が不明）</h3>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/202">acme-corp/api-server#202</a></strong> — Redis依存のデプロイ文書追記が実施済みか確認する。根拠: レビューで「Worth noting the Redis dependency in the deployment docs.」と指摘がある一方、本文・コメント上に対応完了の記載がない。</li>
+</ul>
+</section>
+<section class="ai-markdown"><h2>議論があったPR</h2>
+<p>対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。</p>
+<ul>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/508">acme-corp/api-server#508</a></strong>: REST全面置換の是非と移行戦略が論点になり、既存クライアント破壊リスクに対して「段階的な併存移行」を求める意見が出た。結果: 全面置換案は取り下げられ、別RFCで再検討する方向に転換。根拠: CHANGES_REQUESTEDと複数の反対コメントの後、作者が「opt-in GraphQL endpoint案で別RFCを出す」としてPRをクローズ。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/507">acme-corp/api-server#507</a></strong>: オンボーディングの状態遷移定義と失敗時リカバリの実装方針に対して、完了/スキップ判定の曖昧さとAPI失敗時の停止が繰り返し指摘された。結果: 状態機械の明確化、招待APIの指数バックオフ再試行と3回失敗後のスキップ導入で収束。根拠: Bobの2回のCHANGES_REQUESTED、Carolの同意コメント、その後の修正報告と最終承認。</li>
+<li><strong><a href="https://github.com/acme-corp/api-server/pull/504">acme-corp/api-server#504</a></strong>: JWT移行でリフレッシュトークン回転、有効期限の設定可能化、ログアウト時無効化の扱いが論点となった。結果: リフレッシュエンドポイント追加と方針文書化でマージされたが、一部の強化項目はフォローアップへ持ち越し。根拠: CHANGES_REQUESTEDで「refresh endpointとexpiry戦略」を要求し承認に至る一方、review threadで「expiryの環境変数化」「blocklist」は別対応として残存。</li>
+<li><strong><a href="https://github.com/acme-corp/web-app/pull/502">acme-corp/web-app#502</a></strong>: WebpackからViteへの全面移行で、即時切替か互換期間を設けるかのリリース方針が争点になった。結果: 「LEGACY_BUILD」フラグで旧ビルドを一時併存させる条件付きで合意。根拠: CarolのCHANGES_REQUESTEDで旧設定維持を要求し、対応後に承認コメントへ変更。</li>
+</ul>
+</section>
   </main>
 </body>
 </html>
