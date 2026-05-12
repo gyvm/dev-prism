@@ -1,7 +1,7 @@
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import type { ActorsConfig, AnalysesConfig, CapsConfig } from "../../shared/config.js";
+import type { BotsConfig, LimitsConfig } from "../../shared/config.js";
 import { createBotLoginMatcher } from "../../shared/bot.js";
 import type { NormalizedPullRequest } from "../../shared/types.js";
 import { buildReportInput } from "../../report/projection.js";
@@ -16,14 +16,13 @@ import { COMPUTE_REGISTRY, type ComputeEntry } from "../../analyses/registry.js"
 
 export type AnalyzeOptions = Readonly<{
   outputRoot?: string;
-  caps: CapsConfig;
+  limits: LimitsConfig;
   timezone: string;
   now: Date;
   skipAi?: boolean;
   aiRunner?: AiRunner;
   skillsRoot?: string;
-  analyses?: AnalysesConfig;
-  actors?: ActorsConfig;
+  bots?: BotsConfig;
 }>;
 
 export type AnalyzeResult = Readonly<{
@@ -124,7 +123,7 @@ export async function analyzeStage(
     timezone: options.timezone,
     weekStart: period.start,
     weekEnd: period.end,
-    caps: options.caps,
+    limits: options.limits,
   });
 
   const skillsRoot = options.skillsRoot ?? "skills";
@@ -136,9 +135,7 @@ export async function analyzeStage(
   }
   const ids = [...Object.keys(COMPUTE_REGISTRY), ...aiSkillIds];
 
-  const disabled = new Set(options.analyses?.disabled ?? []);
-  const overrides = options.analyses?.overrides ?? {};
-  const isBotLogin = createBotLoginMatcher(options.actors?.botLoginPatterns ?? []);
+  const isBotLogin = createBotLoginMatcher(options.bots?.patterns ?? []);
 
   const tasks = ids.map(async (id): Promise<AnalysisResult> => {
     const computeEntry: ComputeEntry | undefined = COMPUTE_REGISTRY[id];
@@ -146,17 +143,12 @@ export async function analyzeStage(
     const desc: AnalysisDescriptor = {
       id,
       type: isAi ? "ai" : "compute",
-      enabled: !disabled.has(id),
+      enabled: true,
       ...(computeEntry ? { renderer: computeEntry.renderer } : {}),
     };
 
-    if (disabled.has(id)) {
-      return skipped(desc, "disabled in config");
-    }
-
     if (computeEntry) {
-      const skillConfig = { ...(overrides[id] ?? {}) };
-      const ctx = makeContext(pullRequests, reportInput, options, period, skillConfig, isBotLogin);
+      const ctx = makeContext(pullRequests, reportInput, options, period, {}, isBotLogin);
       return runWithFailure(desc, () => computeEntry.compute(ctx));
     }
 

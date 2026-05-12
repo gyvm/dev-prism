@@ -111,11 +111,10 @@ export async function orchestrate(
     period,
     fetchResult.pullRequests,
     {
-      caps: config.caps,
+      limits: config.limits,
       timezone: config.timezone,
       now,
-      analyses: config.analyses,
-      actors: config.actors,
+      bots: config.bots,
       ...(options.skipAi ? { skipAi: true } : {}),
       ...(aiRunner ? { aiRunner } : {}),
       ...(options.analysisDir ? { outputRoot: options.analysisDir } : {}),

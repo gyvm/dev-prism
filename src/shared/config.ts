@@ -7,14 +7,24 @@ import { ConfigError } from "./errors.js";
 import { isValidTimezone } from "./timezone.js";
 import type { RepoConfig, RepositorySpec } from "./types.js";
 
-const repoConfigSchema = z.object({
-  timezone: z
-    .string()
-    .default("UTC")
-    .refine((tz) => isValidTimezone(tz), { message: "invalid IANA timezone" }),
-  repositories: z
+const generalSchema = z
+  .object({
+    timezone: z
+      .string()
+      .default("UTC")
+      .refine((tz) => isValidTimezone(tz), { message: "invalid IANA timezone" }),
+  })
+  .default({ timezone: "UTC" });
+
+const repositoriesSchema = z.object({
+  include: z
     .array(z.string().trim().min(1, "repository entry must not be empty"))
     .min(1, "at least one repository is required"),
+});
+
+const baseConfigSchema = z.object({
+  general: generalSchema,
+  repositories: repositoriesSchema,
 });
 
 const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
@@ -49,7 +59,7 @@ function parseRepositoryString(input: string, resolvedPath: string): RepositoryS
   return { kind: "concrete", owner, name };
 }
 
-const capsSchema = z
+const limitsSchema = z
   .object({
     maxPrs: z.number().int().positive().optional(),
     maxCommentsPerPr: z.number().int().positive().optional(),
@@ -60,15 +70,6 @@ const capsSchema = z
   })
   .default({});
 
-const analysesSchema = z
-  .object({
-    disabled: z.array(z.string()).default([]),
-    overrides: z
-      .record(z.string(), z.record(z.string(), z.unknown()))
-      .default({}),
-  })
-  .default({ disabled: [], overrides: {} });
-
 const aiSchema = z
   .object({
     model: z.preprocess(
@@ -78,9 +79,9 @@ const aiSchema = z
   })
   .default({});
 
-const actorsSchema = z
+const botsSchema = z
   .object({
-    botLoginPatterns: z
+    patterns: z
       .array(z.string())
       .default([])
       .superRefine((patterns, ctx) => {
@@ -97,16 +98,15 @@ const actorsSchema = z
         });
       }),
   })
-  .default({ botLoginPatterns: [] });
+  .default({ patterns: [] });
 
-const unifiedConfigSchema = repoConfigSchema.extend({
-  caps: capsSchema,
-  analyses: analysesSchema,
+const unifiedConfigSchema = baseConfigSchema.extend({
+  limits: limitsSchema,
   ai: aiSchema,
-  actors: actorsSchema,
+  bots: botsSchema,
 });
 
-export type CapsConfig = Readonly<{
+export type LimitsConfig = Readonly<{
   maxPrs: number;
   maxCommentsPerPr: number;
   maxReviewThreadsPerPr: number;
@@ -115,7 +115,7 @@ export type CapsConfig = Readonly<{
   maxBodyLength: number;
 }>;
 
-export const DEFAULT_CAPS: CapsConfig = {
+export const DEFAULT_LIMITS: LimitsConfig = {
   maxPrs: 50,
   maxCommentsPerPr: 80,
   maxReviewThreadsPerPr: 60,
@@ -124,26 +124,20 @@ export const DEFAULT_CAPS: CapsConfig = {
   maxBodyLength: 4_000,
 };
 
-export type AnalysesConfig = Readonly<{
-  disabled: readonly string[];
-  overrides: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-}>;
-
 export type AiConfig = Readonly<{
   model?: string;
 }>;
 
-export type ActorsConfig = Readonly<{
-  botLoginPatterns: readonly string[];
+export type BotsConfig = Readonly<{
+  patterns: readonly string[];
 }>;
 
 export type UnifiedConfig = Readonly<{
   timezone: string;
   repositories: readonly RepositorySpec[];
-  caps: CapsConfig;
-  analyses: AnalysesConfig;
+  limits: LimitsConfig;
   ai: AiConfig;
-  actors: ActorsConfig;
+  bots: BotsConfig;
 }>;
 
 function specKey(spec: RepositorySpec): string {
@@ -199,16 +193,19 @@ async function readToml(path: string): Promise<unknown> {
 export async function loadRepoConfig(configPath = "config.toml"): Promise<RepoConfig> {
   const resolvedPath = resolve(configPath);
   const parsedJson = await readToml(configPath);
-  const parsedConfig = repoConfigSchema.safeParse(parsedJson);
+  const parsedConfig = baseConfigSchema.safeParse(parsedJson);
   if (!parsedConfig.success) {
     throw new ConfigError(
       `Repository config at ${resolvedPath} is invalid: ${parsedConfig.error.issues
-        .map((issue) => issue.message)
+        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
         .join(", ")}`,
     );
   }
-  const repositories = parseAndDedupeRepositories(parsedConfig.data.repositories, resolvedPath);
-  return { repositories, timezone: parsedConfig.data.timezone };
+  const repositories = parseAndDedupeRepositories(
+    parsedConfig.data.repositories.include,
+    resolvedPath,
+  );
+  return { repositories, timezone: parsedConfig.data.general.timezone };
 }
 
 export async function loadUnifiedConfig(configPath = "config.toml"): Promise<UnifiedConfig> {
@@ -223,30 +220,29 @@ export async function loadUnifiedConfig(configPath = "config.toml"): Promise<Uni
     );
   }
 
-  const repositories = parseAndDedupeRepositories(parsed.data.repositories, resolvedPath);
-  const rawCaps = parsed.data.caps;
-  const caps: CapsConfig = {
-    maxPrs: rawCaps.maxPrs ?? DEFAULT_CAPS.maxPrs,
-    maxCommentsPerPr: rawCaps.maxCommentsPerPr ?? DEFAULT_CAPS.maxCommentsPerPr,
-    maxReviewThreadsPerPr: rawCaps.maxReviewThreadsPerPr ?? DEFAULT_CAPS.maxReviewThreadsPerPr,
-    maxFilesPerPr: rawCaps.maxFilesPerPr ?? DEFAULT_CAPS.maxFilesPerPr,
-    maxCommitsPerPr: rawCaps.maxCommitsPerPr ?? DEFAULT_CAPS.maxCommitsPerPr,
-    maxBodyLength: rawCaps.maxBodyLength ?? DEFAULT_CAPS.maxBodyLength,
+  const repositories = parseAndDedupeRepositories(
+    parsed.data.repositories.include,
+    resolvedPath,
+  );
+  const rawLimits = parsed.data.limits;
+  const limits: LimitsConfig = {
+    maxPrs: rawLimits.maxPrs ?? DEFAULT_LIMITS.maxPrs,
+    maxCommentsPerPr: rawLimits.maxCommentsPerPr ?? DEFAULT_LIMITS.maxCommentsPerPr,
+    maxReviewThreadsPerPr: rawLimits.maxReviewThreadsPerPr ?? DEFAULT_LIMITS.maxReviewThreadsPerPr,
+    maxFilesPerPr: rawLimits.maxFilesPerPr ?? DEFAULT_LIMITS.maxFilesPerPr,
+    maxCommitsPerPr: rawLimits.maxCommitsPerPr ?? DEFAULT_LIMITS.maxCommitsPerPr,
+    maxBodyLength: rawLimits.maxBodyLength ?? DEFAULT_LIMITS.maxBodyLength,
   };
 
   return {
-    timezone: parsed.data.timezone,
+    timezone: parsed.data.general.timezone,
     repositories,
-    caps,
-    analyses: {
-      disabled: parsed.data.analyses.disabled,
-      overrides: parsed.data.analyses.overrides,
-    },
+    limits,
     ai: {
       ...(parsed.data.ai.model ? { model: parsed.data.ai.model } : {}),
     },
-    actors: {
-      botLoginPatterns: parsed.data.actors.botLoginPatterns,
+    bots: {
+      patterns: parsed.data.bots.patterns,
     },
   };
 }

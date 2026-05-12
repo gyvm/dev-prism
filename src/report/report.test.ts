@@ -88,7 +88,7 @@ describe("report projection", () => {
       timezone: "UTC",
       weekStart: new Date("2026-04-20T00:00:00.000Z"),
       weekEnd: new Date("2026-04-26T23:59:59.999Z"),
-      caps: {
+      limits: {
         maxPrs: 10,
         maxCommentsPerPr: 1,
         maxReviewThreadsPerPr: 10,
@@ -116,7 +116,7 @@ describe("report rendering", () => {
       timezone: "Asia/Tokyo",
       weekStart: new Date("2026-04-27T00:00:00.000Z"),
       weekEnd: new Date("2026-05-03T23:59:59.999Z"),
-      caps: {
+      limits: {
         maxPrs: 10,
         maxCommentsPerPr: 10,
         maxReviewThreadsPerPr: 10,

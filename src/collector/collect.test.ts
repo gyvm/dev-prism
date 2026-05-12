@@ -12,7 +12,7 @@ async function writeConfig(repositories: Array<{ owner: string; name: string }>)
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
   const filePath = join(directory, "config.toml");
   const entries = repositories.map((r) => JSON.stringify(`${r.owner}/${r.name}`));
-  const body = `repositories = [${entries.join(", ")}]\n`;
+  const body = `[repositories]\ninclude = [${entries.join(", ")}]\n`;
   await writeFile(filePath, body, "utf8");
   return filePath;
 }
