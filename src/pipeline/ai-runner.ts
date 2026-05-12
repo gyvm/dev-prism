@@ -78,15 +78,19 @@ export function createCopilotSdkRunner(
             onPermissionRequest: approveAll,
           });
           session.on("assistant.usage", (event) => {
-            const usage = event.data;
-            const nanoAiu = usage.copilotUsage?.totalNanoAiu ?? 0;
-            process.stdout.write(
-              `[ai] skill=${skillId} model=${usage.model} ` +
-                `input=${usage.inputTokens ?? 0} output=${usage.outputTokens ?? 0} ` +
-                `reasoning=${usage.reasoningTokens ?? 0} ` +
-                `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0} ` +
-                `nanoAiu=${nanoAiu} duration=${usage.duration ?? 0}ms\n`,
-            );
+            try {
+              const usage = event.data;
+              const nanoAiu = usage.copilotUsage?.totalNanoAiu ?? 0;
+              process.stderr.write(
+                `[ai] skill=${skillId} model=${usage.model ?? "unknown"} ` +
+                  `input=${usage.inputTokens ?? 0} output=${usage.outputTokens ?? 0} ` +
+                  `reasoning=${usage.reasoningTokens ?? 0} ` +
+                  `cacheRead=${usage.cacheReadTokens ?? 0} cacheWrite=${usage.cacheWriteTokens ?? 0} ` +
+                  `nanoAiu=${nanoAiu} duration=${usage.duration ?? 0}ms\n`,
+              );
+            } catch {
+              // テレメトリ失敗を AI 呼び出しのリトライループに伝播させない
+            }
           });
           try {
             const result = await session.sendAndWait({ prompt }, timeoutMs);
