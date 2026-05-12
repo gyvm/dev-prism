@@ -2,7 +2,7 @@
 
 対象条件: 実装方針、設計トレードオフ、レビューでの反対意見、要求変更、または方向転換がコメント・レビュー上で確認できるもの。
 
-- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: Webpack全面撤去方針に対し「1リリースは旧構成をフラグで残すべき」という互換性の議論。結果: `LEGACY_BUILD` フラグ追加後に承認。根拠: Carolが `CHANGES_REQUESTED` で要求し、その後「LEGACY_BUILD flag」対応を確認して `APPROVED`。
-- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングの状態遷移定義と障害時リカバリー設計が争点。結果: 状態遷移の明確化、招待API失敗時の再試行とスキップ導入、分析イベント追加で承認。根拠: Bobの複数回 `CHANGES_REQUESTED` と Carol の同調コメントの後、修正報告コメントと最終 `APPROVED` がある。
-- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: セッション廃止後のJWT運用で「refreshフロー必須」と「失効・期限設定の扱い」が議論。結果: `/auth/refresh` とローテーション方針の追加で承認、期限の環境変数化とログアウト時失効は別対応に持ち越し。根拠: Aliceの `CHANGES_REQUESTED` 後に修正コミット `fix504a` `fix504b` と `APPROVED`、スレッドで issue #510 追跡が明示。
-- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: RESTを全面置換するGraphQL移行案に対し、互換性維持と段階移行を求める反対意見。結果: 置換案は採用されずクローズされ、追加導入RFCへ方針転換。根拠: Aliceの `CHANGES_REQUESTED` と Bob/Dave のリスク指摘に対し、作者が「別RFCを開く」とコメントしてPRを閉じている。
+- **[acme-corp/web-app#502](https://github.com/acme-corp/web-app/pull/502)**: Webpack完全撤廃を進める方針に対し、「1リリースは旧ビルドを残すべきか」が論点になった。結果: 「LEGACY_BUILD」フラグ付きで互換運用に変更され、根拠: 4/30の `CHANGES_REQUESTED` 後に「keep legacy webpack config behind LEGACY_BUILD flag」コミットが追加され、5/3に `APPROVED` へ転じた。  
+- **[acme-corp/api-server#507](https://github.com/acme-corp/api-server/pull/507)**: オンボーディングのステップ状態遷移（complete/skippedの定義）と、チーム招待API失敗時の復旧方針が繰り返し議論された。結果: 状態機械の明確化に加えて再試行+スキップ fallback と遷移分析イベントが実装され、根拠: 複数回の `CHANGES_REQUESTED` と「wizard gets stuck」指摘の後に修正コメント・関連コミットが入り最終 `APPROVED` となった。  
+- **[acme-corp/api-server#504](https://github.com/acme-corp/api-server/pull/504)**: セッションCookie廃止後のJWT運用で、回転ロジック必須化と有効期限・失効戦略の扱いが論点になった。結果: `/auth/refresh` と回転方針の文書化は反映されたが一部は未確認で、根拠: `CHANGES_REQUESTED` を受けて修正後に承認された一方、スレッドでTTL環境変数化やログアウト時無効化は「follow-up PR」「issue #510」へ持ち越しと記録されている。  
+- **[acme-corp/api-server#508](https://github.com/acme-corp/api-server/pull/508)**: RESTをGraphQLへ全面置換する提案に対し、既存クライアント互換性と移行期間の設計トレードオフが争点になった。結果: 全面置換案は取り下げられて方向転換し、根拠: `CHANGES_REQUESTED` と追加コメントで「併存導入+段階移行」案が支持され、最終的に提案者が「別RFCを出す」としてPRをクローズした。
