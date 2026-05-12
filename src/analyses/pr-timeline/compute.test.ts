@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { compute } from "./compute.js";
+import { ConfigError } from "../../shared/errors.js";
 import { makePr, makeAnalysisContext } from "../../test-fixtures.js";
 
 const WEEK_START = new Date("2026-04-27T00:00:00.000Z");
@@ -82,6 +83,26 @@ describe("pr-timeline compute (week-scoped)", () => {
     expect(out.timelines).toHaveLength(2);
     expect(out.timelines[0]!.number).toBe(2);
     expect(out.timelines[1]!.number).toBe(3);
+  });
+
+  it("throws ConfigError when limit is not a number", () => {
+    const ctx = makeAnalysisContext({
+      prs: [],
+      weekStart: WEEK_START,
+      weekEnd: WEEK_END,
+      config: { limit: "50" },
+    });
+    expect(() => compute(ctx)).toThrow(ConfigError);
+  });
+
+  it("throws ConfigError when limit is negative", () => {
+    const ctx = makeAnalysisContext({
+      prs: [],
+      weekStart: WEEK_START,
+      weekEnd: WEEK_END,
+      config: { limit: -1 },
+    });
+    expect(() => compute(ctx)).toThrow(ConfigError);
   });
 
   it("propagates weekStart/weekEnd/timezone to the output payload", () => {

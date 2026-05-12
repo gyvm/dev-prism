@@ -5,14 +5,23 @@ import type {
   TimelineState,
 } from "../../../shared/types.js";
 import { diffHours } from "../../../shared/datetime.js";
+import { MetricsError } from "../../../shared/errors.js";
 
 export function earliest(values: readonly (string | null | undefined)[]): string | null {
-  let min: string | null = null;
+  let minStr: string | null = null;
+  let minMs = Infinity;
   for (const value of values) {
     if (typeof value !== "string") continue;
-    if (min === null || value < min) min = value;
+    const ms = new Date(value).getTime();
+    if (Number.isNaN(ms)) {
+      throw new MetricsError(`Invalid date in earliest(): "${value}"`);
+    }
+    if (ms < minMs) {
+      minMs = ms;
+      minStr = value;
+    }
   }
-  return min;
+  return minStr;
 }
 
 export function firstAuthoredDate(pr: NormalizedPullRequest): string | null {
