@@ -1,0 +1,70 @@
+name: PR Weekly Report
+description: Generate weekly GitHub PR insights (DORA, timelines, AI summaries) as a static HTML report.
+author: gyvm
+
+inputs:
+  config-path:
+    description: Path to config.toml (relative to the caller workspace).
+    required: false
+    default: config.toml
+  week:
+    description: Target week as YYYY-MM-DD (any date in the desired Monday-start week). Omit for the most recent completed week.
+    required: false
+  skip-ai:
+    description: Set to "true" to skip all AI skill analyses.
+    required: false
+    default: "false"
+  github-token:
+    description: PAT with Pull requests read access. Mapped to GITHUB_TOKEN.
+    required: false
+  app-id:
+    description: GitHub App ID (alternative to github-token).
+    required: false
+  app-private-key:
+    description: GitHub App private key (PEM).
+    required: false
+  app-installation-id:
+    description: GitHub App installation ID.
+    required: false
+  copilot-token:
+    description: PAT with Copilot Requests read access for AI analyses. Optional; if absent, AI skills are skipped.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "24"
+
+    - name: Install action dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci
+
+    - name: Generate weekly report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_APP_ID: ${{ inputs.app-id }}
+        GITHUB_APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
+        GITHUB_APP_INSTALLATION_ID: ${{ inputs.app-installation-id }}
+        COPILOT_GITHUB_TOKEN: ${{ inputs.copilot-token }}
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_CONFIG_PATH: ${{ inputs.config-path }}
+        INPUT_WEEK: ${{ inputs.week }}
+        INPUT_SKIP_AI: ${{ inputs.skip-ai }}
+      run: |
+        set -euo pipefail
+        args=(--config "$INPUT_CONFIG_PATH" --skills "$ACTION_PATH/skills")
+        if [[ -n "$INPUT_WEEK" ]]; then
+          args+=(--week "$INPUT_WEEK")
+        fi
+        if [[ "$INPUT_SKIP_AI" == "true" ]]; then
+          args+=(--skip-ai)
+        fi
+        node "$ACTION_PATH/node_modules/.bin/tsx" "$ACTION_PATH/src/cli/report.ts" "${args[@]}"
+
+branding:
+  icon: bar-chart-2
+  color: blue

@@ -23,43 +23,37 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Validate required secrets
+        env:
+          GITHUB_TOKEN_SECRET: ${{ secrets.GH_INSIGHTS_TOKEN }}
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
         run: |
           if [[ -n "$GITHUB_TOKEN_SECRET" ]]; then
             echo "Using GITHUB_TOKEN authentication"
           elif [[ -n "$GITHUB_APP_ID" && -n "$GITHUB_APP_PRIVATE_KEY" && -n "$GITHUB_APP_INSTALLATION_ID" ]]; then
             echo "Using GitHub App authentication"
           else
-            echo "::error::Either GITHUB_TOKEN or all three GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID must be configured in Settings > Secrets and variables > Actions"
+            echo "::error::Either GH_INSIGHTS_TOKEN or all three GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID must be configured in Settings > Secrets and variables > Actions"
             exit 1
           fi
-        env:
-          GITHUB_TOKEN_SECRET: ${{ secrets.GH_INSIGHTS_TOKEN }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
 
       - name: Generate weekly report
-        run: npm run report -- --skip-ai
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+        uses: ./
+        with:
+          skip-ai: ${{ secrets.COPILOT_GITHUB_TOKEN == '' && 'true' || 'false' }}
+          github-token: ${{ secrets.GH_INSIGHTS_TOKEN }}
+          app-id: ${{ secrets.GITHUB_APP_ID }}
+          app-private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          app-installation-id: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+          copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
       - name: Commit data to repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/ dist/reports/
           if git diff --cached --quiet; then
             echo "No data changes to commit"
           else
@@ -69,6 +63,9 @@ jobs:
 
       - name: Check if GitHub Pages is enabled
         id: pages-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           http_status=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Accept: application/vnd.github+json" \
@@ -89,9 +86,6 @@ jobs:
               exit 1
               ;;
           esac
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
 
       - uses: actions/configure-pages@v6
         if: steps.pages-check.outputs.pages_enabled == 'true'

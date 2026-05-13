@@ -13,8 +13,9 @@ import {
   type AnalyzeResult,
 } from "./stages/analyze.js";
 import {
-  buildIndexHtml,
+  appendReportManifest,
   renderStage,
+  writeIndexShell,
   type RenderResult,
 } from "./stages/render.js";
 import {
@@ -44,6 +45,7 @@ export type OrchestrateResult = Readonly<{
   analyze: AnalyzeResult;
   render: RenderResult;
   indexHtmlPath: string;
+  manifestPath: string;
 }>;
 
 export async function orchestrate(
@@ -134,7 +136,14 @@ export async function orchestrate(
   );
 
   const indexHtmlPath = options.indexHtmlPath ?? join("dist", "index.html");
-  await buildIndexHtml(reportsDir, indexHtmlPath);
+  await writeIndexShell(indexHtmlPath);
+
+  const manifestPath = await appendReportManifest(reportsDir, {
+    period: period.id,
+    path: `${period.id}.html`,
+    generatedAt: now.toISOString(),
+    prCount: fetchResult.pullRequests.length,
+  });
 
   return {
     period,
@@ -142,5 +151,6 @@ export async function orchestrate(
     analyze: analyzeResult,
     render: renderResult,
     indexHtmlPath,
+    manifestPath,
   };
 }

@@ -97,6 +97,7 @@ async function main(): Promise<void> {
   process.stdout.write(`Written: ${result.fetch.rawPath}\n`);
   process.stdout.write(`Written: ${result.analyze.outputDir}\n`);
   process.stdout.write(`Written: ${result.render.htmlPath}\n`);
+  process.stdout.write(`Written: ${result.manifestPath}\n`);
   process.stdout.write(`Written: ${result.indexHtmlPath}\n`);
 
   const summary = result.analyze.results.reduce<Record<string, number>>(
