@@ -21,11 +21,6 @@ const ROLE_COLOR = {
     fill: "var(--role-human-fill)",
     line: "var(--role-human-line)",
   },
-  both: {
-    color: "var(--role-both)",
-    fill: "var(--role-both-fill)",
-    line: "var(--role-both-line)",
-  },
   bot: {
     color: "var(--role-bot)",
     fill: "var(--role-bot-fill)",
@@ -60,15 +55,9 @@ function buildColumns(
 ): { authors: ColumnNode[]; reviewers: ColumnNode[] } {
   const topAuthors = sortAuthors(authors);
   const topReviewers = sortReviewers(reviewers);
-  const authorIds = new Set(topAuthors.map((a) => a.login));
-  const reviewerIds = new Set(topReviewers.map((r) => r.login));
 
-  const roleFor = (activity: AuthorActivity | ReviewerActivity): Role => {
-    if (activity.kind === "bot") return "bot";
-    return authorIds.has(activity.login) && reviewerIds.has(activity.login)
-      ? "both"
-      : "human";
-  };
+  const roleFor = (activity: AuthorActivity | ReviewerActivity): Role =>
+    activity.kind === "bot" ? "bot" : "human";
 
   return {
     authors: topAuthors.map((activity) => ({
@@ -99,12 +88,7 @@ function nodeHtml(
     : (activity as ReviewerActivity).reviewCount;
   const max = isLeft ? maxLeft : maxRight;
   const widthPct = max > 0 ? Math.max(8, (count / max) * 100) : 0;
-  const palette =
-    node.role === "bot"
-      ? ROLE_COLOR.bot
-      : isLeft
-        ? ROLE_COLOR.human
-        : ROLE_COLOR.both;
+  const palette = node.role === "bot" ? ROLE_COLOR.bot : ROLE_COLOR.human;
   const label = escapeHtml(activity.login);
 
   const defaultBarW = `${widthPct.toFixed(1)}%`;
@@ -263,7 +247,6 @@ export function renderBipartiteGraph(data: unknown): string {
       </div>
       <div class="bg-legend">
         <span class="bg-legend-item"><span class="bg-dot" style="background:${ROLE_COLOR.human.color}"></span>人間</span>
-        <span class="bg-legend-item"><span class="bg-dot" style="background:${ROLE_COLOR.both.color}"></span>両方のロール</span>
         <span class="bg-legend-item"><span class="bg-dot" style="background:${ROLE_COLOR.bot.color}"></span>ボット</span>
         <span class="bg-legend-hint">ホバーで関連ノードと接続を強調</span>
       </div>
