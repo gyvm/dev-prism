@@ -16,16 +16,7 @@ inputs:
     default: "false"
   github-token:
     description: PAT with Pull requests read access. Mapped to GITHUB_TOKEN.
-    required: false
-  app-id:
-    description: GitHub App ID (alternative to github-token).
-    required: false
-  app-private-key:
-    description: GitHub App private key (PEM).
-    required: false
-  app-installation-id:
-    description: GitHub App installation ID.
-    required: false
+    required: true
   copilot-token:
     description: PAT with Copilot Requests read access for AI analyses. Optional; if absent, AI skills are skipped.
     required: false
@@ -46,9 +37,6 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
-        GITHUB_APP_ID: ${{ inputs.app-id }}
-        GITHUB_APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
-        GITHUB_APP_INSTALLATION_ID: ${{ inputs.app-installation-id }}
         COPILOT_GITHUB_TOKEN: ${{ inputs.copilot-token }}
         ACTION_PATH: ${{ github.action_path }}
         INPUT_CONFIG_PATH: ${{ inputs.config-path }}

@@ -13,10 +13,7 @@ export type RepoConfig = Readonly<{
 }>;
 
 export type RuntimeConfig = Readonly<{
-  githubToken: string | null;
-  githubAppId: string | null;
-  githubAppPrivateKey: string | null;
-  githubAppInstallationId: number | null;
+  githubToken: string;
   lookbackDays: number;
   firstReviewThresholdHours: number;
   cutoffDate: Date;
@@ -100,14 +97,7 @@ export type CollectorDependencies = {
   now?: Date;
   env?: NodeJS.ProcessEnv;
   configPath?: string;
-  authFactory?: AppAuthFactory;
 };
-
-export type AppAuthFactory = (options: {
-  appId: string;
-  privateKey: string;
-  installationId: number;
-}) => Promise<string>;
 
 // --- Metrics types ---
 

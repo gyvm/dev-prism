@@ -26,16 +26,9 @@ jobs:
       - name: Validate required secrets
         env:
           GITHUB_TOKEN_SECRET: ${{ secrets.GH_INSIGHTS_TOKEN }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
         run: |
-          if [[ -n "$GITHUB_TOKEN_SECRET" ]]; then
-            echo "Using GITHUB_TOKEN authentication"
-          elif [[ -n "$GITHUB_APP_ID" && -n "$GITHUB_APP_PRIVATE_KEY" && -n "$GITHUB_APP_INSTALLATION_ID" ]]; then
-            echo "Using GitHub App authentication"
-          else
-            echo "::error::Either GH_INSIGHTS_TOKEN or all three GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID must be configured in Settings > Secrets and variables > Actions"
+          if [[ -z "$GITHUB_TOKEN_SECRET" ]]; then
+            echo "::error::GH_INSIGHTS_TOKEN must be configured in Settings > Secrets and variables > Actions"
             exit 1
           fi
 
@@ -44,9 +37,6 @@ jobs:
         with:
           skip-ai: ${{ secrets.COPILOT_GITHUB_TOKEN == '' && 'true' || 'false' }}
           github-token: ${{ secrets.GH_INSIGHTS_TOKEN }}
-          app-id: ${{ secrets.GITHUB_APP_ID }}
-          app-private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          app-installation-id: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
       - name: Commit data to repository

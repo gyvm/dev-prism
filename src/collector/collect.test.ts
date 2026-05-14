@@ -6,7 +6,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { collectNormalizedPullRequests } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
-import { resolveToken } from "./auth.js";
 
 async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
@@ -328,52 +327,3 @@ describe("collectNormalizedPullRequests", () => {
   });
 });
 
-describe("resolveToken", () => {
-  it("returns GITHUB_TOKEN directly when available", async () => {
-    const token = await resolveToken({
-      githubToken: "ghp_abc123",
-      githubAppId: null,
-      githubAppPrivateKey: null,
-      githubAppInstallationId: null,
-      lookbackDays: 90,
-      firstReviewThresholdHours: 48,
-      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-    });
-
-    expect(token).toBe("ghp_abc123");
-  });
-
-  it("falls back to GitHub App auth when no PAT", async () => {
-    const token = await resolveToken(
-      {
-        githubToken: null,
-        githubAppId: "123",
-        githubAppPrivateKey: "key",
-        githubAppInstallationId: 456,
-        lookbackDays: 90,
-        firstReviewThresholdHours: 48,
-        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-      },
-      vi.fn().mockResolvedValue("app-token"),
-    );
-
-    expect(token).toBe("app-token");
-  });
-
-  it("wraps auth factory failures with a collector error", async () => {
-    await expect(
-      resolveToken(
-        {
-          githubToken: null,
-          githubAppId: "123",
-          githubAppPrivateKey: "key",
-          githubAppInstallationId: 456,
-          lookbackDays: 90,
-          firstReviewThresholdHours: 48,
-          cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-        },
-        vi.fn().mockRejectedValue(new Error("auth failed")),
-      ),
-    ).rejects.toThrow(/installation token/i);
-  });
-});

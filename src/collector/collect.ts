@@ -1,4 +1,3 @@
-import { resolveToken } from "./auth.js";
 import { expandRepositorySpecs } from "./expand-repositories.js";
 import { fetchRepositoryPullRequests } from "./graphql.js";
 import { normalizePullRequest } from "./normalize.js";
@@ -16,7 +15,7 @@ export async function collectNormalizedPullRequests(
 ): Promise<CollectionResult> {
   const { repositories: specs } = await loadRepoConfig(dependencies.configPath);
   const runtimeConfig = loadRuntimeConfig(dependencies.env, dependencies.now);
-  const token = await resolveToken(runtimeConfig, dependencies.authFactory);
+  const token = runtimeConfig.githubToken;
   const fetchFn = dependencies.fetchFn;
   const repositories = await expandRepositorySpecs(specs, {
     token,

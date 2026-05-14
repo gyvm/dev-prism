@@ -75,8 +75,7 @@ include = ["your-org/*"]
 | `config-path` | `config.toml` | 利用側 workspace からの相対パス |
 | `week` | (なし) | `YYYY-MM-DD`。対象週(月曜始まり)に含まれる任意の日付。省略時は直近の完了週 |
 | `skip-ai` | `false` | `true` で AI 分析を一括スキップ |
-| `github-token` | (なし) | PR 取得用 PAT。`GITHUB_TOKEN` として渡される |
-| `app-id` / `app-private-key` / `app-installation-id` | (なし) | GitHub App 認証 (`github-token` の代替) |
+| `github-token` | (必須) | PR 取得用 PAT。`GITHUB_TOKEN` として渡される |
 | `copilot-token` | (なし) | Copilot SDK 用 PAT。未指定なら AI 分析は実行されない |
 
 #### 履歴の永続化 (マニフェスト方式)
