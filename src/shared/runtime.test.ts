@@ -18,4 +18,12 @@ describe("loadRuntimeConfig", () => {
   it("fails when GITHUB_TOKEN is not provided", () => {
     expect(() => loadRuntimeConfig({})).toThrow(RuntimeConfigError);
   });
+
+  it("fails when GITHUB_TOKEN is empty string", () => {
+    expect(() => loadRuntimeConfig({ GITHUB_TOKEN: "" })).toThrow(RuntimeConfigError);
+  });
+
+  it("fails when GITHUB_TOKEN is whitespace only", () => {
+    expect(() => loadRuntimeConfig({ GITHUB_TOKEN: "   " })).toThrow(RuntimeConfigError);
+  });
 });
