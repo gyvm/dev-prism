@@ -61,8 +61,8 @@ skipAi: true,
     const byId = Object.fromEntries(result.results.map((r) => [r.id, r]));
     expect(byId["dora-metrics"]?.status).toBe("ok");
     expect(byId["pr-timeline"]?.status).toBe("ok");
-    expect(byId["01_project-progress"]?.status).toBe("skipped");
-    expect(byId["01_project-progress"]?.reason).toMatch(/skipped/i);
+    expect(byId["project-progress"]?.status).toBe("skipped");
+    expect(byId["project-progress"]?.reason).toMatch(/skipped/i);
   });
 
   it("invokes AI runner with skillId and full payload, output is markdown", async () => {
@@ -80,15 +80,15 @@ aiRunner: runner,
       skillsRoot: "skills",
     });
 
-    expect(calls.map((c) => c.skillId).sort()).toEqual([
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
+    expect(calls.map((c) => c.skillId)).toEqual([
+      "project-progress",
+      "follow-up-prs",
+      "debated-prs",
     ]);
-    const ai = result.results.find((r) => r.id === "01_project-progress");
+    const ai = result.results.find((r) => r.id === "project-progress");
     expect(ai?.status).toBe("ok");
     expect(ai?.format).toBe("markdown");
-    expect(ai?.data).toMatch(/^## 01_project-progress/);
+    expect(ai?.data).toMatch(/^## project-progress/);
   });
 
   it("orders compute analyses then AI skills by directory prefix", async () => {
@@ -104,9 +104,9 @@ skipAi: true,
       "dora-metrics",
       "pr-timeline",
       "review-correlation",
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
+      "project-progress",
+      "follow-up-prs",
+      "debated-prs",
     ]);
   });
 });
@@ -114,7 +114,7 @@ skipAi: true,
 describe("discoverAiSkillIds", () => {
   it("returns all skill directories with a SKILL.md", async () => {
     const ids = await discoverAiSkillIds("skills");
-    expect(ids).toEqual(["01_project-progress", "02_follow-up-prs", "03_debated-prs"]);
+    expect(ids).toEqual(["project-progress", "follow-up-prs", "debated-prs"]);
   });
 
   it("returns empty list for missing root", async () => {

@@ -1,6 +1,7 @@
 ---
-name: 03_debated-prs
+name: debated-prs
 description: レビュー中に実質的な議論が発生したPRを抽出する。
+order: 3
 ---
 
 あなたは、意味のある実装上の議論を見つけるためにGitHub PRの議論を分析します。

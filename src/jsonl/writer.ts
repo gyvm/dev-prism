@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import type { NormalizedPullRequest } from "../shared/types.js";
 import type { AnalysisResult } from "../pipeline/types.js";
+import { parseJsonl } from "./reader.js";
 
 import {
   ANALYSIS_LINE_TYPE,
@@ -70,4 +71,23 @@ export async function writeJsonl(
   ];
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, serializeLines(lines), "utf-8");
+}
+
+export async function upsertAnalysisLine(
+  path: string,
+  section: string,
+  next: AnalysisLine,
+): Promise<void> {
+  const text = await readFile(path, "utf-8");
+  const lines = parseJsonl(text);
+  let replaced = false;
+  const updated = lines.map((line) => {
+    if (line.type === ANALYSIS_LINE_TYPE && line.section === section) {
+      replaced = true;
+      return next;
+    }
+    return line;
+  });
+  if (!replaced) updated.push(next);
+  await writeFile(path, serializeLines(updated), "utf-8");
 }

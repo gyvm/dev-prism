@@ -1,4 +1,5 @@
-import { join, resolve } from "node:path";
+import { copyFile, mkdir } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 
 import { loadUnifiedConfig } from "../shared/config.js";
 import { buildReportInput } from "../report/projection.js";
@@ -182,11 +183,16 @@ export async function orchestrate(
   const indexHtmlPath = options.indexHtmlPath ?? join("dist", "index.html");
   await writeIndexShell(indexHtmlPath);
 
+  const jsonlPublicPath = resolve(reportsDir, `${period.id}.jsonl`);
+  await mkdir(dirname(jsonlPublicPath), { recursive: true });
+  await copyFile(jsonlPath, jsonlPublicPath);
+
   const manifestPath = await appendReportManifest(reportsDir, {
     period: period.id,
     path: `${period.id}.html`,
     generatedAt: now.toISOString(),
     prCount: fetchResult.pullRequests.length,
+    jsonl: `${period.id}.jsonl`,
   });
 
   return {

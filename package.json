@@ -13,6 +13,9 @@
   "files": [
     "dist",
     "skills",
+    "commands",
+    "agents",
+    ".claude-plugin",
     "action.yml",
     "README.md"
   ],

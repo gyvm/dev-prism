@@ -44,7 +44,7 @@ runs:
         INPUT_SKIP_AI: ${{ inputs.skip-ai }}
       run: |
         set -euo pipefail
-        args=(--config "$INPUT_CONFIG_PATH" --skills "$ACTION_PATH/skills")
+        args=(run --config "$INPUT_CONFIG_PATH" --skills "$ACTION_PATH/skills")
         if [[ -n "$INPUT_WEEK" ]]; then
           args+=(--week "$INPUT_WEEK")
         fi

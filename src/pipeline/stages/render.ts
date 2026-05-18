@@ -257,6 +257,7 @@ export type ReportManifestEntry = Readonly<{
   path: string;
   generatedAt: string;
   prCount: number;
+  jsonl?: string;
 }>;
 
 export async function appendReportManifest(
@@ -339,6 +340,14 @@ const INDEX_SHELL_HTML = `<!doctype html>
           meta.className = "meta";
           if (typeof item.prCount === "number") meta.textContent = "PR " + item.prCount + "件";
           li.append(a, meta);
+          if (typeof item.jsonl === "string") {
+            const dl = document.createElement("a");
+            dl.href = "reports/" + item.jsonl;
+            dl.textContent = "JSONL";
+            dl.className = "meta";
+            dl.style.marginLeft = "8px";
+            li.append(dl);
+          }
           ul.appendChild(li);
         }
         root.replaceChildren(ul);

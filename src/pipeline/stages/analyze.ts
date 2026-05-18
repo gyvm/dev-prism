@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { BotsConfig, LimitsConfig } from "../../shared/config.js";
@@ -30,6 +30,18 @@ export type AnalyzeResult = Readonly<{
   reportInput: ReportInput;
 }>;
 
+async function readSkillOrder(skillMdPath: string): Promise<number> {
+  try {
+    const content = await readFile(skillMdPath, "utf8");
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!match) return Number.POSITIVE_INFINITY;
+    const orderLine = match[1]?.match(/^\s*order\s*:\s*(\d+)\s*$/m);
+    return orderLine ? Number(orderLine[1]) : Number.POSITIVE_INFINITY;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
 export async function discoverAiSkillIds(
   skillsRoot: string,
 ): Promise<string[]> {
@@ -42,7 +54,7 @@ export async function discoverAiSkillIds(
     );
     return [];
   }
-  const found: string[] = [];
+  const found: { id: string; order: number }[] = [];
   await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
@@ -50,13 +62,17 @@ export async function discoverAiSkillIds(
         const skillMd = join(skillsRoot, entry.name, "SKILL.md");
         try {
           const info = await stat(skillMd);
-          if (info.isFile()) found.push(entry.name);
+          if (!info.isFile()) return;
         } catch {
-          /* directories without SKILL.md are silently ignored */
+          return;
         }
+        const order = await readSkillOrder(skillMd);
+        found.push({ id: entry.name, order });
       }),
   );
-  return found.sort();
+  return found
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+    .map((entry) => entry.id);
 }
 
 function makeContext(
