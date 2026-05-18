@@ -28,10 +28,10 @@ runs:
       with:
         node-version: "24"
 
-    - name: Install action dependencies
+    - name: Install runtime dependencies
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: npm ci
+      run: npm ci --omit=dev --ignore-scripts
 
     - name: Generate weekly report
       shell: bash
@@ -51,7 +51,7 @@ runs:
         if [[ "$INPUT_SKIP_AI" == "true" ]]; then
           args+=(--skip-ai)
         fi
-        node "$ACTION_PATH/node_modules/.bin/tsx" "$ACTION_PATH/src/cli/report.ts" "${args[@]}"
+        node "$ACTION_PATH/dist/cli.js" "${args[@]}"
 
 branding:
   icon: bar-chart-2

@@ -1,6 +1,8 @@
 node_modules
-dist
 coverage
+dist/reports
+dist/index.html
+dist/manifest.json
 .DS_Store
 .env
 .env.*

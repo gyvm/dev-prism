@@ -1,20 +1,27 @@
 {
-  "name": "gh-insights",
+  "name": "pr-weekly-report",
   "version": "0.1.0",
   "description": "Weekly GitHub PR insights — DORA, timelines, review correlation, AI summaries.",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "engines": {
     "node": ">=24.15.0"
   },
+  "bin": {
+    "pr-weekly-report": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "action.yml",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "esbuild src/cli/report.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/cli.js --banner:js='#!/usr/bin/env node' --packages=external",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "collect": "tsx src/cli/collect.ts",
     "report": "tsx src/cli/report.ts",
-    "demo": "tsx src/cli/report.ts --config config.toml.example --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@github/copilot-sdk": "^0.3.0",
@@ -25,6 +32,7 @@
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.6.0",
+    "esbuild": "^0.27.4",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
