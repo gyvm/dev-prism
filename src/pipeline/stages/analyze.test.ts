@@ -1,8 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { DEFAULT_LIMITS } from "../../shared/config.js";
 import {
@@ -53,21 +49,12 @@ function buildPr(): NormalizedPullRequest {
 }
 
 describe("analyzeStage", () => {
-  let tmpDir: string;
-  beforeAll(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "gh-insights-analyze-"));
-  });
-  afterAll(async () => {
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
   it("runs compute analyses and skips AI skills when skipAi is true", async () => {
     const result = await analyzeStage(period, [buildPr()], {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      skipAi: true,
+skipAi: true,
       skillsRoot: "skills",
     });
 
@@ -89,8 +76,7 @@ describe("analyzeStage", () => {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      aiRunner: runner,
+aiRunner: runner,
       skillsRoot: "skills",
     });
 
@@ -110,8 +96,7 @@ describe("analyzeStage", () => {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      skipAi: true,
+skipAi: true,
       skillsRoot: "skills",
     });
 

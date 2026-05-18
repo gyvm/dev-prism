@@ -1,5 +1,5 @@
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 
 import type { BotsConfig, LimitsConfig } from "../../shared/config.js";
 import { createBotLoginMatcher } from "../../shared/bot.js";
@@ -15,7 +15,6 @@ import type { AnalysisContext } from "../../analyses/context.js";
 import { COMPUTE_REGISTRY, type ComputeEntry } from "../../analyses/registry.js";
 
 export type AnalyzeOptions = Readonly<{
-  outputRoot?: string;
   limits: LimitsConfig;
   timezone: string;
   now: Date;
@@ -29,7 +28,6 @@ export type AnalyzeResult = Readonly<{
   period: Period;
   results: readonly AnalysisResult[];
   reportInput: ReportInput;
-  outputDir: string;
 }>;
 
 export async function discoverAiSkillIds(
@@ -160,43 +158,5 @@ export async function analyzeStage(
 
   const results = await Promise.all(tasks);
 
-  const outputDir = resolve(options.outputRoot ?? "data/analysis", period.id);
-  await mkdir(outputDir, { recursive: true });
-  await Promise.all(
-    results.map((result) => {
-      if (result.format === "markdown" && result.status === "ok") {
-        const text = typeof result.data === "string" ? result.data : "";
-        return writeFile(
-          join(outputDir, `${result.id}.md`),
-          text.endsWith("\n") ? text : text + "\n",
-          "utf-8",
-        );
-      }
-      return writeFile(
-        join(outputDir, `${result.id}.json`),
-        JSON.stringify(result, null, 2) + "\n",
-        "utf-8",
-      );
-    }),
-  );
-
-  await writeFile(
-    join(outputDir, "_summary.json"),
-    JSON.stringify(
-      {
-        period: period.id,
-        generatedAt: options.now.toISOString(),
-        results: results.map((r) => ({
-          id: r.id,
-          status: r.status,
-          ...(r.reason ? { reason: r.reason } : {}),
-        })),
-      },
-      null,
-      2,
-    ) + "\n",
-    "utf-8",
-  );
-
-  return { period, results, reportInput, outputDir };
+  return { period, results, reportInput };
 }

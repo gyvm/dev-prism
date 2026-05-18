@@ -8,12 +8,11 @@ import {
 
 type ReportCliOptions = {
   configPath?: string;
-  rawDir?: string;
-  analysisDir?: string;
+  dataDir?: string;
   reportsDir?: string;
   indexHtmlPath?: string;
   skillsRoot?: string;
-  useRawPath?: string;
+  fromJsonlPath?: string;
   now?: Date;
   skipAi: boolean;
 };
@@ -49,12 +48,11 @@ export function parseArgs(argv: string[]): ReportCliOptions {
 
     const pathFlags = new Map<string, keyof ReportCliOptions>([
       ["--config", "configPath"],
-      ["--raw-dir", "rawDir"],
-      ["--analysis-dir", "analysisDir"],
+      ["--data-dir", "dataDir"],
       ["--reports-dir", "reportsDir"],
       ["--index", "indexHtmlPath"],
       ["--skills", "skillsRoot"],
-      ["--use-raw", "useRawPath"],
+      ["--from-jsonl", "fromJsonlPath"],
     ]);
 
     const optionName = pathFlags.get(argument ?? "");
@@ -68,8 +66,8 @@ export function parseArgs(argv: string[]): ReportCliOptions {
 
     if (argument === "--help" || argument === "-h") {
       process.stdout.write(
-        "Usage: npm run report -- [--config path] [--raw-dir path] [--analysis-dir path] [--reports-dir path] [--index path] [--skills path] [--use-raw path] [--week YYYY-MM-DD] [--skip-ai]\n" +
-          "  --week  対象週(月曜始まり)に含まれる任意の日付。--use-raw 併用時は無視\n",
+        "Usage: npm run report -- [--config path] [--data-dir path] [--reports-dir path] [--index path] [--skills path] [--from-jsonl path] [--week YYYY-MM-DD] [--skip-ai]\n" +
+          "  --week  対象週(月曜始まり)に含まれる任意の日付。--from-jsonl 併用時は無視\n",
       );
       process.exit(0);
     }
@@ -94,8 +92,7 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const result = await orchestrate(options);
 
-  process.stdout.write(`Written: ${result.fetch.rawPath}\n`);
-  process.stdout.write(`Written: ${result.analyze.outputDir}\n`);
+  process.stdout.write(`Written: ${result.jsonlPath}\n`);
   process.stdout.write(`Written: ${result.render.htmlPath}\n`);
   process.stdout.write(`Written: ${result.manifestPath}\n`);
   process.stdout.write(`Written: ${result.indexHtmlPath}\n`);
