@@ -19,7 +19,7 @@ model: sonnet
    - 出力は `## 全体進捗` で始まる
    - コードフェンスで囲まない、preamble 禁止
    - PR 参照は `[owner/repo#N](https://github.com/owner/repo/pull/N)` 形式
-4. **書き戻す**: 生成した Markdown を一時ファイルに保存し、`npx pr-weekly-report analyze-write --skill project-progress --markdown <tmpfile> --from-jsonl <JSONL>` を実行
+4. **書き戻す**: 生成した Markdown を一時ファイルに保存し、`npx pr-weekly-report analyze --skill project-progress --write <tmpfile> --from-jsonl <JSONL>` を実行
 5. **報告**: `ok: project-progress` だけを親に返す。Markdown 本文は返さない (コンテキスト節約)
 
 ## エラー処理

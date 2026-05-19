@@ -1,4 +1,3 @@
-import { orchestrate } from "../pipeline/orchestrate.js";
 import {
   CollectorError,
   ConfigError,
@@ -7,10 +6,10 @@ import {
 } from "../shared/errors.js";
 import {
   analyzeCommand,
-  analyzeWriteCommand,
   fetchCommand,
   listSkillsCommand,
   renderCommand,
+  runCommand,
   type SubcommandOptions,
 } from "./commands.js";
 
@@ -19,12 +18,11 @@ export type Subcommand =
   | "fetch"
   | "list-skills"
   | "analyze"
-  | "analyze-write"
   | "render";
 
 export type ParsedArgs = {
   subcommand: Subcommand;
-  options: SubcommandOptions & { skipAi: boolean };
+  options: SubcommandOptions;
 };
 
 const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set([
@@ -32,20 +30,18 @@ const SUBCOMMANDS: ReadonlySet<Subcommand> = new Set([
   "fetch",
   "list-skills",
   "analyze",
-  "analyze-write",
   "render",
 ]);
 
 const HELP_TEXT = `Usage: pr-weekly-report <subcommand> [flags]
 
 Subcommands:
-  run                既存の Copilot SDK ベースで全工程を実行 (default)
+  run                fetch + AI 分析 + render を一括実行 (default)
   fetch              GraphQL fetch + compute 分析を実行し JSONL を書き出す
   list-skills        AI skill ID 一覧を1行ずつ出力
   analyze            指定 skill の入力 JSON を stdout に出す
+                     --write <path|-> を付けると Markdown を JSONL に書き戻す
                      必須: --skill <id>
-  analyze-write      生成した Markdown を JSONL の該当 skill 行に書き戻す
-                     必須: --skill <id> --markdown <path|->
   render             JSONL から HTML / manifest / JSONL コピーを出力
 
 Common flags:
@@ -55,10 +51,10 @@ Common flags:
   --reports-dir      HTML 出力先 (default: dist/reports)
   --index <path>     index.html 出力先 (default: dist/index.html)
   --skills <path>    skills ディレクトリ (default: skills)
-  --from-jsonl <p>   既存 JSONL を読み込む (analyze/analyze-write/render)
+  --from-jsonl <p>   既存 JSONL を読み込む (analyze / render)
   --skip-ai          run でのみ有効。AI 分析をスキップ
-  --skill <id>       analyze / analyze-write 用
-  --markdown <p|->   analyze-write 用。'-' で stdin
+  --skill <id>       analyze 用 skill ID
+  --write <p|->      analyze で Markdown を書き戻す。'-' で stdin
 `;
 
 const FLAG_TO_KEY = new Map<string, keyof SubcommandOptions>([
@@ -69,7 +65,7 @@ const FLAG_TO_KEY = new Map<string, keyof SubcommandOptions>([
   ["--skills", "skillsRoot"],
   ["--from-jsonl", "fromJsonlPath"],
   ["--skill", "skill"],
-  ["--markdown", "markdownPath"],
+  ["--write", "writePath"],
 ]);
 
 function parseWeek(value: string): Date {
@@ -98,7 +94,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     rest = argv.slice(1);
   }
 
-  const options: SubcommandOptions & { skipAi: boolean } = { skipAi: false };
+  const options: SubcommandOptions = {};
 
   for (let i = 0; i < rest.length; i += 1) {
     const arg = rest[i];
@@ -150,17 +146,15 @@ async function runSubcommand(parsed: ParsedArgs): Promise<void> {
       return listSkillsCommand(options);
     case "analyze":
       return analyzeCommand(options);
-    case "analyze-write":
-      return analyzeWriteCommand(options);
     case "render":
       return renderCommand(options);
     case "run": {
-      const result = await orchestrate(options);
+      const result = await runCommand(options);
       process.stdout.write(`Written: ${result.jsonlPath}\n`);
-      process.stdout.write(`Written: ${result.render.htmlPath}\n`);
+      process.stdout.write(`Written: ${result.htmlPath}\n`);
       process.stdout.write(`Written: ${result.manifestPath}\n`);
       process.stdout.write(`Written: ${result.indexHtmlPath}\n`);
-      const summary = result.analyze.results.reduce<Record<string, number>>(
+      const summary = result.results.reduce<Record<string, number>>(
         (acc, r) => {
           acc[r.status] = (acc[r.status] ?? 0) + 1;
           return acc;

@@ -1,11 +1,7 @@
 import { z } from "zod";
 
 import type { NormalizedPullRequest } from "../shared/types.js";
-import type {
-  AnalysisFormat,
-  AnalysisStatus,
-  RendererId,
-} from "../pipeline/types.js";
+import type { AnalysisResult } from "../pipeline/types.js";
 
 export const META_LINE_TYPE = "meta" as const;
 export const PR_LINE_TYPE = "pr" as const;
@@ -24,20 +20,8 @@ export type MetaLine = Readonly<{
 export type PrLine = Readonly<{ type: typeof PR_LINE_TYPE }> &
   NormalizedPullRequest;
 
-export type AnalysisKind = "compute" | "ai";
-
-export type AnalysisLine = Readonly<{
-  type: typeof ANALYSIS_LINE_TYPE;
-  section: string;
-  kind: AnalysisKind;
-  status: AnalysisStatus;
-  format: AnalysisFormat;
-  renderer?: RendererId;
-  data?: unknown;
-  markdown?: string;
-  reason?: string;
-  stack?: string;
-}>;
+export type AnalysisLine = Readonly<{ type: typeof ANALYSIS_LINE_TYPE }> &
+  AnalysisResult;
 
 export type JsonlLine = MetaLine | PrLine | AnalysisLine;
 
@@ -58,13 +42,11 @@ export const prLineSchema = z
 export const analysisLineSchema = z
   .object({
     type: z.literal(ANALYSIS_LINE_TYPE),
-    section: z.string(),
-    kind: z.enum(["compute", "ai"]),
+    id: z.string(),
     status: z.enum(["ok", "no-data", "skipped", "error"]),
     format: z.enum(["markdown", "json"]),
     renderer: z.string().optional(),
     data: z.unknown().optional(),
-    markdown: z.string().optional(),
     reason: z.string().optional(),
     stack: z.string().optional(),
   })

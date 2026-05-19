@@ -212,10 +212,10 @@ CLI は以下の subcommand 構造をとります。最初の引数が subcomman
 | `fetch` | GraphQL fetch + compute 分析を実行し JSONL を書き出す | なし |
 | `list-skills` | AI skill ID 一覧を 1 行ずつ出力 | なし |
 | `analyze --skill <id>` | 指定 skill の入力 JSON を stdout に出す (LLM への入力プロビジョン) | なし |
-| `analyze-write --skill <id> --markdown <p\|->` | LLM が生成した Markdown を JSONL に書き戻す | なし |
+| `analyze --skill <id> --write <p\|->` | LLM が生成した Markdown を JSONL に書き戻す | なし |
 | `render` | JSONL から HTML / manifest / JSONL コピーを出力 | なし |
 
-slash command / subagent からは fetch → analyze → analyze-write → render を組み合わせて使います ([Claude Code / Codex slash command](#claude-code--codex-slash-command-で使う) を参照)。
+slash command / subagent からは fetch → analyze (read) → analyze (write) → render を組み合わせて使います ([Claude Code / Codex slash command](#claude-code--codex-slash-command-で使う) を参照)。
 
 ### 主なフラグ
 
@@ -227,9 +227,9 @@ slash command / subagent からは fetch → analyze → analyze-write → rende
 | `--index <path>` | インデックス HTML の出力先 |
 | `--skills <path>` | AI skill のルートディレクトリ |
 | `--week YYYY-MM-DD` | 対象週に含まれる日付。指定週(月曜始まり)を集計 |
-| `--from-jsonl <path>` | 既存 JSONL を読み込む (analyze / analyze-write / render) |
-| `--skill <id>` | analyze / analyze-write 用の skill ID |
-| `--markdown <path\|->` | analyze-write 用。`-` で stdin |
+| `--from-jsonl <path>` | 既存 JSONL を読み込む (analyze / render) |
+| `--skill <id>` | analyze 用の skill ID |
+| `--write <path\|->` | analyze で Markdown を書き戻す。`-` で stdin |
 | `--skip-ai` | `run` でのみ有効。AI 分析を全部 `skipped` 扱いにする |
 
 ## Claude Code / Codex slash command で使う

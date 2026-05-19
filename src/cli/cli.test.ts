@@ -7,7 +7,7 @@ describe("report parseArgs", () => {
     const result = parseArgs(["--week", "2026-04-27"]);
     expect(result.subcommand).toBe("run");
     expect(result.options.now?.toISOString()).toBe("2026-04-27T12:00:00.000Z");
-    expect(result.options.skipAi).toBe(false);
+    expect(result.options.skipAi).toBeUndefined();
   });
 
   it("recognizes a subcommand as the first positional argument", () => {
@@ -33,16 +33,16 @@ describe("report parseArgs", () => {
     expect(() => parseArgs(["--week", "2026-13-01"])).toThrow(/could not parse/);
   });
 
-  it("captures --skill and --markdown for analyze-write", () => {
+  it("captures --skill and --write for analyze", () => {
     const result = parseArgs([
-      "analyze-write",
+      "analyze",
       "--skill",
       "project-progress",
-      "--markdown",
+      "--write",
       "-",
     ]);
-    expect(result.subcommand).toBe("analyze-write");
+    expect(result.subcommand).toBe("analyze");
     expect(result.options.skill).toBe("project-progress");
-    expect(result.options.markdownPath).toBe("-");
+    expect(result.options.writePath).toBe("-");
   });
 });

@@ -1,14 +1,12 @@
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { loadUnifiedConfig } from "../shared/config.js";
+import { loadUnifiedConfig, type UnifiedConfig } from "../shared/config.js";
 import { buildReportInput } from "../report/projection.js";
+import type { ReportInput } from "../report/types.js";
 import { readJsonl } from "../jsonl/reader.js";
 import { upsertAnalysisLine, writeJsonl } from "../jsonl/writer.js";
-import {
-  ANALYSIS_LINE_TYPE,
-  type AnalysisLine,
-} from "../jsonl/types.js";
+import { ANALYSIS_LINE_TYPE } from "../jsonl/types.js";
 import { periodForDate, type Period } from "../pipeline/period.js";
 import { fetchStage } from "../pipeline/stages/fetch.js";
 import {
@@ -20,7 +18,13 @@ import {
   renderStage,
   writeIndexShell,
 } from "../pipeline/stages/render.js";
-import type { AnalysisResult, RendererId } from "../pipeline/types.js";
+import {
+  createCopilotSdkRunner,
+  validateAiModel,
+  type AiRunner,
+} from "../pipeline/ai-runner.js";
+import type { AnalysisResult } from "../pipeline/types.js";
+import type { NormalizedPullRequest } from "../shared/types.js";
 
 export type SubcommandOptions = {
   configPath?: string;
@@ -31,43 +35,63 @@ export type SubcommandOptions = {
   fromJsonlPath?: string;
   now?: Date;
   skill?: string;
-  markdownPath?: string;
+  writePath?: string;
+  skipAi?: boolean;
+  env?: NodeJS.ProcessEnv;
+  fetchFn?: typeof fetch;
+  aiRunner?: AiRunner;
 };
 
-function defaultDataDir(opts: SubcommandOptions): string {
-  return opts.dataDir ?? "data";
+const defaults = {
+  dataDir: (o: SubcommandOptions) => o.dataDir ?? "data",
+  reportsDir: (o: SubcommandOptions) => o.reportsDir ?? join("dist", "reports"),
+  skillsRoot: (o: SubcommandOptions) => o.skillsRoot ?? "skills",
+  indexHtmlPath: (o: SubcommandOptions) =>
+    o.indexHtmlPath ?? join("dist", "index.html"),
+  configPath: (o: SubcommandOptions) => o.configPath ?? "config.toml",
+};
+
+function jsonlPathFor(opts: SubcommandOptions, period: Period): string {
+  return opts.fromJsonlPath
+    ? resolve(opts.fromJsonlPath)
+    : resolve(defaults.dataDir(opts), `${period.id}.jsonl`);
 }
 
-function defaultReportsDir(opts: SubcommandOptions): string {
-  return opts.reportsDir ?? join("dist", "reports");
-}
-
-function defaultSkillsRoot(opts: SubcommandOptions): string {
-  return opts.skillsRoot ?? "skills";
-}
-
-async function resolveJsonlPath(
+async function resolvePeriod(
   opts: SubcommandOptions,
-  period: Period | undefined,
-): Promise<string> {
-  if (opts.fromJsonlPath) return resolve(opts.fromJsonlPath);
-  if (!period) throw new Error("--from-jsonl or --week is required");
-  return resolve(defaultDataDir(opts), `${period.id}.jsonl`);
-}
-
-async function resolvePeriodFromOptions(
-  opts: SubcommandOptions,
+  config: UnifiedConfig,
 ): Promise<Period> {
-  const config = await loadUnifiedConfig(opts.configPath ?? "config.toml");
+  if (opts.fromJsonlPath) {
+    const bundle = await readJsonl(resolve(opts.fromJsonlPath));
+    return {
+      id: bundle.meta.week,
+      start: new Date(bundle.meta.weekStart),
+      end: new Date(bundle.meta.weekEnd),
+    };
+  }
   return periodForDate(opts.now ?? new Date(), config.timezone);
 }
 
-export async function fetchCommand(opts: SubcommandOptions): Promise<void> {
+type FetchAndWriteResult = {
+  jsonlPath: string;
+  period: Period;
+  pullRequests: readonly NormalizedPullRequest[];
+  results: readonly AnalysisResult[];
+  reportInput: ReportInput;
+  generatedAt: Date;
+};
+
+async function fetchAndWrite(
+  opts: SubcommandOptions,
+  config: UnifiedConfig,
+  aiRunner?: AiRunner,
+): Promise<FetchAndWriteResult> {
   const now = opts.now ?? new Date();
-  const config = await loadUnifiedConfig(opts.configPath ?? "config.toml");
   const period = periodForDate(now, config.timezone);
   const fetchResult = await fetchStage(period, {
     ...(opts.configPath ? { configPath: opts.configPath } : {}),
+    ...(opts.env ? { env: opts.env } : {}),
+    ...(opts.fetchFn ? { fetchFn: opts.fetchFn } : {}),
     now,
   });
 
@@ -76,14 +100,11 @@ export async function fetchCommand(opts: SubcommandOptions): Promise<void> {
     timezone: config.timezone,
     now,
     bots: config.bots,
-    skipAi: true,
-    skillsRoot: defaultSkillsRoot(opts),
+    skillsRoot: defaults.skillsRoot(opts),
+    ...(aiRunner ? { aiRunner } : { skipAi: true }),
   });
 
-  const jsonlPath = resolve(
-    defaultDataDir(opts),
-    `${period.id}.jsonl`,
-  );
+  const jsonlPath = resolve(defaults.dataDir(opts), `${period.id}.jsonl`);
   await writeJsonl(jsonlPath, {
     meta: {
       week: period.id,
@@ -93,30 +114,160 @@ export async function fetchCommand(opts: SubcommandOptions): Promise<void> {
       timezone: config.timezone,
     },
     pullRequests: fetchResult.pullRequests,
-    analyses: analyzeResult.results.map((result) => ({
-      result,
-      kind: result.format === "markdown" ? "ai" : "compute",
-    })),
+    analyses: analyzeResult.results,
   });
 
-  process.stdout.write(`${jsonlPath}\n`);
+  return {
+    jsonlPath,
+    period,
+    pullRequests: fetchResult.pullRequests,
+    results: analyzeResult.results,
+    reportInput: analyzeResult.reportInput,
+    generatedAt: now,
+  };
+}
+
+type PublishResult = {
+  htmlPath: string;
+  jsonlPublicPath: string;
+  manifestPath: string;
+  indexHtmlPath: string;
+};
+
+async function publish(
+  opts: SubcommandOptions,
+  period: Period,
+  reportInput: ReportInput,
+  results: readonly AnalysisResult[],
+  jsonlPath: string,
+  generatedAt: string,
+  prCount: number,
+): Promise<PublishResult> {
+  const reportsDir = defaults.reportsDir(opts);
+  const { htmlPath } = await renderStage(period, reportInput, results, {
+    reportInput,
+    outputPath: join(reportsDir, `${period.id}.html`),
+  });
+
+  const jsonlPublicPath = resolve(reportsDir, `${period.id}.jsonl`);
+  await mkdir(dirname(jsonlPublicPath), { recursive: true });
+  await copyFile(jsonlPath, jsonlPublicPath);
+
+  const indexHtmlPath = defaults.indexHtmlPath(opts);
+  await writeIndexShell(indexHtmlPath);
+
+  const manifestPath = await appendReportManifest(reportsDir, {
+    period: period.id,
+    path: `${period.id}.html`,
+    generatedAt,
+    prCount,
+    jsonl: `${period.id}.jsonl`,
+  });
+
+  return { htmlPath, jsonlPublicPath, manifestPath, indexHtmlPath };
+}
+
+async function createAiRunnerIfConfigured(
+  opts: SubcommandOptions,
+  config: UnifiedConfig,
+): Promise<AiRunner | undefined> {
+  if (opts.aiRunner) return opts.aiRunner;
+  if (opts.skipAi) return undefined;
+  const env = opts.env ?? process.env;
+  const copilotToken = env.COPILOT_GITHUB_TOKEN?.trim();
+  const skillsRoot = defaults.skillsRoot(opts);
+  const aiSkillIds = await discoverAiSkillIds(skillsRoot);
+  if (aiSkillIds.length === 0) return undefined;
+  if (config.ai.model) {
+    await validateAiModel({
+      model: config.ai.model,
+      ...(copilotToken ? { gitHubToken: copilotToken } : {}),
+    });
+  }
+  return createCopilotSdkRunner({
+    skillDirectories: aiSkillIds.map((id) => resolve(skillsRoot, id)),
+    ...(config.ai.model ? { model: config.ai.model } : {}),
+    ...(copilotToken ? { gitHubToken: copilotToken } : {}),
+  });
+}
+
+export type RunResult = {
+  period: Period;
+  results: readonly AnalysisResult[];
+} & PublishResult & { jsonlPath: string };
+
+export async function runCommand(opts: SubcommandOptions): Promise<RunResult> {
+  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const aiRunner = await createAiRunnerIfConfigured(opts, config);
+  const result = await fetchAndWrite(opts, config, aiRunner);
+  const published = await publish(
+    opts,
+    result.period,
+    result.reportInput,
+    result.results,
+    result.jsonlPath,
+    result.generatedAt.toISOString(),
+    result.pullRequests.length,
+  );
+  return {
+    period: result.period,
+    results: result.results,
+    jsonlPath: result.jsonlPath,
+    ...published,
+  };
+}
+
+export async function fetchCommand(opts: SubcommandOptions): Promise<void> {
+  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const result = await fetchAndWrite(opts, config);
+  process.stdout.write(`${result.jsonlPath}\n`);
 }
 
 export async function listSkillsCommand(
   opts: SubcommandOptions,
 ): Promise<void> {
-  const ids = await discoverAiSkillIds(defaultSkillsRoot(opts));
+  const ids = await discoverAiSkillIds(defaults.skillsRoot(opts));
   for (const id of ids) process.stdout.write(`${id}\n`);
+}
+
+function stripCodeFence(output: string): string {
+  const trimmed = output.trim();
+  const fenced = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i);
+  return (fenced?.[1] ?? trimmed).trim();
+}
+
+async function readMarkdownInput(source: string): Promise<string> {
+  if (source === "-") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    }
+    return Buffer.concat(chunks).toString("utf-8");
+  }
+  return readFile(source, "utf-8");
 }
 
 export async function analyzeCommand(opts: SubcommandOptions): Promise<void> {
   if (!opts.skill) throw new Error("analyze requires --skill <id>");
-  const period = opts.fromJsonlPath
-    ? undefined
-    : await resolvePeriodFromOptions(opts);
-  const jsonlPath = await resolveJsonlPath(opts, period);
+  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const period = await resolvePeriod(opts, config);
+  const jsonlPath = jsonlPathFor(opts, period);
   const bundle = await readJsonl(jsonlPath);
-  const config = await loadUnifiedConfig(opts.configPath ?? "config.toml");
+
+  if (opts.writePath) {
+    const rawMarkdown = await readMarkdownInput(opts.writePath);
+    const markdown = stripCodeFence(rawMarkdown);
+    if (!markdown) throw new Error("markdown input is empty");
+    await upsertAnalysisLine(jsonlPath, {
+      type: ANALYSIS_LINE_TYPE,
+      id: opts.skill,
+      status: "ok",
+      format: "markdown",
+      data: markdown,
+    });
+    process.stdout.write(`updated: ${jsonlPath} (${opts.skill})\n`);
+    return;
+  }
 
   const reportInput = buildReportInput({
     pullRequests: bundle.pullRequests,
@@ -135,127 +286,33 @@ export async function analyzeCommand(opts: SubcommandOptions): Promise<void> {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 }
 
-async function readMarkdownInput(source: string): Promise<string> {
-  if (source === "-") {
-    const chunks: Buffer[] = [];
-    for await (const chunk of process.stdin) {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-    }
-    return Buffer.concat(chunks).toString("utf-8");
-  }
-  return readFile(source, "utf-8");
-}
-
-function stripCodeFence(output: string): string {
-  const trimmed = output.trim();
-  const fenced = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i);
-  return (fenced?.[1] ?? trimmed).trim();
-}
-
-export async function analyzeWriteCommand(
-  opts: SubcommandOptions,
-): Promise<void> {
-  if (!opts.skill) throw new Error("analyze-write requires --skill <id>");
-  if (!opts.markdownPath)
-    throw new Error("analyze-write requires --markdown <path|->");
-  const period = opts.fromJsonlPath
-    ? undefined
-    : await resolvePeriodFromOptions(opts);
-  const jsonlPath = await resolveJsonlPath(opts, period);
-  const rawMarkdown = await readMarkdownInput(opts.markdownPath);
-  const markdown = stripCodeFence(rawMarkdown);
-  if (!markdown) throw new Error("markdown input is empty");
-
-  const line: AnalysisLine = {
-    type: ANALYSIS_LINE_TYPE,
-    section: opts.skill,
-    kind: "ai",
-    status: "ok",
-    format: "markdown",
-    markdown,
-  };
-  await upsertAnalysisLine(jsonlPath, opts.skill, line);
-  process.stdout.write(`updated: ${jsonlPath} (${opts.skill})\n`);
-}
-
-const KNOWN_RENDERERS: ReadonlySet<RendererId> = new Set([
-  "metric-cards",
-  "gantt-chart",
-  "bipartite-graph",
-]);
-
-function analysisLineToResult(line: AnalysisLine): AnalysisResult {
-  const renderer =
-    line.renderer && KNOWN_RENDERERS.has(line.renderer as RendererId)
-      ? (line.renderer as RendererId)
-      : undefined;
-  const data = line.format === "markdown" ? line.markdown : line.data;
-  return {
-    id: line.section,
-    format: line.format,
-    status: line.status,
-    ...(renderer ? { renderer } : {}),
-    ...(data !== undefined ? { data } : {}),
-    ...(line.reason ? { reason: line.reason } : {}),
-    ...(line.stack ? { stack: line.stack } : {}),
-  };
-}
-
 export async function renderCommand(opts: SubcommandOptions): Promise<void> {
-  const config = await loadUnifiedConfig(opts.configPath ?? "config.toml");
-  const period = opts.fromJsonlPath
-    ? undefined
-    : periodForDate(opts.now ?? new Date(), config.timezone);
-  const jsonlPath = await resolveJsonlPath(opts, period);
+  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const period = await resolvePeriod(opts, config);
+  const jsonlPath = jsonlPathFor(opts, period);
   const bundle = await readJsonl(jsonlPath);
-
-  const periodFromBundle: Period = {
-    id: bundle.meta.week,
-    start: new Date(bundle.meta.weekStart),
-    end: new Date(bundle.meta.weekEnd),
-  };
 
   const reportInput = buildReportInput({
     pullRequests: bundle.pullRequests,
     generatedAt: new Date(bundle.meta.generatedAt),
     timezone: bundle.meta.timezone,
-    weekStart: periodFromBundle.start,
-    weekEnd: periodFromBundle.end,
+    weekStart: period.start,
+    weekEnd: period.end,
     limits: config.limits,
   });
 
-  const results = bundle.analyses.map(analysisLineToResult);
-  const reportsDir = defaultReportsDir(opts);
-  const renderResult = await renderStage(
-    periodFromBundle,
+  const published = await publish(
+    opts,
+    period,
     reportInput,
-    results,
-    {
-      reportInput,
-      outputPath: join(reportsDir, `${periodFromBundle.id}.html`),
-    },
+    bundle.analyses,
+    jsonlPath,
+    bundle.meta.generatedAt,
+    bundle.pullRequests.length,
   );
 
-  const jsonlPublicPath = resolve(
-    reportsDir,
-    `${periodFromBundle.id}.jsonl`,
-  );
-  await mkdir(dirname(jsonlPublicPath), { recursive: true });
-  await copyFile(jsonlPath, jsonlPublicPath);
-
-  const indexHtmlPath = opts.indexHtmlPath ?? join("dist", "index.html");
-  await writeIndexShell(indexHtmlPath);
-
-  const manifestPath = await appendReportManifest(reportsDir, {
-    period: periodFromBundle.id,
-    path: `${periodFromBundle.id}.html`,
-    generatedAt: bundle.meta.generatedAt,
-    prCount: bundle.pullRequests.length,
-    jsonl: `${periodFromBundle.id}.jsonl`,
-  });
-
-  process.stdout.write(`Written: ${renderResult.htmlPath}\n`);
-  process.stdout.write(`Written: ${jsonlPublicPath}\n`);
-  process.stdout.write(`Written: ${manifestPath}\n`);
-  process.stdout.write(`Written: ${indexHtmlPath}\n`);
+  process.stdout.write(`Written: ${published.htmlPath}\n`);
+  process.stdout.write(`Written: ${published.jsonlPublicPath}\n`);
+  process.stdout.write(`Written: ${published.manifestPath}\n`);
+  process.stdout.write(`Written: ${published.indexHtmlPath}\n`);
 }

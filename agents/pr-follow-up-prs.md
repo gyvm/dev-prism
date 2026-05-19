@@ -16,7 +16,7 @@ model: sonnet
 1. `skills/follow-up-prs/SKILL.md` を Read する
 2. `npx pr-weekly-report analyze --skill follow-up-prs --from-jsonl <JSONL>` を実行して入力 JSON を取得
 3. SKILL.md の指示に従って Markdown を生成
-4. 一時ファイルに保存し `npx pr-weekly-report analyze-write --skill follow-up-prs --markdown <tmpfile> --from-jsonl <JSONL>` で書き戻す
+4. 一時ファイルに保存し `npx pr-weekly-report analyze --skill follow-up-prs --write <tmpfile> --from-jsonl <JSONL>` で書き戻す
 5. `ok: follow-up-prs` を親に返す
 
 ## エラー処理

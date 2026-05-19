@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 
 import type { NormalizedPullRequest } from "../shared/types.js";
+import type { AnalysisResult } from "../pipeline/types.js";
 
 import {
   ANALYSIS_LINE_TYPE,
   META_LINE_TYPE,
   PR_LINE_TYPE,
   jsonlLineSchema,
-  type AnalysisLine,
   type JsonlLine,
   type MetaLine,
   type PrLine,
@@ -41,7 +41,7 @@ export function parseJsonl(text: string): JsonlLine[] {
 export type JsonlBundle = Readonly<{
   meta: MetaLine;
   pullRequests: readonly NormalizedPullRequest[];
-  analyses: readonly AnalysisLine[];
+  analyses: readonly AnalysisResult[];
 }>;
 
 export function bundleFromLines(lines: readonly JsonlLine[]): JsonlBundle {
@@ -52,13 +52,14 @@ export function bundleFromLines(lines: readonly JsonlLine[]): JsonlBundle {
     throw new Error("JSONL is missing a meta line");
   }
   const pullRequests: NormalizedPullRequest[] = [];
-  const analyses: AnalysisLine[] = [];
+  const analyses: AnalysisResult[] = [];
   for (const line of lines) {
     if (line.type === PR_LINE_TYPE) {
       const { type: _ignored, ...pr } = line as PrLine;
       pullRequests.push(pr as NormalizedPullRequest);
     } else if (line.type === ANALYSIS_LINE_TYPE) {
-      analyses.push(line);
+      const { type: _ignored, ...result } = line;
+      analyses.push(result);
     }
   }
   return { meta, pullRequests, analyses };

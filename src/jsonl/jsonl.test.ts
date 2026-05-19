@@ -77,31 +77,22 @@ describe("jsonl writer helpers", () => {
     expect(line.repo).toEqual({ owner: "foo", name: "bar" });
   });
 
-  it("analysisLine carries compute data", () => {
-    const line = analysisLine(COMPUTE_RESULT, "compute");
-    expect(line).toMatchObject({
+  it("analysisLine wraps AnalysisResult with type", () => {
+    expect(analysisLine(COMPUTE_RESULT)).toEqual({
       type: ANALYSIS_LINE_TYPE,
-      section: "metric-cards",
-      kind: "compute",
-      status: "ok",
-      format: "json",
-      renderer: "metric-cards",
-      data: { merged: 5 },
+      ...COMPUTE_RESULT,
     });
-    expect("markdown" in line).toBe(false);
-  });
-
-  it("analysisLine stores markdown under `markdown` for AI results", () => {
-    const line = analysisLine(AI_RESULT, "ai");
-    expect(line.markdown).toBe("## サマリ\n本文");
-    expect("data" in line).toBe(false);
+    expect(analysisLine(AI_RESULT)).toEqual({
+      type: ANALYSIS_LINE_TYPE,
+      ...AI_RESULT,
+    });
   });
 
   it("serializeLines emits one JSON object per line with trailing newline", () => {
     const out = serializeLines([
       metaLine(META_INPUT),
       prLine(PR_FIXTURE),
-      analysisLine(COMPUTE_RESULT, "compute"),
+      analysisLine(COMPUTE_RESULT),
     ]);
     const lines = out.split("\n");
     expect(out.endsWith("\n")).toBe(true);
@@ -133,19 +124,19 @@ describe("jsonl reader", () => {
     expect(() => parseJsonl('{"type":"bogus"}\n')).toThrow(/line 1/);
   });
 
-  it("bundleFromLines groups meta / pr / analysis", () => {
+  it("bundleFromLines groups meta / pr / analysis and strips type", () => {
     const bundle = bundleFromLines([
       metaLine(META_INPUT),
       prLine(PR_FIXTURE),
-      analysisLine(COMPUTE_RESULT, "compute"),
-      analysisLine(AI_RESULT, "ai"),
+      analysisLine(COMPUTE_RESULT),
+      analysisLine(AI_RESULT),
     ]);
     expect(bundle.meta.week).toBe("2026-05-11");
     expect(bundle.pullRequests).toHaveLength(1);
     expect(bundle.pullRequests[0]!.number).toBe(1);
     expect(bundle.analyses).toHaveLength(2);
-    expect(bundle.analyses[0]!.section).toBe("metric-cards");
-    expect(bundle.analyses[1]!.markdown).toBe("## サマリ\n本文");
+    expect(bundle.analyses[0]).toEqual(COMPUTE_RESULT);
+    expect(bundle.analyses[1]).toEqual(AI_RESULT);
   });
 
   it("bundleFromLines throws when meta is missing", () => {
@@ -169,10 +160,7 @@ describe("jsonl round-trip", () => {
     await writeJsonl(path, {
       meta: META_INPUT,
       pullRequests: [PR_FIXTURE],
-      analyses: [
-        { result: COMPUTE_RESULT, kind: "compute" },
-        { result: AI_RESULT, kind: "ai" },
-      ],
+      analyses: [COMPUTE_RESULT, AI_RESULT],
     });
 
     const raw = await readFile(path, "utf-8");
@@ -184,6 +172,6 @@ describe("jsonl round-trip", () => {
     expect(bundle.pullRequests[0]!.title).toBe("Test PR");
     expect(bundle.analyses).toHaveLength(2);
     expect(bundle.analyses[0]!.data).toEqual({ merged: 5 });
-    expect(bundle.analyses[1]!.markdown).toBe("## サマリ\n本文");
+    expect(bundle.analyses[1]!.data).toBe("## サマリ\n本文");
   });
 });
