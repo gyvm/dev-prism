@@ -16,6 +16,3 @@ data/raw/
 data/analysis/
 data/history/
 data/latest.json
-
-# Per-user config (commit config.toml.example as the template)
-config.toml

@@ -96,7 +96,7 @@ export type CollectorDependencies = {
   fetchFn?: typeof fetch;
   now?: Date;
   env?: NodeJS.ProcessEnv;
-  configPath?: string;
+  repositories: readonly RepositorySpec[];
 };
 
 // --- Metrics types ---

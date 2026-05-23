@@ -2,5 +2,18 @@
   "name": "pr-weekly-report",
   "description": "週次 GitHub PR レポート (DORA / timeline / AI 分析) を Claude Code から1コマンドで生成する",
   "version": "0.1.0",
-  "author": "gyvm"
+  "author": {
+    "name": "gyvm"
+  },
+  "homepage": "https://github.com/gyvm/pr-weekly-report",
+  "repository": "https://github.com/gyvm/pr-weekly-report",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "pull-request",
+    "weekly-report",
+    "dora-metrics",
+    "code-review",
+    "ai"
+  ]
 }

@@ -2,11 +2,12 @@ import { collectNormalizedPullRequests } from "../../collector/collect.js";
 import type {
   CollectorDependencies,
   NormalizedPullRequest,
+  RepositorySpec,
 } from "../../shared/types.js";
 import type { Period } from "../period.js";
 
 export type FetchOptions = Readonly<{
-  configPath?: string;
+  repositories: readonly RepositorySpec[];
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
   now?: Date;
@@ -19,10 +20,10 @@ export type FetchResult = Readonly<{
 
 export async function fetchStage(
   period: Period,
-  options: FetchOptions = {},
+  options: FetchOptions,
 ): Promise<FetchResult> {
   const collectorDeps: CollectorDependencies = {
-    ...(options.configPath ? { configPath: options.configPath } : {}),
+    repositories: options.repositories,
     ...(options.env ? { env: options.env } : {}),
     ...(options.fetchFn ? { fetchFn: options.fetchFn } : {}),
     now: options.now ?? new Date(),
