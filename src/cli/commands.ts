@@ -1,7 +1,15 @@
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { loadUnifiedConfig, type UnifiedConfig } from "../shared/config.js";
+import {
+  DEFAULT_BOTS,
+  DEFAULT_LIMITS,
+  parseRepositoriesArg,
+  resolveTimezone,
+  type UnifiedConfig,
+} from "../shared/config.js";
+import { inferRepositoryFromGit } from "../shared/git-remote.js";
+import { ConfigError } from "../shared/errors.js";
 import { buildReportInput } from "../report/projection.js";
 import type { ReportInput } from "../report/types.js";
 import { readJsonl } from "../jsonl/reader.js";
@@ -24,10 +32,9 @@ import {
   type AiRunner,
 } from "../pipeline/ai-runner.js";
 import type { AnalysisResult } from "../pipeline/types.js";
-import type { NormalizedPullRequest } from "../shared/types.js";
+import type { NormalizedPullRequest, RepositorySpec } from "../shared/types.js";
 
 export type SubcommandOptions = {
-  configPath?: string;
   dataDir?: string;
   reportsDir?: string;
   indexHtmlPath?: string;
@@ -37,6 +44,9 @@ export type SubcommandOptions = {
   skill?: string;
   writePath?: string;
   skipAi?: boolean;
+  repositories?: string;
+  timezone?: string;
+  model?: string;
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
   aiRunner?: AiRunner;
@@ -48,8 +58,49 @@ const defaults = {
   skillsRoot: (o: SubcommandOptions) => o.skillsRoot ?? "skills",
   indexHtmlPath: (o: SubcommandOptions) =>
     o.indexHtmlPath ?? join("dist", "index.html"),
-  configPath: (o: SubcommandOptions) => o.configPath ?? "config.toml",
 };
+
+function specLabel(spec: RepositorySpec): string {
+  return spec.kind === "wildcard"
+    ? `${spec.owner}/*`
+    : `${spec.owner}/${spec.name}`;
+}
+
+/**
+ * Resolve target repositories: explicit `--repositories` wins, otherwise infer
+ * the current repo from the git origin remote, otherwise fail.
+ */
+async function resolveRepositories(
+  opts: SubcommandOptions,
+): Promise<readonly RepositorySpec[]> {
+  if (opts.repositories?.trim()) {
+    return parseRepositoriesArg(opts.repositories);
+  }
+  const inferred = await inferRepositoryFromGit();
+  if (inferred) {
+    process.stderr.write(
+      `[config] --repositories not given; inferred "${specLabel(inferred)}" from git remote\n`,
+    );
+    return [inferred];
+  }
+  throw new ConfigError(
+    'No repositories specified. Pass --repositories "owner/name" (comma/space separated, "owner/*" allowed), or run inside a GitHub repository.',
+  );
+}
+
+function buildConfig(
+  repositories: readonly RepositorySpec[],
+  opts: SubcommandOptions,
+): UnifiedConfig {
+  const model = opts.model?.trim();
+  return {
+    timezone: resolveTimezone(opts.timezone),
+    repositories,
+    limits: DEFAULT_LIMITS,
+    ai: model ? { model } : {},
+    bots: DEFAULT_BOTS,
+  };
+}
 
 function jsonlPathFor(opts: SubcommandOptions, period: Period): string {
   return opts.fromJsonlPath
@@ -59,7 +110,7 @@ function jsonlPathFor(opts: SubcommandOptions, period: Period): string {
 
 async function resolvePeriod(
   opts: SubcommandOptions,
-  config: UnifiedConfig,
+  timezone: string,
 ): Promise<Period> {
   if (opts.fromJsonlPath) {
     const bundle = await readJsonl(resolve(opts.fromJsonlPath));
@@ -69,7 +120,7 @@ async function resolvePeriod(
       end: new Date(bundle.meta.weekEnd),
     };
   }
-  return periodForDate(opts.now ?? new Date(), config.timezone);
+  return periodForDate(opts.now ?? new Date(), timezone);
 }
 
 type FetchAndWriteResult = {
@@ -89,7 +140,7 @@ async function fetchAndWrite(
   const now = opts.now ?? new Date();
   const period = periodForDate(now, config.timezone);
   const fetchResult = await fetchStage(period, {
-    ...(opts.configPath ? { configPath: opts.configPath } : {}),
+    repositories: config.repositories,
     ...(opts.env ? { env: opts.env } : {}),
     ...(opts.fetchFn ? { fetchFn: opts.fetchFn } : {}),
     now,
@@ -197,7 +248,8 @@ export type RunResult = {
 } & PublishResult & { jsonlPath: string };
 
 export async function runCommand(opts: SubcommandOptions): Promise<RunResult> {
-  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const repositories = await resolveRepositories(opts);
+  const config = buildConfig(repositories, opts);
   const aiRunner = await createAiRunnerIfConfigured(opts, config);
   const result = await fetchAndWrite(opts, config, aiRunner);
   const published = await publish(
@@ -218,7 +270,8 @@ export async function runCommand(opts: SubcommandOptions): Promise<RunResult> {
 }
 
 export async function fetchCommand(opts: SubcommandOptions): Promise<void> {
-  const config = await loadUnifiedConfig(defaults.configPath(opts));
+  const repositories = await resolveRepositories(opts);
+  const config = buildConfig(repositories, opts);
   const result = await fetchAndWrite(opts, config);
   process.stdout.write(`${result.jsonlPath}\n`);
 }
@@ -249,8 +302,7 @@ async function readMarkdownInput(source: string): Promise<string> {
 
 export async function analyzeCommand(opts: SubcommandOptions): Promise<void> {
   if (!opts.skill) throw new Error("analyze requires --skill <id>");
-  const config = await loadUnifiedConfig(defaults.configPath(opts));
-  const period = await resolvePeriod(opts, config);
+  const period = await resolvePeriod(opts, resolveTimezone(opts.timezone));
   const jsonlPath = jsonlPathFor(opts, period);
   const bundle = await readJsonl(jsonlPath);
 
@@ -275,7 +327,7 @@ export async function analyzeCommand(opts: SubcommandOptions): Promise<void> {
     timezone: bundle.meta.timezone,
     weekStart: new Date(bundle.meta.weekStart),
     weekEnd: new Date(bundle.meta.weekEnd),
-    limits: config.limits,
+    limits: DEFAULT_LIMITS,
   });
 
   const payload = {
@@ -287,8 +339,7 @@ export async function analyzeCommand(opts: SubcommandOptions): Promise<void> {
 }
 
 export async function renderCommand(opts: SubcommandOptions): Promise<void> {
-  const config = await loadUnifiedConfig(defaults.configPath(opts));
-  const period = await resolvePeriod(opts, config);
+  const period = await resolvePeriod(opts, resolveTimezone(opts.timezone));
   const jsonlPath = jsonlPathFor(opts, period);
   const bundle = await readJsonl(jsonlPath);
 
@@ -298,7 +349,7 @@ export async function renderCommand(opts: SubcommandOptions): Promise<void> {
     timezone: bundle.meta.timezone,
     weekStart: period.start,
     weekEnd: period.end,
-    limits: config.limits,
+    limits: DEFAULT_LIMITS,
   });
 
   const published = await publish(

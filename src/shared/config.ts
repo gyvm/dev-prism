@@ -1,41 +1,16 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { parse as parseToml } from "smol-toml";
-import { z } from "zod";
-
 import { ConfigError } from "./errors.js";
 import { isValidTimezone } from "./timezone.js";
-import type { RepoConfig, RepositorySpec } from "./types.js";
-
-const generalSchema = z
-  .object({
-    timezone: z
-      .string()
-      .default("UTC")
-      .refine((tz) => isValidTimezone(tz), { message: "invalid IANA timezone" }),
-  })
-  .default({ timezone: "UTC" });
-
-const repositoriesSchema = z.object({
-  include: z
-    .array(z.string().trim().min(1, "repository entry must not be empty"))
-    .min(1, "at least one repository is required"),
-});
-
-const baseConfigSchema = z.object({
-  general: generalSchema,
-  repositories: repositoriesSchema,
-});
+import type { RepositorySpec } from "./types.js";
 
 const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
 const NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-function parseRepositoryString(input: string, resolvedPath: string): RepositorySpec {
+function parseRepositoryString(input: string, source: string): RepositorySpec {
   const trimmed = input.trim();
   const parts = trimmed.split("/");
   const fail = (reason: string): never => {
     throw new ConfigError(
-      `Repository config at ${resolvedPath} has invalid entry "${input}": ${reason}. Expected "owner/name" or "owner/*".`,
+      `Invalid repository entry "${input}" (${source}): ${reason}. Expected "owner/name" or "owner/*".`,
     );
   };
 
@@ -59,52 +34,67 @@ function parseRepositoryString(input: string, resolvedPath: string): RepositoryS
   return { kind: "concrete", owner, name };
 }
 
-const limitsSchema = z
-  .object({
-    maxPrs: z.number().int().positive().optional(),
-    maxCommentsPerPr: z.number().int().positive().optional(),
-    maxReviewThreadsPerPr: z.number().int().positive().optional(),
-    maxFilesPerPr: z.number().int().positive().optional(),
-    maxCommitsPerPr: z.number().int().positive().optional(),
-    maxBodyLength: z.number().int().positive().optional(),
-  })
-  .default({});
+function specKey(spec: RepositorySpec): string {
+  return spec.kind === "wildcard"
+    ? `${spec.owner.toLowerCase()}/*`
+    : `${spec.owner.toLowerCase()}/${spec.name.toLowerCase()}`;
+}
 
-const aiSchema = z
-  .object({
-    model: z.preprocess(
-      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-      z.string().trim().min(1).optional(),
-    ),
-  })
-  .default({});
+function parseAndDedupeRepositories(
+  inputs: readonly string[],
+  source: string,
+): RepositorySpec[] {
+  const specs = inputs.map((input) => parseRepositoryString(input, source));
+  const seen = new Set<string>();
+  const wildcardOwners = new Set<string>();
+  for (const spec of specs) {
+    const key = specKey(spec);
+    if (seen.has(key)) {
+      throw new ConfigError(`Repositories (${source}) contain a duplicate entry for ${key}`);
+    }
+    seen.add(key);
+    if (spec.kind === "wildcard") {
+      wildcardOwners.add(spec.owner.toLowerCase());
+    }
+  }
+  for (const spec of specs) {
+    if (spec.kind === "concrete" && wildcardOwners.has(spec.owner.toLowerCase())) {
+      throw new ConfigError(
+        `Repositories (${source}) mix wildcard "${spec.owner}/*" with concrete entry "${spec.owner}/${spec.name}". Choose one form per owner.`,
+      );
+    }
+  }
+  return specs;
+}
 
-const botsSchema = z
-  .object({
-    patterns: z
-      .array(z.string())
-      .default([])
-      .superRefine((patterns, ctx) => {
-        patterns.forEach((pattern, index) => {
-          try {
-            new RegExp(pattern);
-          } catch (error) {
-            ctx.addIssue({
-              code: "custom",
-              path: [index],
-              message: `invalid regular expression: ${String(error)}`,
-            });
-          }
-        });
-      }),
-  })
-  .default({ patterns: [] });
+/**
+ * Parse a `--repositories` / Action `repositories` input into specs.
+ * Accepts whitespace- or comma-separated `owner/name` / `owner/*` entries.
+ */
+export function parseRepositoriesArg(input: string): RepositorySpec[] {
+  const entries = input
+    .split(/[\s,]+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (entries.length === 0) {
+    throw new ConfigError(
+      'No repositories specified. Provide at least one "owner/name" or "owner/*".',
+    );
+  }
+  return parseAndDedupeRepositories(entries, "--repositories");
+}
 
-const unifiedConfigSchema = baseConfigSchema.extend({
-  limits: limitsSchema,
-  ai: aiSchema,
-  bots: botsSchema,
-});
+export const DEFAULT_TIMEZONE = "UTC";
+
+/** Resolve and validate a timezone string, defaulting to UTC when absent. */
+export function resolveTimezone(value?: string): string {
+  const tz = value?.trim();
+  if (!tz) return DEFAULT_TIMEZONE;
+  if (!isValidTimezone(tz)) {
+    throw new ConfigError(`Invalid IANA timezone: "${tz}"`);
+  }
+  return tz;
+}
 
 export type LimitsConfig = Readonly<{
   maxPrs: number;
@@ -115,6 +105,10 @@ export type LimitsConfig = Readonly<{
   maxBodyLength: number;
 }>;
 
+/**
+ * Per-PR fetch limits. Hardcoded to keep the tool zero-config; tuning these is
+ * a rare advanced need that can be re-exposed as flags later if required.
+ */
 export const DEFAULT_LIMITS: LimitsConfig = {
   maxPrs: 50,
   maxCommentsPerPr: 80,
@@ -132,6 +126,20 @@ export type BotsConfig = Readonly<{
   patterns: readonly string[];
 }>;
 
+/**
+ * Default bot-login matchers (case-insensitive regexes). Covers the common
+ * GitHub app suffix `…[bot]` plus the well-known automation accounts.
+ */
+export const DEFAULT_BOT_PATTERNS: readonly string[] = [
+  "\\[bot\\]$",
+  "^dependabot$",
+  "^renovate(-bot)?$",
+  "^github-actions$",
+  "^copilot$",
+];
+
+export const DEFAULT_BOTS: BotsConfig = { patterns: DEFAULT_BOT_PATTERNS };
+
 export type UnifiedConfig = Readonly<{
   timezone: string;
   repositories: readonly RepositorySpec[];
@@ -139,110 +147,3 @@ export type UnifiedConfig = Readonly<{
   ai: AiConfig;
   bots: BotsConfig;
 }>;
-
-function specKey(spec: RepositorySpec): string {
-  return spec.kind === "wildcard"
-    ? `${spec.owner.toLowerCase()}/*`
-    : `${spec.owner.toLowerCase()}/${spec.name.toLowerCase()}`;
-}
-
-function parseAndDedupeRepositories(
-  inputs: readonly string[],
-  resolvedPath: string,
-): RepositorySpec[] {
-  const specs = inputs.map((input) => parseRepositoryString(input, resolvedPath));
-  const seen = new Set<string>();
-  const wildcardOwners = new Set<string>();
-  for (const spec of specs) {
-    const key = specKey(spec);
-    if (seen.has(key)) {
-      throw new ConfigError(
-        `Repository config at ${resolvedPath} contains a duplicate entry for ${key}`,
-      );
-    }
-    seen.add(key);
-    if (spec.kind === "wildcard") {
-      wildcardOwners.add(spec.owner.toLowerCase());
-    }
-  }
-  for (const spec of specs) {
-    if (spec.kind === "concrete" && wildcardOwners.has(spec.owner.toLowerCase())) {
-      throw new ConfigError(
-        `Repository config at ${resolvedPath} mixes wildcard "${spec.owner}/*" with concrete entry "${spec.owner}/${spec.name}". Choose one form per owner.`,
-      );
-    }
-  }
-  return specs;
-}
-
-async function readToml(path: string): Promise<unknown> {
-  const resolvedPath = resolve(path);
-  let raw: string;
-  try {
-    raw = await readFile(resolvedPath, "utf8");
-  } catch (error) {
-    throw new ConfigError(`Failed to read config at ${resolvedPath}: ${String(error)}`);
-  }
-  try {
-    return parseToml(raw);
-  } catch (error) {
-    throw new ConfigError(`Config at ${resolvedPath} is not valid TOML: ${String(error)}`);
-  }
-}
-
-export async function loadRepoConfig(configPath = "config.toml"): Promise<RepoConfig> {
-  const resolvedPath = resolve(configPath);
-  const parsedJson = await readToml(configPath);
-  const parsedConfig = baseConfigSchema.safeParse(parsedJson);
-  if (!parsedConfig.success) {
-    throw new ConfigError(
-      `Repository config at ${resolvedPath} is invalid: ${parsedConfig.error.issues
-        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
-        .join(", ")}`,
-    );
-  }
-  const repositories = parseAndDedupeRepositories(
-    parsedConfig.data.repositories.include,
-    resolvedPath,
-  );
-  return { repositories, timezone: parsedConfig.data.general.timezone };
-}
-
-export async function loadUnifiedConfig(configPath = "config.toml"): Promise<UnifiedConfig> {
-  const resolvedPath = resolve(configPath);
-  const parsedJson = await readToml(configPath);
-  const parsed = unifiedConfigSchema.safeParse(parsedJson);
-  if (!parsed.success) {
-    throw new ConfigError(
-      `Unified config at ${resolvedPath} is invalid: ${parsed.error.issues
-        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
-        .join(", ")}`,
-    );
-  }
-
-  const repositories = parseAndDedupeRepositories(
-    parsed.data.repositories.include,
-    resolvedPath,
-  );
-  const rawLimits = parsed.data.limits;
-  const limits: LimitsConfig = {
-    maxPrs: rawLimits.maxPrs ?? DEFAULT_LIMITS.maxPrs,
-    maxCommentsPerPr: rawLimits.maxCommentsPerPr ?? DEFAULT_LIMITS.maxCommentsPerPr,
-    maxReviewThreadsPerPr: rawLimits.maxReviewThreadsPerPr ?? DEFAULT_LIMITS.maxReviewThreadsPerPr,
-    maxFilesPerPr: rawLimits.maxFilesPerPr ?? DEFAULT_LIMITS.maxFilesPerPr,
-    maxCommitsPerPr: rawLimits.maxCommitsPerPr ?? DEFAULT_LIMITS.maxCommitsPerPr,
-    maxBodyLength: rawLimits.maxBodyLength ?? DEFAULT_LIMITS.maxBodyLength,
-  };
-
-  return {
-    timezone: parsed.data.general.timezone,
-    repositories,
-    limits,
-    ai: {
-      ...(parsed.data.ai.model ? { model: parsed.data.ai.model } : {}),
-    },
-    bots: {
-      patterns: parsed.data.bots.patterns,
-    },
-  };
-}

@@ -1,19 +1,13 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 import { collectNormalizedPullRequests } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
+import type { RepositorySpec } from "../shared/types.js";
 
-async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
-  const filePath = join(directory, "config.toml");
-  const entries = repositories.map((r) => JSON.stringify(`${r.owner}/${r.name}`));
-  const body = `[repositories]\ninclude = [${entries.join(", ")}]\n`;
-  await writeFile(filePath, body, "utf8");
-  return filePath;
+function repoSpecs(
+  repositories: Array<{ owner: string; name: string }>,
+): RepositorySpec[] {
+  return repositories.map((r) => ({ kind: "concrete", owner: r.owner, name: r.name }));
 }
 
 function createJsonResponse(payload: unknown): Response {
@@ -220,7 +214,7 @@ describe("fetchRepositoryPullRequests", () => {
 
 describe("collectNormalizedPullRequests", () => {
   it("aggregates multiple repositories sequentially", async () => {
-    const configPath = await writeConfig([
+    const repositories = repoSpecs([
       { owner: "openai", name: "codex" },
       { owner: "openai", name: "evals" },
     ]);
@@ -269,7 +263,7 @@ describe("collectNormalizedPullRequests", () => {
       );
 
     const result = await collectNormalizedPullRequests({
-      configPath,
+      repositories,
       fetchFn,
       env: {
         GITHUB_TOKEN: "ghp_test123",
@@ -286,7 +280,7 @@ describe("collectNormalizedPullRequests", () => {
   });
 
   it("isolates per-repository errors and continues collection", async () => {
-    const configPath = await writeConfig([
+    const repositories = repoSpecs([
       { owner: "openai", name: "codex" },
       { owner: "openai", name: "evals" },
     ]);
@@ -313,7 +307,7 @@ describe("collectNormalizedPullRequests", () => {
       );
 
     const result = await collectNormalizedPullRequests({
-      configPath,
+      repositories,
       fetchFn,
       env: {
         GITHUB_TOKEN: "ghp_test123",

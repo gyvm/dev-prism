@@ -35,6 +35,9 @@ jobs:
       - name: Generate weekly report
         uses: ./
         with:
+          repositories: "gyvm/*"
+          timezone: "Asia/Tokyo"
+          model: "gpt-5.3-codex"
           skip-ai: ${{ secrets.COPILOT_GITHUB_TOKEN == '' && 'true' || 'false' }}
           github-token: ${{ secrets.GH_INSIGHTS_TOKEN }}
           copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}

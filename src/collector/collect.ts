@@ -1,7 +1,6 @@
 import { expandRepositorySpecs } from "./expand-repositories.js";
 import { fetchRepositoryPullRequests } from "./graphql.js";
 import { normalizePullRequest } from "./normalize.js";
-import { loadRepoConfig } from "../shared/config.js";
 import { loadRuntimeConfig } from "../shared/runtime.js";
 import type { CollectorDependencies, NormalizedPullRequest } from "../shared/types.js";
 
@@ -11,9 +10,9 @@ export type CollectionResult = {
 };
 
 export async function collectNormalizedPullRequests(
-  dependencies: CollectorDependencies = {},
+  dependencies: CollectorDependencies,
 ): Promise<CollectionResult> {
-  const { repositories: specs } = await loadRepoConfig(dependencies.configPath);
+  const specs = dependencies.repositories;
   const runtimeConfig = loadRuntimeConfig(dependencies.env, dependencies.now);
   const token = runtimeConfig.githubToken;
   const fetchFn = dependencies.fetchFn;

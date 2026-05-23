@@ -45,8 +45,11 @@ Subcommands:
   render             JSONL から HTML / manifest / JSONL コピーを出力
 
 Common flags:
+  --repositories <s> 対象リポジトリ。"owner/name" / "owner/*" を空白かカンマ区切り
+                     (run/fetch で必須。省略時は git remote から推定)
+  --timezone <tz>    週境界の IANA タイムゾーン (default: UTC)
+  --model <id>       AI 分析の Copilot モデル ID (任意)
   --week YYYY-MM-DD  対象週 (月曜始まり) に含まれる任意日付
-  --config <path>    config.toml パス (default: config.toml)
   --data-dir <path>  JSONL 保存ディレクトリ (default: data)
   --reports-dir      HTML 出力先 (default: dist/reports)
   --index <path>     index.html 出力先 (default: dist/index.html)
@@ -58,7 +61,9 @@ Common flags:
 `;
 
 const FLAG_TO_KEY = new Map<string, keyof SubcommandOptions>([
-  ["--config", "configPath"],
+  ["--repositories", "repositories"],
+  ["--timezone", "timezone"],
+  ["--model", "model"],
   ["--data-dir", "dataDir"],
   ["--reports-dir", "reportsDir"],
   ["--index", "indexHtmlPath"],
