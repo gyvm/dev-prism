@@ -1,4 +1,4 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { renderAnalysis } from "../../renderers/index.js";
@@ -252,50 +252,121 @@ export async function renderStage(
   return { htmlPath };
 }
 
-export async function buildIndexHtml(
+export type ReportManifestEntry = Readonly<{
+  period: string;
+  path: string;
+  generatedAt: string;
+  prCount: number;
+  jsonl?: string;
+}>;
+
+export async function appendReportManifest(
   reportsDir: string,
-  outputPath: string,
-): Promise<void> {
-  let entries: string[];
+  entry: ReportManifestEntry,
+): Promise<string> {
+  const manifestPath = resolve(join(reportsDir, "reports.json"));
+  let existing: ReportManifestEntry[] = [];
   try {
-    entries = await readdir(reportsDir);
+    const raw = await readFile(manifestPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      existing = parsed.filter(
+        (e): e is ReportManifestEntry =>
+          e !== null &&
+          typeof e === "object" &&
+          typeof e.period === "string" &&
+          typeof e.path === "string",
+      );
+    }
   } catch {
-    entries = [];
+    existing = [];
   }
-  const reports = entries
-    .filter((name) => name.endsWith(".html"))
-    .sort()
-    .reverse();
 
-  const items = reports
-    .map((name) => {
-      const id = name.replace(/\.html$/, "");
-      return `      <li><a href="reports/${escapeHtml(name)}">${escapeHtml(id)}</a></li>`;
-    })
-    .join("\n");
+  const filtered = existing.filter((e) => e.period !== entry.period);
+  const next = [entry, ...filtered].sort((a, b) =>
+    a.period < b.period ? 1 : a.period > b.period ? -1 : 0,
+  );
 
-  const html = `<!doctype html>
+  await mkdir(dirname(manifestPath), { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+  return manifestPath;
+}
+
+const INDEX_SHELL_HTML = `<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GitHub PR 週次レポート一覧</title>
   <style>
     body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #172026; }
-    h1 { font-size: 24px; }
-    ul { list-style: none; padding: 0; }
-    li { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+    h1 { font-size: 24px; margin: 0 0 16px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 12px 0; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
     a { color: #246bfe; text-decoration: none; font-size: 16px; }
     a:hover { text-decoration: underline; }
+    .meta { color: #64707d; font-size: 12px; white-space: nowrap; }
     .empty { color: #64707d; }
   </style>
 </head>
 <body>
   <h1>GitHub PR 週次レポート一覧</h1>
-  ${reports.length === 0 ? '<p class="empty">レポートはまだありません。</p>' : `<ul>\n${items}\n    </ul>`}
+  <div id="list"><p class="empty">読み込み中...</p></div>
+  <script>
+    (async () => {
+      const root = document.getElementById("list");
+      const setEmpty = (msg) => {
+        const p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = msg;
+        root.replaceChildren(p);
+      };
+      try {
+        const res = await fetch("reports/reports.json", { cache: "no-store" });
+        if (!res.ok) throw new Error("fetch failed: " + res.status);
+        const items = await res.json();
+        if (!Array.isArray(items) || items.length === 0) {
+          setEmpty("レポートはまだありません。");
+          return;
+        }
+        const ul = document.createElement("ul");
+        for (const item of items) {
+          if (!item || typeof item.period !== "string" || typeof item.path !== "string") continue;
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = "reports/" + item.path;
+          a.textContent = item.period;
+          const meta = document.createElement("span");
+          meta.className = "meta";
+          if (typeof item.prCount === "number") meta.textContent = "PR " + item.prCount + "件";
+          li.append(a, meta);
+          if (typeof item.jsonl === "string") {
+            const dl = document.createElement("a");
+            dl.href = "reports/" + item.jsonl;
+            dl.textContent = "JSONL";
+            dl.className = "meta";
+            dl.style.marginLeft = "8px";
+            li.append(dl);
+          }
+          ul.appendChild(li);
+        }
+        root.replaceChildren(ul);
+      } catch (e) {
+        setEmpty("レポート一覧を読み込めませんでした。");
+      }
+    })();
+  </script>
 </body>
 </html>
 `;
 
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, html, "utf-8");
+export async function writeIndexShell(outputPath: string): Promise<void> {
+  const target = resolve(outputPath);
+  await mkdir(dirname(target), { recursive: true });
+  try {
+    await readFile(target, "utf-8");
+    return;
+  } catch {
+    await writeFile(target, INDEX_SHELL_HTML, "utf-8");
+  }
 }

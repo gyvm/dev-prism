@@ -4,9 +4,26 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { collectNormalizedPullRequests } from "./collect.js";
+import { collectNormalizedPullRequests, resolveCutoffDate } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
-import { resolveToken } from "./auth.js";
+
+describe("resolveCutoffDate", () => {
+  const floor = new Date("2026-04-11T00:00:00.000Z"); // now - lookback cap
+
+  it("uses the week start when it is within the lookback cap", () => {
+    const weekStart = new Date("2026-05-10T15:00:00.000Z");
+    expect(resolveCutoffDate(weekStart, floor).toISOString()).toBe(weekStart.toISOString());
+  });
+
+  it("clamps to the lookback floor when the week start predates it", () => {
+    const weekStart = new Date("2026-01-01T00:00:00.000Z");
+    expect(resolveCutoffDate(weekStart, floor).toISOString()).toBe(floor.toISOString());
+  });
+
+  it("falls back to the floor when no week start is given", () => {
+    expect(resolveCutoffDate(undefined, floor).toISOString()).toBe(floor.toISOString());
+  });
+});
 
 async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
@@ -163,7 +180,7 @@ describe("fetchRepositoryPullRequests", () => {
 
     const firstCall = fetchFn.mock.calls[0]!;
     const body = JSON.parse(String((firstCall[1] as RequestInit).body));
-    expect(body.variables.q).toBe("repo:openai/codex is:pr created:>=2026-01-01");
+    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
     expect(body.variables.after).toBeNull();
   });
 
@@ -328,52 +345,3 @@ describe("collectNormalizedPullRequests", () => {
   });
 });
 
-describe("resolveToken", () => {
-  it("returns GITHUB_TOKEN directly when available", async () => {
-    const token = await resolveToken({
-      githubToken: "ghp_abc123",
-      githubAppId: null,
-      githubAppPrivateKey: null,
-      githubAppInstallationId: null,
-      lookbackDays: 90,
-      firstReviewThresholdHours: 48,
-      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-    });
-
-    expect(token).toBe("ghp_abc123");
-  });
-
-  it("falls back to GitHub App auth when no PAT", async () => {
-    const token = await resolveToken(
-      {
-        githubToken: null,
-        githubAppId: "123",
-        githubAppPrivateKey: "key",
-        githubAppInstallationId: 456,
-        lookbackDays: 90,
-        firstReviewThresholdHours: 48,
-        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-      },
-      vi.fn().mockResolvedValue("app-token"),
-    );
-
-    expect(token).toBe("app-token");
-  });
-
-  it("wraps auth factory failures with a collector error", async () => {
-    await expect(
-      resolveToken(
-        {
-          githubToken: null,
-          githubAppId: "123",
-          githubAppPrivateKey: "key",
-          githubAppInstallationId: 456,
-          lookbackDays: 90,
-          firstReviewThresholdHours: 48,
-          cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
-        },
-        vi.fn().mockRejectedValue(new Error("auth failed")),
-      ),
-    ).rejects.toThrow(/installation token/i);
-  });
-});

@@ -1,6 +1,8 @@
 node_modules
-dist
 coverage
+dist/reports
+dist/index.html
+dist/manifest.json
 .DS_Store
 .env
 .env.*
@@ -14,3 +16,7 @@ data/raw/
 data/analysis/
 data/history/
 data/latest.json
+data/*.jsonl
+
+# Per-user config (commit config.toml.example as the template)
+config.toml

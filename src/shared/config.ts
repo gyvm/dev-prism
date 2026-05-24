@@ -116,7 +116,7 @@ export type LimitsConfig = Readonly<{
 }>;
 
 export const DEFAULT_LIMITS: LimitsConfig = {
-  maxPrs: 50,
+  maxPrs: 100,
   maxCommentsPerPr: 80,
   maxReviewThreadsPerPr: 60,
   maxFilesPerPr: 120,

@@ -1,5 +1,5 @@
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readFile, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 
 import type { BotsConfig, LimitsConfig } from "../../shared/config.js";
 import { createBotLoginMatcher } from "../../shared/bot.js";
@@ -15,7 +15,6 @@ import type { AnalysisContext } from "../../analyses/context.js";
 import { COMPUTE_REGISTRY, type ComputeEntry } from "../../analyses/registry.js";
 
 export type AnalyzeOptions = Readonly<{
-  outputRoot?: string;
   limits: LimitsConfig;
   timezone: string;
   now: Date;
@@ -29,8 +28,19 @@ export type AnalyzeResult = Readonly<{
   period: Period;
   results: readonly AnalysisResult[];
   reportInput: ReportInput;
-  outputDir: string;
 }>;
+
+async function readSkillOrder(skillMdPath: string): Promise<number> {
+  try {
+    const content = await readFile(skillMdPath, "utf8");
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!match) return Number.POSITIVE_INFINITY;
+    const orderLine = match[1]?.match(/^\s*order\s*:\s*(\d+)\s*$/m);
+    return orderLine ? Number(orderLine[1]) : Number.POSITIVE_INFINITY;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
 
 export async function discoverAiSkillIds(
   skillsRoot: string,
@@ -44,7 +54,7 @@ export async function discoverAiSkillIds(
     );
     return [];
   }
-  const found: string[] = [];
+  const found: { id: string; order: number }[] = [];
   await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
@@ -52,13 +62,17 @@ export async function discoverAiSkillIds(
         const skillMd = join(skillsRoot, entry.name, "SKILL.md");
         try {
           const info = await stat(skillMd);
-          if (info.isFile()) found.push(entry.name);
+          if (!info.isFile()) return;
         } catch {
-          /* directories without SKILL.md are silently ignored */
+          return;
         }
+        const order = await readSkillOrder(skillMd);
+        found.push({ id: entry.name, order });
       }),
   );
-  return found.sort();
+  return found
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+    .map((entry) => entry.id);
 }
 
 function makeContext(
@@ -160,43 +174,5 @@ export async function analyzeStage(
 
   const results = await Promise.all(tasks);
 
-  const outputDir = resolve(options.outputRoot ?? "data/analysis", period.id);
-  await mkdir(outputDir, { recursive: true });
-  await Promise.all(
-    results.map((result) => {
-      if (result.format === "markdown" && result.status === "ok") {
-        const text = typeof result.data === "string" ? result.data : "";
-        return writeFile(
-          join(outputDir, `${result.id}.md`),
-          text.endsWith("\n") ? text : text + "\n",
-          "utf-8",
-        );
-      }
-      return writeFile(
-        join(outputDir, `${result.id}.json`),
-        JSON.stringify(result, null, 2) + "\n",
-        "utf-8",
-      );
-    }),
-  );
-
-  await writeFile(
-    join(outputDir, "_summary.json"),
-    JSON.stringify(
-      {
-        period: period.id,
-        generatedAt: options.now.toISOString(),
-        results: results.map((r) => ({
-          id: r.id,
-          status: r.status,
-          ...(r.reason ? { reason: r.reason } : {}),
-        })),
-      },
-      null,
-      2,
-    ) + "\n",
-    "utf-8",
-  );
-
-  return { period, results, reportInput, outputDir };
+  return { period, results, reportInput };
 }

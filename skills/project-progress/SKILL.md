@@ -1,6 +1,7 @@
 ---
-name: 01_project-progress
+name: project-progress
 description: マージ済みまたは更新されたPRから、チーム全体の週次進捗を要約する。
+order: 1
 ---
 
 あなたは、週次エンジニアリングレポート向けにGitHub PRを分析します。

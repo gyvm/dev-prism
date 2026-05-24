@@ -1,8 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { DEFAULT_LIMITS } from "../../shared/config.js";
 import {
@@ -53,29 +49,20 @@ function buildPr(): NormalizedPullRequest {
 }
 
 describe("analyzeStage", () => {
-  let tmpDir: string;
-  beforeAll(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "gh-insights-analyze-"));
-  });
-  afterAll(async () => {
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
   it("runs compute analyses and skips AI skills when skipAi is true", async () => {
     const result = await analyzeStage(period, [buildPr()], {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      skipAi: true,
+skipAi: true,
       skillsRoot: "skills",
     });
 
     const byId = Object.fromEntries(result.results.map((r) => [r.id, r]));
     expect(byId["dora-metrics"]?.status).toBe("ok");
     expect(byId["pr-timeline"]?.status).toBe("ok");
-    expect(byId["01_project-progress"]?.status).toBe("skipped");
-    expect(byId["01_project-progress"]?.reason).toMatch(/skipped/i);
+    expect(byId["project-progress"]?.status).toBe("skipped");
+    expect(byId["project-progress"]?.reason).toMatch(/skipped/i);
   });
 
   it("invokes AI runner with skillId and full payload, output is markdown", async () => {
@@ -89,20 +76,19 @@ describe("analyzeStage", () => {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      aiRunner: runner,
+aiRunner: runner,
       skillsRoot: "skills",
     });
 
-    expect(calls.map((c) => c.skillId).sort()).toEqual([
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
+    expect(calls.map((c) => c.skillId)).toEqual([
+      "project-progress",
+      "follow-up-prs",
+      "debated-prs",
     ]);
-    const ai = result.results.find((r) => r.id === "01_project-progress");
+    const ai = result.results.find((r) => r.id === "project-progress");
     expect(ai?.status).toBe("ok");
     expect(ai?.format).toBe("markdown");
-    expect(ai?.data).toMatch(/^## 01_project-progress/);
+    expect(ai?.data).toMatch(/^## project-progress/);
   });
 
   it("orders compute analyses then AI skills by directory prefix", async () => {
@@ -110,8 +96,7 @@ describe("analyzeStage", () => {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
-      outputRoot: tmpDir,
-      skipAi: true,
+skipAi: true,
       skillsRoot: "skills",
     });
 
@@ -119,9 +104,9 @@ describe("analyzeStage", () => {
       "dora-metrics",
       "pr-timeline",
       "review-correlation",
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
+      "project-progress",
+      "follow-up-prs",
+      "debated-prs",
     ]);
   });
 });
@@ -129,7 +114,7 @@ describe("analyzeStage", () => {
 describe("discoverAiSkillIds", () => {
   it("returns all skill directories with a SKILL.md", async () => {
     const ids = await discoverAiSkillIds("skills");
-    expect(ids).toEqual(["01_project-progress", "02_follow-up-prs", "03_debated-prs"]);
+    expect(ids).toEqual(["project-progress", "follow-up-prs", "debated-prs"]);
   });
 
   it("returns empty list for missing root", async () => {

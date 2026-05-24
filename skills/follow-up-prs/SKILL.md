@@ -1,6 +1,7 @@
 ---
-name: 02_follow-up-prs
+name: follow-up-prs
 description: レビューコメントや未解決スレッドをもとに、フォローアップが必要なPRを特定する。
+order: 2
 ---
 
 あなたは、未解決のフォローアップ作業を見つけるためにGitHub PRの議論を分析します。

@@ -13,10 +13,7 @@ export type RepoConfig = Readonly<{
 }>;
 
 export type RuntimeConfig = Readonly<{
-  githubToken: string | null;
-  githubAppId: string | null;
-  githubAppPrivateKey: string | null;
-  githubAppInstallationId: number | null;
+  githubToken: string;
   lookbackDays: number;
   firstReviewThresholdHours: number;
   cutoffDate: Date;
@@ -100,14 +97,13 @@ export type CollectorDependencies = {
   now?: Date;
   env?: NodeJS.ProcessEnv;
   configPath?: string;
-  authFactory?: AppAuthFactory;
+  // Start of the report week. The fetch cutoff is clamped to this date (bounded
+  // by the runtime lookback cap) so a weekly report fetches ~1 week, not months.
+  weekStart?: Date;
+  // Progress sink for the per-repository fetch loop. Defaults to a no-op so
+  // tests and library callers stay silent; the CLI wires this to stderr.
+  log?: (message: string) => void;
 };
-
-export type AppAuthFactory = (options: {
-  appId: string;
-  privateKey: string;
-  installationId: number;
-}) => Promise<string>;
 
 // --- Metrics types ---
 

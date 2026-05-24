@@ -274,7 +274,10 @@ function getReviewerIdentifier(actor: GraphQLActor | null | undefined): string |
 
 function buildSearchQuery(repository: RepositoryConfig, cutoffDate: Date): string {
   const since = cutoffDate.toISOString().slice(0, 10);
-  return `repo:${repository.owner}/${repository.name} is:pr created:>=${since}`;
+  // Filter on `updated`, not `created`: a PR opened before the window but merged
+  // or reviewed during it is still week activity and must be fetched. Downstream
+  // (selectActiveWeekPrs) trims this superset to the precise week.
+  return `repo:${repository.owner}/${repository.name} is:pr updated:>=${since}`;
 }
 
 export async function fetchRepositoryPullRequestPage(options: {
