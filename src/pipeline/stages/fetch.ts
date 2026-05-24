@@ -10,6 +10,7 @@ export type FetchOptions = Readonly<{
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
   now?: Date;
+  log?: (message: string) => void;
 }>;
 
 export type FetchResult = Readonly<{
@@ -25,7 +26,9 @@ export async function fetchStage(
     ...(options.configPath ? { configPath: options.configPath } : {}),
     ...(options.env ? { env: options.env } : {}),
     ...(options.fetchFn ? { fetchFn: options.fetchFn } : {}),
+    ...(options.log ? { log: options.log } : {}),
     now: options.now ?? new Date(),
+    weekStart: period.start,
   };
 
   const collected = await collectNormalizedPullRequests(collectorDeps);

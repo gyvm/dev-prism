@@ -12,7 +12,9 @@ include = [
 # [limits] は省略可。1 PR あたりの取得上限を制御する。
 # 省略時は src/shared/config.ts の DEFAULT_LIMITS が適用される。
 [limits]
-maxPrs                = 50
+# maxPrs は週内アクティブPRから分析へ渡す上限。超過分は切り捨てられ stderr に
+# 警告が出る。PR の多い組織では引き上げる。
+maxPrs                = 100
 maxCommentsPerPr      = 80
 maxReviewThreadsPerPr = 60
 maxFilesPerPr         = 120

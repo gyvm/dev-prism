@@ -88,11 +88,13 @@ async function fetchAndWrite(
 ): Promise<FetchAndWriteResult> {
   const now = opts.now ?? new Date();
   const period = periodForDate(now, config.timezone);
+  const log = (message: string) => process.stderr.write(`${message}\n`);
   const fetchResult = await fetchStage(period, {
     ...(opts.configPath ? { configPath: opts.configPath } : {}),
     ...(opts.env ? { env: opts.env } : {}),
     ...(opts.fetchFn ? { fetchFn: opts.fetchFn } : {}),
     now,
+    log,
   });
 
   const analyzeResult = await analyzeStage(period, fetchResult.pullRequests, {
@@ -103,6 +105,10 @@ async function fetchAndWrite(
     skillsRoot: defaults.skillsRoot(opts),
     ...(aiRunner ? { aiRunner } : { skipAi: true }),
   });
+
+  for (const warning of analyzeResult.reportInput.warnings) {
+    log(`[analyze] ${warning}`);
+  }
 
   const jsonlPath = resolve(defaults.dataDir(opts), `${period.id}.jsonl`);
   await writeJsonl(jsonlPath, {

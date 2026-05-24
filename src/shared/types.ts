@@ -97,6 +97,12 @@ export type CollectorDependencies = {
   now?: Date;
   env?: NodeJS.ProcessEnv;
   configPath?: string;
+  // Start of the report week. The fetch cutoff is clamped to this date (bounded
+  // by the runtime lookback cap) so a weekly report fetches ~1 week, not months.
+  weekStart?: Date;
+  // Progress sink for the per-repository fetch loop. Defaults to a no-op so
+  // tests and library callers stay silent; the CLI wires this to stderr.
+  log?: (message: string) => void;
 };
 
 // --- Metrics types ---

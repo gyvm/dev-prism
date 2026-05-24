@@ -4,8 +4,26 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { collectNormalizedPullRequests } from "./collect.js";
+import { collectNormalizedPullRequests, resolveCutoffDate } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
+
+describe("resolveCutoffDate", () => {
+  const floor = new Date("2026-04-11T00:00:00.000Z"); // now - lookback cap
+
+  it("uses the week start when it is within the lookback cap", () => {
+    const weekStart = new Date("2026-05-10T15:00:00.000Z");
+    expect(resolveCutoffDate(weekStart, floor).toISOString()).toBe(weekStart.toISOString());
+  });
+
+  it("clamps to the lookback floor when the week start predates it", () => {
+    const weekStart = new Date("2026-01-01T00:00:00.000Z");
+    expect(resolveCutoffDate(weekStart, floor).toISOString()).toBe(floor.toISOString());
+  });
+
+  it("falls back to the floor when no week start is given", () => {
+    expect(resolveCutoffDate(undefined, floor).toISOString()).toBe(floor.toISOString());
+  });
+});
 
 async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
@@ -162,7 +180,7 @@ describe("fetchRepositoryPullRequests", () => {
 
     const firstCall = fetchFn.mock.calls[0]!;
     const body = JSON.parse(String((firstCall[1] as RequestInit).body));
-    expect(body.variables.q).toBe("repo:openai/codex is:pr created:>=2026-01-01");
+    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
     expect(body.variables.after).toBeNull();
   });
 
