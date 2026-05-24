@@ -1,0 +1,14 @@
+{
+  "name": "gyvm",
+  "owner": {
+    "name": "gyvm",
+    "email": "gyvmori@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "pr-weekly-report",
+      "source": "./",
+      "description": "週次 GitHub PR レポート (DORA / timeline / AI 分析) を Claude Code から1コマンドで生成する"
+    }
+  ]
+}

@@ -241,8 +241,9 @@ slash command / subagent からは fetch → analyze (read) → analyze (write) 
 3. `render` で HTML / JSONL / manifest を出力
 
 ```bash
-# Claude Code: plugin としてインストール
-/plugin install gyvm/pr-weekly-report
+# Claude Code: marketplace を追加してから plugin をインストール
+/plugin marketplace add gyvm/pr-weekly-report
+/plugin install pr-weekly-report@gyvm
 
 # 実行
 /pr-weekly-report 2026-05-11
