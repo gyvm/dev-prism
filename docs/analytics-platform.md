@@ -277,18 +277,72 @@ GROUP  BY author, reviewer;
 
 ## フロント(静的だがインタラクティブ)
 
+画面は性質の違う **2 モード**に分かれる。**Reports = 消費(キュレーション済み・定点凍結)**、
+**Explore = 調査(自由集計・ライブ)**。土台(チャート/集計コンポーネント)は共通で、
+**データ源だけが違う**(Reports は frozen JSON、Explore はライブ DWH クエリ)。
+
 ```
-src/web/            -- DuckDB-WASM を読み込む SPA(静的バンドル)
-  db.ts             -- DuckDB-WASM 初期化、Parquet 登録、クエリ実行
-  controls.ts       -- 期間 / 粒度(日週月)/ repo / 人・チーム / bot 含む除く
-  dashboards/       -- 既定ダッシュボード(推移・DORA・レビュー相関・timeline)
+ナビ: [ Reports ]  [ Explore ]  [ SQL ]
+/                     レポート一覧(既定ランディング)
+/reports/<period>     個別レポート(期間固定・定点スナップショット)
+/explore              動的集計(期間・粒度を実行時に切替)
+
+src/web/
+  db.ts             -- DuckDB-WASM 初期化、Parquet 登録、クエリ実行(Explore 用)
+  charts/           -- チャート/KPI コンポーネント(両モードで共有。data 源は差し替え)
+  explore/          -- 自由集計ページ(controls + ライブクエリ)
+  reports/          -- 一覧 + 個別(frozen JSON を読むだけ)
   sql-console.ts    -- ad-hoc SQL コンソール(パワーユーザー向け)
 ```
 
-- セレクタ変更 → SQL パラメータ差し替え → DuckDB-WASM 再実行 → 即反映。
+### ① Explore(自由集計 / 数値集計)
+
+目的:**期間と切り口を実行時に自由に変えて数値を掘る**。DuckDB-WASM が DWH を直接クエリ。
+
+- フィルタバー(常駐):期間(from–to + プリセット:直近4週 / 12週 / 今四半期 / 全期間 /
+  カスタム)、粒度(日 / 週 / 月)、repo、人、bot 含む除く、(将来)チーム。
+- 本体:KPI カード(PR opened/merged、マージリードタイム中央値、初回レビューまで、
+  レビュー/コメント数)+ 推移チャート(選択粒度)+ ランキング(人別/repo 別)+ 明細
+  テーブル(ドリルダウン → PR へ外部リンク)。
+- セレクタ変更 → SQL パラメータ差し替え → DuckDB-WASM **再実行(再フェッチ不要)** → 即反映。
+- **状態を URL に反映**(`/explore?from=..&to=..&grain=week&repos=..&bots=exclude`)=
+  共有可能なパーマリンク。
+
+### ② Reports(定期レポート:一覧 → 個別)
+
+目的:**週次で生成したキュレーション済みレポートを後から確認・共有する**(現状の静的
+レポート + AI findings の進化形)。**数値も AI コメントも生成時点で凍結**した定点スナップ
+ショットで、DWH の後続更新に影響されない。
+
+- 一覧 `/`:期間カードを新しい順に。期間ラベル(`2026-W24` / 6/8–6/14)、生成日時、
+  ハイライト 1–2 行、主要 KPI スパークライン、**AI findings 件数バッジ**。期間/repo で絞り込み。
+- 個別 `/reports/<period>`:ヘッダ(期間・生成日時・対象 repo)/ サマリ KPI(値 + 前週比)/
+  アクティビティ概況 / DORA・所要時間 / 注目 PR(大きい・長い・議論多)/ **AI findings
+  (カテゴリ別の指摘 + 本文・AI コメント)**。フッタに **「Explore で深掘り」**(この期間を
+  引き継いで `/explore` へ)。
+
+#### frozen レポートのデータモデル
+
+```
+dist/reports/
+  index.json              -- 一覧用メタ(period, generated_at, highlights, kpi sparkline, ai_count)
+  2026-W24.json           -- 個別の完全凍結(KPI 数値 + 注目PR + AI findings/コメント本文)
+```
+
+- 週次ランの最後に **その時点の DWH を集計して `<period>.json` を書き出す**(数値も凍結)。
+- 個別ページは **この JSON を読むだけ**でレンダリング(DWH も DuckDB-WASM も触らない)。
+  → ページが軽く、過去レポートは**完全に再現可能・不変**。
+- 凍結ゆえ、バックフィル/移行で DWH 側の過去数値が変わってもレポートは**乗離し得る**
+  (= 定点の忠実さを優先した許容)。最新の正は常に Explore 側で見られる。
+
+### 共通基盤
+
+- **チャート/KPI は1コンポーネント群を両モードで共有**。Reports は frozen JSON を、Explore
+  はライブクエリ結果を、同じコンポーネントに流す(二重実装しない)。
 - チャートは静的ホスト相性のよい **Observable Plot / Vega-Lite / ECharts** から選定。
 - **シングルスレッド WASM** を既定にする(この規模なら十分高速で、`SharedArrayBuffer`
-  =COOP/COEP 依存を避けられる)。マルチスレッドは将来の保険。
+  =COOP/COEP 依存を避けられる)。マルチスレッドは将来の保険。Reports だけ見るユーザーは
+  **WASM を一切ロードしない**(frozen JSON のみ)ので更に軽い。
 
 ### 性能の前提
 
@@ -420,10 +474,12 @@ src/warehouse/migrations/
    DWH へ PR 単位で冪等 upsert(取り込み後にスナップショット破棄)。
 4. **分析の SQL 化**:DORA → review-correlation → timeline の順に SQL ビュー/クエリへ
    移植(timeline は当面 TS のままでも可)。
-5. **フロント**:既定ダッシュボード + セレクタ + SQL コンソール。
-6. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
+5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
+6. **フロント Reports**:週次ランの最後に `dist/reports/<period>.json` + `index.json` を
+   凍結出力 → 一覧 + 個別ページ(frozen JSON を読むだけ)。既存 AI findings をここへ移植。
+7. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
    参照(主軸 = GitHub Action)。`migrate.ts` + `migrations/` の移行フレームワークを整備。
-7. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
+8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
 
 既存の静的レポート(`src/report` / `src/pipeline`)は移行中は並走させ、新フロントが
 機能等価になった段階で置き換える。
