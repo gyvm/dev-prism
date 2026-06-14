@@ -158,10 +158,23 @@ CREATE TABLE bodies (
 
 ### attributes の方針
 
-- **まず JSON で開始**(UI 変更に最強)。DuckDB の JSON 関数は速いので集計でも実用的。
+このスキーマは **JSON ではなくハイブリッド**。計算に使う項目(時刻・種別・repo・actor・
+メジャー・所要時間・規模)は**すべて型付き列**で、JSON `attributes` は **type 固有の疎な
+「おまけ」属性に限定**する(例:`review_submitted.state`、`thread_comment.path`)。集計の
+主役は常に型付き列なので、**典型クエリは JSON 関数を一切呼ばない**。
+
+```sql
+-- 典型的な集計。occurred_at / event_type は型付き列で、JSON は触らない
+SELECT date_trunc('week', occurred_at), count(*)
+FROM   activities WHERE event_type = 'pr_opened' GROUP BY 1;
+```
+
+- **まず JSON で開始**(UI 変更に最強・移行ゼロで足せる)。DuckDB の JSON 関数も実用的だが、
+  列プルーニング/述語プッシュダウン/圧縮が効きにくいので**疎なおまけ専用**とする。
   例:`json_extract_string(attributes, '$.state') = 'APPROVED'`
 - **頻出属性は後から型付き列へ昇格**(例:`review_submitted.state` を `review_state`
-  カラムに格上げ)。raw から build を流し直すだけで移行できる。
+  カラムへ)。これは**意図的で稀な移行**で、`data/dwh` の rewrite + 過去分バックフィル
+  (raw は無いので GitHub 再取得。欠落は許容)を伴う。`migrations/` に1ステップ追加する。
 
 ### event_id の生成
 
@@ -373,6 +386,18 @@ src/warehouse/migrations/
 - エンジン起動時に `_meta.json` の版とエンジンが要求する版を比較し、**不足分の移行を
   順序実行**してから build/配信する。各移行は `data/dwh` の Parquet を読み、変換して
   書き戻す冪等な関数。
+
+#### 実行メカニクス(committed な DWH を壊さない)
+
+- **実行場所:CI の Node + DuckDB ネイティブ**。書き込み(collect / build / migrate)は
+  すべて CI 側で行い、ブラウザの **DuckDB-WASM は読み取り専用**。役割を固定する。
+- **冪等なバージョンゲート**:`stored < 要求` のときだけ不足ステップを順に適用し、最新なら
+  何もしない。多重適用や破壊を防ぐ。
+- **アトミック更新**:一時ディレクトリへ書き、成功時のみ `data/dwh` へ swap → `_meta.json`
+  更新と**まとめてコミット**。途中失敗は**コミットせず run を fail**(中途半端な DWH を
+  残さない)。git 履歴が世代バックアップになり、前バージョンへ revert 可能。
+- **同時実行を1本に**:ワークフローに `concurrency` グループを設定し、2 つの run が
+  同時に `data/dwh` を書き戻して衝突するのを防ぐ。
 - **型付き列のバックフィル**(過去 PR に新しい前計算列を埋める)は raw が無いので
   **GitHub から再取得**して補う。ただし削除/archive された repo・force-push・消えた
   コメントは**点在的に欠落**し得る。この欠落は DWH-as-truth の許容コストとして受け入れ、
