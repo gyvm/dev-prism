@@ -284,7 +284,7 @@ GROUP  BY author, reviewer;
 ```
 ナビ: [ Reports ]  [ Explore ]  [ SQL ]
 /                     レポート一覧(既定ランディング)
-/reports/<period>     個別レポート(期間固定・定点スナップショット)
+/reports/<id>         個別レポート(scope 固定・定点スナップショット)
 /explore              動的集計(期間・粒度を実行時に切替)
 
 src/web/
@@ -307,33 +307,73 @@ src/web/
 - セレクタ変更 → SQL パラメータ差し替え → DuckDB-WASM **再実行(再フェッチ不要)** → 即反映。
 - **状態を URL に反映**(`/explore?from=..&to=..&grain=week&repos=..&bots=exclude`)=
   共有可能なパーマリンク。
+- **「この scope をレポート化」**:現在のフィルタ(scope)をレポート生成トリガへ受け渡す
+  (静的ページは直接生成できないため、Actions の `workflow_dispatch` 画面 / issue テンプレへ
+  ディープリンク。詳細は Reports の「生成の仕組み」)。
 
-### ② Reports(定期レポート:一覧 → 個別)
+### ② Reports(任意 scope の凍結レポート:一覧 → 個別)
 
-目的:**週次で生成したキュレーション済みレポートを後から確認・共有する**(現状の静的
-レポート + AI findings の進化形)。**数値も AI コメントも生成時点で凍結**した定点スナップ
-ショットで、DWH の後続更新に影響されない。
+目的:**作成時に scope(期間 × リポジトリ × ユーザ)を指定して生成した、キュレーション済み
+レポートを後から確認・共有する**(現状の静的レポート + AI findings の進化形)。**数値も
+AI コメントも生成時点で凍結**した定点スナップショットで、DWH の後続更新に影響されない。
 
-- 一覧 `/`:期間カードを新しい順に。期間ラベル(`2026-W24` / 6/8–6/14)、生成日時、
-  ハイライト 1–2 行、主要 KPI スパークライン、**AI findings 件数バッジ**。期間/repo で絞り込み。
-- 個別 `/reports/<period>`:ヘッダ(期間・生成日時・対象 repo)/ サマリ KPI(値 + 前週比)/
+レポートは「週次固定」ではなく、**scope を持つ凍結成果物**として一般化する:
+
+```
+scope = {
+  from, to,            -- 集計期間(任意)
+  repos[],             -- 対象リポジトリ(空=全部)
+  users[],             -- 対象ユーザ(空=全員)
+  include_bots,        -- bot を含めるか
+  with_ai              -- AI findings を生成するか(ad-hoc はコスト次第で省略可)
+}
+```
+
+- 一覧 `/`:レポートカードを新しい順に。タイトル、scope サマリ(期間・repo/ユーザ数)、
+  生成日時、ハイライト 1–2 行、主要 KPI スパークライン、**AI findings 件数バッジ**。
+  タイトル/期間/repo で絞り込み。
+- 個別 `/reports/<id>`:ヘッダ(タイトル・scope・生成日時)/ サマリ KPI(値 + 前期間比)/
   アクティビティ概況 / DORA・所要時間 / 注目 PR(大きい・長い・議論多)/ **AI findings
-  (カテゴリ別の指摘 + 本文・AI コメント)**。フッタに **「Explore で深掘り」**(この期間を
+  (カテゴリ別の指摘 + 本文・AI コメント)**。フッタに **「Explore で深掘り」**(この scope を
   引き継いで `/explore` へ)。
 
 #### frozen レポートのデータモデル
 
 ```
 dist/reports/
-  index.json              -- 一覧用メタ(period, generated_at, highlights, kpi sparkline, ai_count)
-  2026-W24.json           -- 個別の完全凍結(KPI 数値 + 注目PR + AI findings/コメント本文)
+  index.json              -- 一覧用メタの配列([{ id, title, scope, generated_at, highlights, kpi, ai_count }])
+  <id>.json               -- 個別の完全凍結(scope + KPI 数値 + 注目PR + AI findings/コメント本文)
 ```
 
-- 週次ランの最後に **その時点の DWH を集計して `<period>.json` を書き出す**(数値も凍結)。
+- `id` = scope と生成時刻から決まる安定キー(例:`<slug>-<YYYYMMDD>` または ULID)。
+  同じ定義のレポートを定期生成すると、**日付付き id でシリーズとして積み上がる**。
 - 個別ページは **この JSON を読むだけ**でレンダリング(DWH も DuckDB-WASM も触らない)。
   → ページが軽く、過去レポートは**完全に再現可能・不変**。
 - 凍結ゆえ、バックフィル/移行で DWH 側の過去数値が変わってもレポートは**乗離し得る**
   (= 定点の忠実さを優先した許容)。最新の正は常に Explore 側で見られる。
+
+#### レポート生成の仕組み(どこで・いつ作るか)
+
+生成は **CI 側(Node + DuckDB ネイティブ + AI トークン)** で行う。DWH 読取・AI 呼出・repo
+書込が要るため、ブラウザ(静的・トークン無し)では作れない。トリガは3系統:
+
+| トリガ | 定義場所 | 用途 |
+|---|---|---|
+| **宣言的(定期)** | `reports.toml` にレポート定義 + cadence | 「チームA 月次」「repoX 週次」等の常設レポート |
+| **オンデマンド** | `workflow_dispatch` の inputs(from/to/repos/users/with_ai) | その場で scope を決めて1本だけ生成 |
+| **(将来)UI 起点** | Explore の「この scope をレポート化」 | 静的ページは書込権が無いので、Actions の dispatch 画面 or issue テンプレへ**ディープリンク**してトリガ(直接生成はしない) |
+
+生成フロー(いずれのトリガも共通):
+
+```
+scope 確定 → DWH を scope で集計(数値)→ with_ai なら scope の AI findings を生成
+        → dist/reports/<id>.json を凍結出力 → index.json に追記 → commit / deploy
+```
+
+- 宣言的レポートは週次ラン(collect → DWH upsert)の**後段**で、定義ぶんをまとめて生成。
+- AI は scope 単位で都度走るため、ad-hoc 多発時のトークン消費に注意(`with_ai=false` で抑制可)。
+- 既定の常設レポート(例:全 repo 週次)を `reports.toml` に1つ入れておけば、現状の
+  「週次レポート」挙動が宣言的レポートの一インスタンスとして再現される。
 
 ### 共通基盤
 
@@ -475,8 +515,10 @@ src/warehouse/migrations/
 4. **分析の SQL 化**:DORA → review-correlation → timeline の順に SQL ビュー/クエリへ
    移植(timeline は当面 TS のままでも可)。
 5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
-6. **フロント Reports**:週次ランの最後に `dist/reports/<period>.json` + `index.json` を
-   凍結出力 → 一覧 + 個別ページ(frozen JSON を読むだけ)。既存 AI findings をここへ移植。
+6. **フロント Reports + 生成**:`reports.toml`(宣言的)/ `workflow_dispatch`(オンデマンド)
+   で scope を受け、CI で `dist/reports/<id>.json` + `index.json` を凍結出力 → 一覧 + 個別
+   ページ(frozen JSON を読むだけ)。既存 AI findings をここへ移植。常設の全 repo 週次を
+   `reports.toml` に1つ入れて現状挙動を再現。
 7. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
    参照(主軸 = GitHub Action)。`migrate.ts` + `migrations/` の移行フレームワークを整備。
 8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
