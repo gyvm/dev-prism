@@ -279,7 +279,7 @@ GROUP  BY author, reviewer;
 
 画面は性質の違う **2 モード**に分かれる。**Reports = 消費(キュレーション済み・定点凍結)**、
 **Explore = 調査(自由集計・ライブ)**。土台(チャート/集計コンポーネント)は共通で、
-**データ源だけが違う**(Reports は frozen JSON、Explore はライブ DWH クエリ)。
+**データ源だけが違う**(Reports は自己完結 HTML として凍結、Explore はライブ DWH クエリ)。
 
 ```
 ナビ: [ Reports ]  [ Explore ]  [ SQL ]
@@ -290,13 +290,14 @@ GROUP  BY author, reviewer;
 src/web/                          (Astro project, Vite ベース)
   pages/
     index.astro                  -- Reports 一覧(index.json から事前レンダリング・JSほぼ0)
-    reports/[id].astro           -- 個別レポート(<id>.json から事前レンダリング・WASM無)
     explore.astro                -- Explore の殻(中の React island だけ hydrate)
   components/
-    charts/                      -- チャート/KPI(両モードで共有。data 源を差し替え)
+    charts/                      -- Plot 定義(生成器=SVG と Explore=ライブで共有)
     explore/Explore.tsx          -- React アイランド(controls + ライブクエリ + SQL コンソール)
   lib/
     db.ts                        -- DuckDB-WASM(Web Worker・single-thread・Explore でのみ import)
+  ../report-gen/                 -- CI 用レポート生成器(Plot→SVG, 自己完結 HTML 出力)
+                                    ※個別レポートは reports/<id>/index.html が実体(Astro ルート不要)
 ```
 
 ### 技術スタック(確定)
@@ -307,7 +308,7 @@ src/web/                          (Astro project, Vite ベース)
 - 基盤:**Vite / TypeScript**。チャートは **Observable Plot**(軽量・宣言的)、リッチ化が必要なら
   ECharts。Explore のフィルタ状態は **URL(`URLSearchParams`)に同期**。
 - DuckDB-WASM は **Worker + シングルスレッド**を既定(`SharedArrayBuffer`=COOP/COEP 依存を回避)。
-  **Reports 専用ユーザは WASM も React も読まない**(frozen JSON のみ)。
+  **Reports 専用ユーザは WASM も React も読まない**(自己完結 HTML のみ・JS ゼロ)。
 - 検討した代替:純 SPA(Vite+React)/ React Router v7(prerender)/ SvelteKit。いずれもサーバレス・
   Vite ベースで DuckDB-WASM 周りは同等。2 モード設計への適合と deep-link 無設定で **Astro を採用**。
 - **サーバは本体に持たない**。将来 UI からレポートを自己生成したくなったら、`workflow_dispatch` を
@@ -350,25 +351,38 @@ scope = {
 - 一覧 `/`:レポートカードを新しい順に。タイトル、scope サマリ(期間・repo/ユーザ数)、
   生成日時、ハイライト 1–2 行、主要 KPI スパークライン、**AI findings 件数バッジ**。
   タイトル/期間/repo で絞り込み。
-- 個別 `/reports/<id>`:ヘッダ(タイトル・scope・生成日時)/ サマリ KPI(値 + 前期間比)/
-  アクティビティ概況 / DORA・所要時間 / 注目 PR(大きい・長い・議論多)/ **AI findings
-  (カテゴリ別の指摘 + 本文・AI コメント)**。フッタに **「Explore で深掘り」**(この scope を
-  引き継いで `/explore` へ)。
+- 個別 `/reports/<id>`:**自己完結 HTML ファイル**そのもの。ヘッダ(タイトル・scope・生成日時)/
+  サマリ KPI(値 + 前期間比)/ アクティビティ概況 / DORA・所要時間 / 注目 PR(大きい・長い・
+  議論多)/ **AI findings(カテゴリ別の指摘 + 本文・AI コメント)**。フッタに
+  **「Explore で深掘り」**(この scope を引き継いで `/explore` へ)。
 
-#### frozen レポートのデータモデル
+#### frozen レポートのデータモデル(自己完結 HTML)
+
+各レポートは **CSS・チャート・データを内蔵した1枚の自己完結 HTML** として凍結する。アプリの
+レンダラから完全に切り離れるので、**レポート JSON スキーマやデザインを後でいくら変えても、
+過去レポートは生成当時の姿のまま壊れない**(数値もプレゼンも point-in-time 凍結)。
 
 ```
-dist/reports/
-  index.json              -- 一覧用メタの配列([{ id, title, scope, generated_at, highlights, kpi, ai_count }])
-  <id>.json               -- 個別の完全凍結(scope + KPI 数値 + 注目PR + AI findings/コメント本文)
+reports/                    （committed・append-only な永続アーカイブ。dist/ へコピーして配信）
+  index.json                -- 一覧用メタのみ([{ id, title, scope, generated_at, highlights, kpi, ai_count }])
+  <id>/index.html           -- 自己完結レポート: HTML + インライン CSS + 事前SVGチャート
+                               + テキスト/AIコメント + <script type="application/json"> 素データ
 ```
 
+- **チャートは生成時に SVG へ事前レンダリング**(CI の Node で Observable Plot を DOM シム経由で
+  SVG 化)。frozen HTML は **JS ゼロ**で、ブラウザがある限り永久に描画でき、最小・最堅牢。
+- **素データを `<script type="application/json">` で同梱**:表示は SVG(JS 不要)だが、将来どうしても
+  旧レポートを新デザインで作り直したくなったら、**埋め込みデータから再レンダリング**できる
+  (DWH を引き直さないので**数値は当時のまま**)。= 既定は完全凍結、いざという時だけ再スキン。
+- **一覧は `index.json` だけ読む**(全 HTML をパースしない)。個別レポートの Astro/React ルートは
+  不要で、`<id>/index.html` がそのままページ。アプリが単純化する。
 - `id` = scope と生成時刻から決まる安定キー(例:`<slug>-<YYYYMMDD>` または ULID)。
   同じ定義のレポートを定期生成すると、**日付付き id でシリーズとして積み上がる**。
-- 個別ページは **この JSON を読むだけ**でレンダリング(DWH も DuckDB-WASM も触らない)。
-  → ページが軽く、過去レポートは**完全に再現可能・不変**。
 - 凍結ゆえ、バックフィル/移行で DWH 側の過去数値が変わってもレポートは**乗離し得る**
   (= 定点の忠実さを優先した許容)。最新の正は常に Explore 側で見られる。
+
+> **チャート/KPI コンポーネントの共有先**:Reports ルートと共有するのではなく、**生成器(→SVG に焼く)
+> と Explore(→ライブ DOM)で同じ Plot 定義を共有**する(二重実装しない)。
 
 #### レポート生成の仕組み(どこで・いつ作るか)
 
@@ -385,7 +399,8 @@ dist/reports/
 
 ```
 scope 確定 → DWH を scope で集計(数値)→ with_ai なら scope の AI findings を生成
-        → dist/reports/<id>.json を凍結出力 → index.json に追記 → commit / deploy
+        → チャートを SVG に焼く → CSS/SVG/データを inline した自己完結 HTML を
+          reports/<id>/index.html に凍結出力 → index.json に追記 → commit / deploy
 ```
 
 - 宣言的レポートは週次ラン(collect → DWH upsert)の**後段**で、定義ぶんをまとめて生成。
@@ -395,8 +410,8 @@ scope 確定 → DWH を scope で集計(数値)→ with_ai なら scope の AI 
 
 ### 共通基盤
 
-- **チャート/KPI は1コンポーネント群を両モードで共有**。Reports は frozen JSON を、Explore
-  はライブクエリ結果を、同じコンポーネントに流す(二重実装しない)。
+- **チャート/KPI は1コンポーネント群(Plot 定義)を共有**。**生成器**は集計結果を SVG に焼き、
+  **Explore** はライブクエリ結果を DOM に描く——同じ定義を二度書かない。
 - 具体の技術選定(Astro+React アイランド / Observable Plot / Worker・シングルスレッド WASM)は
   上の「技術スタック(確定)」に集約。マルチスレッドは将来の保険。
 
@@ -532,9 +547,10 @@ src/warehouse/migrations/
    移植(timeline は当面 TS のままでも可)。
 5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
 6. **フロント Reports + 生成**:`reports.toml`(宣言的)/ `workflow_dispatch`(オンデマンド)
-   で scope を受け、CI で `dist/reports/<id>.json` + `index.json` を凍結出力 → 一覧 + 個別
-   ページ(frozen JSON を読むだけ)。既存 AI findings をここへ移植。常設の全 repo 週次を
-   `reports.toml` に1つ入れて現状挙動を再現。
+   で scope を受け、CI でチャートを SVG に焼き、CSS/SVG/データを inline した自己完結
+   `reports/<id>/index.html` + 薄い `index.json` を凍結出力。一覧(Astro)は index.json を
+   読むだけ。既存 AI findings をここへ移植。常設の全 repo 週次を `reports.toml` に1つ入れて
+   現状挙動を再現。
 7. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
    参照(主軸 = GitHub Action)。`migrate.ts` + `migrations/` の移行フレームワークを整備。
 8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
