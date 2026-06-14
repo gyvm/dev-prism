@@ -287,13 +287,31 @@ GROUP  BY author, reviewer;
 /reports/<id>         個別レポート(scope 固定・定点スナップショット)
 /explore              動的集計(期間・粒度を実行時に切替)
 
-src/web/
-  db.ts             -- DuckDB-WASM 初期化、Parquet 登録、クエリ実行(Explore 用)
-  charts/           -- チャート/KPI コンポーネント(両モードで共有。data 源は差し替え)
-  explore/          -- 自由集計ページ(controls + ライブクエリ)
-  reports/          -- 一覧 + 個別(frozen JSON を読むだけ)
-  sql-console.ts    -- ad-hoc SQL コンソール(パワーユーザー向け)
+src/web/                          (Astro project, Vite ベース)
+  pages/
+    index.astro                  -- Reports 一覧(index.json から事前レンダリング・JSほぼ0)
+    reports/[id].astro           -- 個別レポート(<id>.json から事前レンダリング・WASM無)
+    explore.astro                -- Explore の殻(中の React island だけ hydrate)
+  components/
+    charts/                      -- チャート/KPI(両モードで共有。data 源を差し替え)
+    explore/Explore.tsx          -- React アイランド(controls + ライブクエリ + SQL コンソール)
+  lib/
+    db.ts                        -- DuckDB-WASM(Web Worker・single-thread・Explore でのみ import)
 ```
+
+### 技術スタック(確定)
+
+- **Astro(SSG)+ React アイランド**。Reports は**事前 HTML で凍結・超軽量**(React も WASM も
+  載らない)、Explore だけ `client:only="react"` の island として hydrate。**deep-link が無設定で
+  動く**(`/reports/<id>` が実 HTML)。React スキルは Explore island でそのまま活きる。
+- 基盤:**Vite / TypeScript**。チャートは **Observable Plot**(軽量・宣言的)、リッチ化が必要なら
+  ECharts。Explore のフィルタ状態は **URL(`URLSearchParams`)に同期**。
+- DuckDB-WASM は **Worker + シングルスレッド**を既定(`SharedArrayBuffer`=COOP/COEP 依存を回避)。
+  **Reports 専用ユーザは WASM も React も読まない**(frozen JSON のみ)。
+- 検討した代替:純 SPA(Vite+React)/ React Router v7(prerender)/ SvelteKit。いずれもサーバレス・
+  Vite ベースで DuckDB-WASM 周りは同等。2 モード設計への適合と deep-link 無設定で **Astro を採用**。
+- **サーバは本体に持たない**。将来 UI からレポートを自己生成したくなったら、`workflow_dispatch` を
+  叩く**小さな Hono エッジ関数**を opt-in で足す(本体フレームワークとは独立。Reports「生成の仕組み」参照)。
 
 ### ① Explore(自由集計 / 数値集計)
 
@@ -379,10 +397,8 @@ scope 確定 → DWH を scope で集計(数値)→ with_ai なら scope の AI 
 
 - **チャート/KPI は1コンポーネント群を両モードで共有**。Reports は frozen JSON を、Explore
   はライブクエリ結果を、同じコンポーネントに流す(二重実装しない)。
-- チャートは静的ホスト相性のよい **Observable Plot / Vega-Lite / ECharts** から選定。
-- **シングルスレッド WASM** を既定にする(この規模なら十分高速で、`SharedArrayBuffer`
-  =COOP/COEP 依存を避けられる)。マルチスレッドは将来の保険。Reports だけ見るユーザーは
-  **WASM を一切ロードしない**(frozen JSON のみ)ので更に軽い。
+- 具体の技術選定(Astro+React アイランド / Observable Plot / Worker・シングルスレッド WASM)は
+  上の「技術スタック(確定)」に集約。マルチスレッドは将来の保険。
 
 ### 性能の前提
 
