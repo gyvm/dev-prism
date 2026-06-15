@@ -43,6 +43,93 @@ Kimball 風スター。**件数・推移系はロング型ファクト `activiti
 - `pr_id`     = `"owner/name#number"`
 - `actor_id`  = GitHub login(`null` の場合は `"__unknown__"` に正規化)
 
+### ER 図(全体)
+
+```mermaid
+erDiagram
+    repos ||--o{ pull_requests : "repo_id"
+    repos ||--o{ activities : "repo_id"
+    people ||--o{ pull_requests : "author_id"
+    people ||--o{ activities : "actor_id"
+    pull_requests ||--o{ activities : "pr_id"
+    pull_requests ||--o{ pr_files : "pr_id"
+    pull_requests ||--o{ pr_labels : "pr_id"
+    pull_requests ||--o| bodies : "pr_body (subject_id)"
+    activities ||--o| bodies : "comment/review (subject_id)"
+
+    activities {
+        VARCHAR   event_id      PK
+        VARCHAR   event_type
+        TIMESTAMP occurred_at
+        VARCHAR   repo_id       FK
+        VARCHAR   actor_id      FK
+        VARCHAR   pr_id         FK
+        DOUBLE    value_num
+        JSON      attributes
+    }
+    pull_requests {
+        VARCHAR   pr_id                          PK
+        VARCHAR   repo_id                        FK
+        INTEGER   number
+        VARCHAR   title
+        VARCHAR   url
+        VARCHAR   author_id                      FK
+        BOOLEAN   is_bot_author
+        VARCHAR   state
+        BOOLEAN   is_draft
+        TIMESTAMP created_at
+        TIMESTAMP ready_for_review_at
+        TIMESTAMP first_review_at
+        TIMESTAMP first_approve_at
+        TIMESTAMP merged_at
+        TIMESTAMP closed_at
+        BIGINT    additions
+        BIGINT    deletions
+        INTEGER   changed_files
+        DOUBLE    lead_time_hours
+        DOUBLE    time_to_first_review_hrs
+        DOUBLE    time_to_merge_after_review_hrs
+    }
+    pr_files {
+        VARCHAR   pr_id         FK
+        VARCHAR   path
+        BIGINT    additions
+        BIGINT    deletions
+        VARCHAR   change_type
+    }
+    pr_labels {
+        VARCHAR   pr_id         FK
+        VARCHAR   label
+    }
+    people {
+        VARCHAR   actor_id      PK
+        VARCHAR   login
+        BOOLEAN   is_bot
+        VARCHAR   team
+    }
+    repos {
+        VARCHAR   repo_id       PK
+        VARCHAR   owner
+        VARCHAR   name
+        VARCHAR   visibility
+    }
+    bodies {
+        VARCHAR   subject_id    PK
+        VARCHAR   subject_kind  PK
+        VARCHAR   text
+        INTEGER   text_len
+    }
+```
+
+補足(Parquet なので制約は**論理的**。物理強制はない):
+
+- `bodies` は**多態**:`(subject_id, subject_kind)` が論理キー。`subject_id` は `pr_body` のとき
+  `pr_id`、コメント/レビューのとき `event_id`(= `activities.event_id`)を指す。
+- `pr_files` / `pr_labels` は時間軸を持たないブリッジ表(`activities` に混ぜない)。
+- **D3 の `users[]` フィルタ列はこの図で確定**:`activities` は `actor_id`、`pull_requests` は
+  `author_id`。両者が指す先は `people.actor_id`。`review-correlation` は author 側・reviewer 側の
+  両方が `activities.actor_id`(`event_type='review_submitted'`)に乗る。
+
 ### facts
 
 ```sql
@@ -213,6 +300,39 @@ src/warehouse/
 
 DuckDB-WASM 側はパーティション + 列プルーニング + HTTP range で**必要分だけ**取得する。
 
+## 並行実行と非衝突(DWH 追加 × レポート生成)
+
+通常の **DWH 追加**(週次 collect→upsert)と **レポート生成** が、互いを壊さない・コミット競合
+しないことを保証する。3 つの原則:
+
+**① 書き込みパスを分離(disjoint)** — 同じファイルを2者が触らない。
+
+| 処理 | 読む | 書く |
+|---|---|---|
+| DWH 追加(append) | `data/dwh/**` | **`data/dwh/**` のみ** |
+| レポート生成 | `data/dwh/**`(読むだけ) | **`reports/**` のみ**(`<id>.html` + 一覧メタ) |
+
+→ append は DWH を、report-gen は reports を書く。**レポート生成は DWH を一切書かない**ので、
+データ追加とレポート作成は**そもそも別物の書き込み**になり内容衝突は起きない。
+
+**② リポジトリへの書き込みを直列化(concurrency group)** — git の push 競合を防ぐ。
+
+- repo にコミットする全ワークフロー run を**単一の concurrency group**に入れ、同時実行を禁止。
+  (DWH 移行で使う `concurrency` を「repo 書き込み全般」へ広げるだけ)
+- 独立したオンデマンドのレポート生成は、開始時に `git pull --rebase` で最新を取得 → `reports/`
+  だけ書いてコミット。**disjoint パスなので rebase でも衝突しない**。
+
+**③ レポートは一貫した DWH を読む** — 途中状態を読まない。
+
+- append はアトミックに DWH を確定してコミット(DWH 移行の「アトミック更新」と同じ規律)。
+  レポート生成は**コミット済みの DWH スナップショット**だけを読む。
+- 標準の週次レポートは「**append → 同じ job 内で続けて生成**」にすれば、最新 DWH をそのまま使え、
+  競合の窓自体が無い。
+
+一覧メタ(`index.json`)の追記競合も ② の直列化で消える。さらに堅くしたいなら、各レポートが
+自分の `reports/<id>.meta.json` を書き(disjoint)、`index.json` はそれらを**集約して再生成**する
+派生物にすると、共有ファイルへの追記自体が無くなる(並行レポート生成も安全)。
+
 ## 接続部(DWH ↔ 既存レンダラ)
 
 Reports と Explore の**両方が通る共通の土台**。既存パイプラインの 2 つの seam:
@@ -266,6 +386,10 @@ scope/params = { from, to, repos[], users[], include_bots, grain, thresholds{...
 避け、クエリは共有モジュールに置く。→ レポートの数値と Explore の数値が**定義的に一致**する。
 
 ### D5. 正規化は build 時へ移設、config を二分する
+
+> 平たく言うと:**「同じ計算を毎回しない」ため、bot 判定などの正規化を取り込み時に1回だけ
+> やって列に保存しておく**話。並行実行の衝突対策とは別物で、衝突は上の「並行実行と非衝突」で
+> 担保する(append と レポート生成は書き込みパスが分離 + 直列化されるので衝突しない)。
 
 - TS でやっていた **bot 判定(`isBotLogin`)・actor 正規化・id 整形・`isMergedInWeek` 述語**は
   **build 時に DWH へ焼く**(`people.is_bot` / `actor_id` / `merged_at`)。query 時は**列フィルタだけ**。
