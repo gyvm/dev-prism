@@ -832,3 +832,52 @@ src/warehouse/migrations/
 
 既存の静的レポート(`src/report` / `src/pipeline`)は移行中は並走させ、新フロントが
 機能等価になった段階で置き換える。
+
+## 残り TODO(次の粒度で決める)
+
+高レベル(アーキテクチャ / データフロー / 使い方)は凍結済み。以下は**一段下の設計粒度**で
+未決の項目。**推奨順は A(契約)→ それ以外**。各項目は「実装コードの一歩手前」で確定する。
+
+### A. インターフェース契約(最優先。境界を文書で固める)
+- [ ] **view-model 型**:各分析(dora / review-correlation / pr-timeline / 件数推移)が
+      レンダラに渡す形を型として確定(producer=SQL / consumer=既存 renderer の唯一の契約)
+- [ ] **scope パラメータの正準 JSON**:`{ from, to, repos[], users[], include_bots, grain, thresholds{} }`
+      の正式スキーマと既定値・境界(タイムゾーン、from/to の包含)
+- [ ] **`reports.toml` 定義スキーマ**:scope + cadence + title(+ 通知先?)
+- [ ] **`index.json` スキーマ**:一覧メタ([{ id, title, scope, generated_at, highlights, kpi, ai_count }])
+- [ ] **`<id>.html` のセクション構成**:ヘッダ / KPI / 概況 / DORA / 注目PR / AI findings の順序と必須項目
+
+### B. 接続部の小詰め
+- [ ] `users[]` の review-correlation での両軸(author / reviewer)の解釈を精緻化
+- [ ] `config` の **build 時 / query 時 仕分けリスト**を確定(bot パターン=build、閾値=query 等)
+- [ ] 閾値(`firstReviewThresholdHours` 等)を表示時に変えられるようにするか(=本当に必要か)
+
+### C. DWH / 収集メカニクスの詳細
+- [ ] 月パーティション内の**差し替え単位**と書き戻し手順(`bodies` 分離の具体)
+- [ ] 増分カーソルの **overlap 具体値**、**定期フル再同期**の頻度
+- [ ] `MAX_PAGES`(現状 100×10=1000 上限)と**初回フルロード**のページング戦略
+- [ ] `data/dwh` のリポジトリサイズ増加の監視・上限方針
+
+### D. Explore 実装設計
+- [ ] DuckDB-WASM への **Parquet 登録**(httpfs / HTTP range)と初期ロード戦略
+- [ ] フィルタ → SQL ビルダ、**SQL コンソールの read-only 安全化**
+- [ ] view-model → **既存レンダラへの配線**(HTML 文字列注入 vs コンポーネント化)
+- [ ] WASM / native の **SQL parity テスト**(Reports と Explore の数値一致を保証)
+
+### E. レポート生成器
+- [ ] 既存 `render.ts` / `renderers` を **DWH 入力 + scope** に配線
+- [ ] AI findings 生成の scope 対応(`pipeline/ai-runner` の再利用)
+- [ ] `buildIndexHtml` を **`index.json` ベース**へ置換(or sidecar 集約案)
+- [ ] **「Explore で深掘り」ディープリンク**の具体方式(dispatch prefill の限界 / issue テンプレ)
+
+### F. 配布・テンプレート・運用
+- [ ] **テンプレート repo の具体形**(`report.yml`、secrets、`data/dwh` 運用)
+- [ ] 再利用ワークフロー `pipeline.yml` の inputs / secrets / permissions / `concurrency`
+- [ ] **Docker image** 構成(従チャネル)
+- [ ] `migrate.ts` + `migrations/` の骨格(版比較 → 順序適用 → アトミック swap)
+- [ ] **要認証デプロイの既定手順**(Cloudflare Access 等)をテンプレ既定に
+- [ ] コスト/レート制御(GraphQL secondary limits、AI トークン)、テスト戦略、セキュリティ(PAT スコープ)
+
+### G. 旧実装からの移行
+- [ ] 既存 `src/report` / `src/pipeline` との**並走→置換**の判定基準(機能等価の定義)
+- [ ] 段階的移行計画(上記8ステップ)各ステップの **DoD / 依存 / PoC 検証項目**
