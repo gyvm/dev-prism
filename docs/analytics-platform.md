@@ -213,6 +213,70 @@ src/warehouse/
 
 DuckDB-WASM 側はパーティション + 列プルーニング + HTTP range で**必要分だけ**取得する。
 
+## 接続部(DWH ↔ 既存レンダラ)
+
+Reports と Explore の**両方が通る共通の土台**。既存パイプラインの 2 つの seam:
+
+```
+[ AnalysisContext ] → compute(TS) → [ renderer-data ] → renderer → HTML
+  rawPrs(PR全グラフ)                  小さい表示用モデル     (既存・不変)
+```
+
+のうち、**下の seam(`renderer-data`)を DWH 境界の共通契約**に採用する(**SQL-native + view-model
+契約**)。`rawPrs` 全グラフの再構築はしない。
+
+### D1. 契約 = view-model(`renderer-data`)
+
+- 各レンダラが食う**小さな表示用モデル**(`metric-cards` の数値 / `bipartite-graph` のエッジ /
+  `gantt-chart` の区間)を**型として固定**し、これを唯一の契約にする。
+- **producer は DWH への SQL**、**consumer は既存レンダラ(不変)**。`compute` の TS ロジックは
+  SQL へ移植。Explore のライブ SQL と**同型**になり軽い。
+
+```
+src/analyses/<id>/
+  query.ts     -- scope → SQL → view-model(新規。旧 compute.ts を置換)
+  view-model.ts-- レンダラが食う型(契約)
+  （renderer は src/renderers/* を流用）
+```
+
+### D2. 作り方は SQL-native 既定、複雑なものだけ TS 後処理
+
+| 分析 | 方法 |
+|---|---|
+| `dora-metrics` | **SQL-native**(`pull_requests` 前計算列 + `activities` 集計) |
+| `review-correlation` | **SQL-native**(`review_submitted` を author×reviewer で group by) |
+| `pr-timeline` | 状態区間・境界・reactions は SQL で辛い → **scope で該当 PR の行だけ薄く引いて既存 timeline TS を流用** |
+
+出口の `view-model` 契約は同じなので、内部が SQL でも TS でもレンダラ側は気にしない。
+
+### D3. scope パラメータの正準形
+
+```
+scope/params = { from, to, repos[], users[], include_bots, grain, thresholds{...} }
+```
+
+- Reports=固定値 / Explore=ライブ値で、**同じクエリ関数に渡す**。
+- `users[]` の意味は **テーブルの自然な actor で解釈**:`activities` は `actor_id`、
+  `pull_requests` は `author_id` でフィルタ(= 「その人たちの仕事」)。`review-correlation` は
+  両軸にかかる。これを既定とし、必要なら後で精緻化。
+
+### D4. エンジン parity(Reports と Explore がズレない保証)
+
+**同一の SQL を DuckDB-WASM(Explore)と DuckDB ネイティブ(CI/Reports)で実行**する。方言・拡張を
+避け、クエリは共有モジュールに置く。→ レポートの数値と Explore の数値が**定義的に一致**する。
+
+### D5. 正規化は build 時へ移設、config を二分する
+
+- TS でやっていた **bot 判定(`isBotLogin`)・actor 正規化・id 整形・`isMergedInWeek` 述語**は
+  **build 時に DWH へ焼く**(`people.is_bot` / `actor_id` / `merged_at`)。query 時は**列フィルタだけ**。
+- `config` を仕分ける:**build 時に効くもの**(bot パターン等 → DWH に反映)と、**query 時に
+  変えたいもの**(`firstReviewThresholdHours` のような閾値 → `scope.thresholds` として残す)。
+
+### D6. 詳細・AI 入力は drill-down クエリ
+
+注目 PR / AI findings は集計でなく per-PR 詳細(`bodies` 含む)。**scope で選んだ PR の詳細だけ
+join して引く**別クエリを定義(Explore のドリルダウン、Reports 生成、AI 入力が共用)。
+
 ## 既存分析を SQL ビューで再定義
 
 compute 系のロジックを SQL に移すことで、**UI の期間・粒度変更に自動追従**する。
@@ -559,8 +623,9 @@ src/warehouse/migrations/
    `dwh_schema_version` を導入。
 3. **増分収集 + upsert**:収集器に `updatedAt` カーソルを導入、一時スナップショットを
    DWH へ PR 単位で冪等 upsert(取り込み後にスナップショット破棄)。
-4. **分析の SQL 化**:DORA → review-correlation → timeline の順に SQL ビュー/クエリへ
-   移植(timeline は当面 TS のままでも可)。
+4. **接続部(view-model 契約)**:各分析を `query.ts`(scope→SQL→view-model)へ移植。
+   DORA → review-correlation を SQL-native 化、timeline は「薄く引いて TS 流用」。正規化を
+   build 時へ移設し、`config` を build 時/query 時に二分。renderer は不変で流用。
 5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
 6. **フロント Reports + 生成**:`reports.toml`(宣言的)/ `workflow_dispatch`(オンデマンド)
    で scope を受け、CI で既存 render.ts / renderers を使い自己完結
