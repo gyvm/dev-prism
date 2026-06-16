@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { collectNormalizedPullRequests } from "../collector/collect.js";
 import { buildDwhFromPullRequests } from "../warehouse/build.js";
 import { readRepoWatermarks, resolveSince } from "../warehouse/watermark.js";
+import { migrateDwh } from "../warehouse/migrate.js";
 import { loadRuntimeConfig } from "../shared/runtime.js";
 import { CollectorError, ConfigError, RuntimeConfigError } from "../shared/errors.js";
 import { loadUnifiedConfig } from "../shared/config.js";
@@ -60,10 +61,18 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const config = await loadUnifiedConfig(options.configPath);
 
+  const dwhDir = options.dwhDir ?? "data/dwh";
+
+  // Version-gate the committed DWH first: apply any pending schema migrations
+  // up to DWH_SCHEMA_VERSION before reading/writing it (no-op at the baseline).
+  const migration = await migrateDwh(dwhDir);
+  if (migration.applied.length > 0) {
+    process.stdout.write(`Migrated DWH ${migration.from} → ${migration.to}: ${migration.applied.join(", ")}\n`);
+  }
+
   // Derive the incremental cursor from the committed DWH: each repo resumes
   // from max(updated_at) − overlap, so old PRs with new activity are not
   // missed. Repos absent from the DWH fall back to the static cutoffDate.
-  const dwhDir = options.dwhDir ?? "data/dwh";
   const watermarks = await readRepoWatermarks(dwhDir);
   const fallbackCutoff = loadRuntimeConfig().cutoffDate;
 
