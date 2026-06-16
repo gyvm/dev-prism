@@ -28,10 +28,12 @@ export async function collectNormalizedPullRequests(
   for (const repository of repositories) {
     const repoLabel = `${repository.owner}/${repository.name}`;
     try {
+      const cutoffDate =
+        dependencies.cutoffDateForRepo?.(repository) ?? runtimeConfig.cutoffDate;
       const rawPullRequests = await fetchRepositoryPullRequests({
         repository,
         token,
-        cutoffDate: runtimeConfig.cutoffDate,
+        cutoffDate,
         ...(fetchFn ? { fetchFn } : {}),
       });
 

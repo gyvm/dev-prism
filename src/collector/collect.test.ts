@@ -224,6 +224,230 @@ describe("fetchRepositoryPullRequests", () => {
   });
 });
 
+type PageInfo = { hasNextPage: boolean; endCursor: string | null };
+
+function nodeChildPayload(
+  connection: string,
+  nodes: Array<Record<string, unknown>>,
+  pageInfo: PageInfo,
+) {
+  return { data: { node: { [connection]: { nodes, pageInfo } } } };
+}
+
+// Routes GraphQL POSTs to the right canned response based on the query body:
+// the initial search, a PR child-connection follow-up, or a thread-comments
+// follow-up. Follow-up responses are pulled from per-connection queues.
+function routedFetch(options: {
+  search: unknown[];
+  child?: Record<string, unknown[]>;
+  threadComments?: unknown[];
+}): typeof fetch {
+  const search = [...options.search];
+  const child: Record<string, unknown[]> = {};
+  for (const [key, value] of Object.entries(options.child ?? {})) {
+    child[key] = [...value];
+  }
+  const threadComments = [...(options.threadComments ?? [])];
+
+  return vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+    const body = JSON.parse(String((init as RequestInit).body));
+    const query: string = body.query;
+
+    if (query.includes("query SearchPullRequests")) {
+      return createJsonResponse(search.shift());
+    }
+    if (query.includes("PaginateThreadComments")) {
+      return createJsonResponse(threadComments.shift());
+    }
+    const match = query.match(/on PullRequest\s*\{\s*(\w+)\s*\(/);
+    if (match) {
+      const connection = match[1]!;
+      return createJsonResponse((child[connection] ?? []).shift());
+    }
+    throw new Error(`Unexpected GraphQL query:\n${query}`);
+  });
+}
+
+describe("fetchRepositoryPullRequests child connection pagination", () => {
+  it("drains a child connection across follow-up pages via node(id:)", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              id: "PR_1",
+              number: 7,
+              title: "Big review thread",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviews: {
+                nodes: [{ id: "R1", author: { login: "rev1" }, state: "COMMENTED", submittedAt: "2026-03-31T01:00:00.000Z" }],
+                pageInfo: { hasNextPage: true, endCursor: "rc1" },
+              },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+      child: {
+        reviews: [
+          nodeChildPayload(
+            "reviews",
+            [{ id: "R2", author: { login: "rev2" }, state: "APPROVED", submittedAt: "2026-03-31T02:00:00.000Z" }],
+            { hasNextPage: true, endCursor: "rc2" },
+          ),
+          nodeChildPayload(
+            "reviews",
+            [{ id: "R3", author: { login: "rev3" }, state: "APPROVED", submittedAt: "2026-03-31T03:00:00.000Z" }],
+            { hasNextPage: false, endCursor: "rc3" },
+          ),
+        ],
+      },
+    });
+
+    const pullRequests = await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    expect(pullRequests).toHaveLength(1);
+    expect(pullRequests[0]!.reviews?.nodes?.map((r) => r?.id)).toEqual(["R1", "R2", "R3"]);
+    // 1 search + 2 review follow-ups.
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+
+    const followUp = JSON.parse(String((fetchFn.mock.calls[1]![1] as RequestInit).body));
+    expect(followUp.query).toContain("PaginatePrChild");
+    expect(followUp.variables).toEqual({ id: "PR_1", after: "rc1" });
+  });
+
+  it("drains a review thread's nested comments connection", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              id: "PR_2",
+              number: 8,
+              title: "Thread with many comments",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviewThreads: {
+                nodes: [
+                  {
+                    id: "TH_1",
+                    isResolved: false,
+                    isOutdated: false,
+                    path: "src/a.ts",
+                    comments: {
+                      nodes: [{ id: "C1", author: { login: "u1" }, bodyText: "first", createdAt: "2026-03-31T01:00:00.000Z", path: "src/a.ts" }],
+                      pageInfo: { hasNextPage: true, endCursor: "cc1" },
+                    },
+                  },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+      threadComments: [
+        {
+          data: {
+            node: {
+              comments: {
+                nodes: [{ id: "C2", author: { login: "u2" }, bodyText: "second", createdAt: "2026-03-31T02:00:00.000Z", path: "src/a.ts" }],
+                pageInfo: { hasNextPage: false, endCursor: "cc2" },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const pullRequests = await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    const thread = pullRequests[0]!.reviewThreads?.nodes?.[0]!;
+    expect(thread.comments?.nodes?.map((c) => c?.id)).toEqual(["C1", "C2"]);
+
+    const followUp = JSON.parse(String((fetchFn.mock.calls[1]![1] as RequestInit).body));
+    expect(followUp.query).toContain("PaginateThreadComments");
+    expect(followUp.variables).toEqual({ id: "TH_1", after: "cc1" });
+  });
+
+  it("does not issue follow-ups when no child connection has another page", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              id: "PR_3",
+              number: 9,
+              title: "Small PR",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviews: { nodes: [{ id: "R1", author: { login: "rev1" }, state: "APPROVED", submittedAt: "2026-03-31T01:00:00.000Z" }], pageInfo: { hasNextPage: false, endCursor: "rc1" } },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+    });
+
+    await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails loudly when a connection needs pagination but the PR id is missing", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              number: 10,
+              title: "No id PR",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviews: { nodes: [], pageInfo: { hasNextPage: true, endCursor: "rc1" } },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+    });
+
+    await expect(
+      fetchRepositoryPullRequests({
+        repository: { owner: "openai", name: "codex" },
+        token: "token",
+        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+        fetchFn,
+      }),
+    ).rejects.toThrow(/PR node id is missing/i);
+  });
+});
+
 describe("collectNormalizedPullRequests", () => {
   it("aggregates multiple repositories sequentially", async () => {
     const configPath = await writeConfig([

@@ -143,6 +143,10 @@ export type CollectorDependencies = {
   env?: NodeJS.ProcessEnv;
   configPath?: string;
   authFactory?: AppAuthFactory;
+  // Per-repo incremental cursor. When provided, overrides the static
+  // cutoffDate (used to drive the DWH-derived `max(updated_at) − overlap`
+  // watermark). Returning undefined falls back to cutoffDate.
+  cutoffDateForRepo?: (repository: RepositoryConfig) => Date | undefined;
 };
 
 export type AppAuthFactory = (options: {

@@ -2,6 +2,8 @@ import { pathToFileURL } from "node:url";
 
 import { collectNormalizedPullRequests } from "../collector/collect.js";
 import { buildDwhFromPullRequests } from "../warehouse/build.js";
+import { readRepoWatermarks, resolveSince } from "../warehouse/watermark.js";
+import { loadRuntimeConfig } from "../shared/runtime.js";
 import { CollectorError, ConfigError, RuntimeConfigError } from "../shared/errors.js";
 import { loadUnifiedConfig } from "../shared/config.js";
 
@@ -57,9 +59,19 @@ function formatError(error: unknown): string {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const config = await loadUnifiedConfig(options.configPath);
-  const collected = await collectNormalizedPullRequests(
-    options.configPath ? { configPath: options.configPath } : {},
-  );
+
+  // Derive the incremental cursor from the committed DWH: each repo resumes
+  // from max(updated_at) − overlap, so old PRs with new activity are not
+  // missed. Repos absent from the DWH fall back to the static cutoffDate.
+  const dwhDir = options.dwhDir ?? "data/dwh";
+  const watermarks = await readRepoWatermarks(dwhDir);
+  const fallbackCutoff = loadRuntimeConfig().cutoffDate;
+
+  const collected = await collectNormalizedPullRequests({
+    ...(options.configPath ? { configPath: options.configPath } : {}),
+    cutoffDateForRepo: (repository) =>
+      resolveSince(`${repository.owner}/${repository.name}`, watermarks, fallbackCutoff),
+  });
 
   for (const { repository, error } of collected.errors) {
     process.stderr.write(`[warning] ${repository}: ${formatError(error)}\n`);
