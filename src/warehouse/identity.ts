@@ -41,3 +41,15 @@ export function actorType(actor: NormalizedActor | null | undefined): string | n
 export function prKey(pr: NormalizedPullRequest): string {
   return `${pr.repo.owner}/${pr.repo.name}#${pr.number}`;
 }
+
+/**
+ * Deterministic fallback id for a PR issue comment that has no GitHub Node.id.
+ * Shared by the activities event_id and the bodies subject_id so the
+ * incremental `bodies` purge (which reconstructs the key from activities via
+ * COALESCE(source_node_id, event_id)) matches the stored body row. Without a
+ * single source of truth the two derive different hashes and stale issue-comment
+ * bodies are never purged on re-fetch.
+ */
+export function issueCommentFallbackId(prId: string, index: number, createdAt: string): string {
+  return `event:${stableHash([prId, "issue-comment", String(index), createdAt].join("|"))}`;
+}

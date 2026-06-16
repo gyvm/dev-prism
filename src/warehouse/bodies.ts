@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { NormalizedPullRequest } from "../shared/types.js";
-import { requirePrId, stableHash } from "./identity.js";
+import { issueCommentFallbackId, requirePrId, stableHash } from "./identity.js";
 import { isoToSqlTimestamp, type DwhRow } from "./rows.js";
 
 function bodyHash(text: string | null): string | null {
@@ -46,7 +46,9 @@ export function buildBodyRows(pullRequests: readonly NormalizedPullRequest[]): r
     });
 
     pr.comments.forEach((comment, index) => {
-      const commentId = comment.sourceNodeId ?? fallbackSubjectId("issue-comment", [prId, String(index), comment.createdAt]);
+      // Must match events.ts so the incremental bodies purge can reconstruct
+      // this subject_id from the activities row via COALESCE(source_node_id, event_id).
+      const commentId = comment.sourceNodeId ?? issueCommentFallbackId(prId, index, comment.createdAt);
       addBody(rows, commentId, "issue_comment", comment.sourceNodeId ?? null, comment.bodyText, comment.updatedAt ?? comment.createdAt);
     });
 

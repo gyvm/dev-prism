@@ -144,4 +144,72 @@ describe("buildDwhFromPullRequests", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("de-dupes intra-batch rows that share a logical primary key", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dwh-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(
+        [
+          warehousePr({
+            reviews: [],
+            comments: [],
+            labels: [{ name: "bug" }, { name: "bug" }], // duplicate label
+            files: [
+              { path: "src/a.ts", additions: 1, deletions: 0, changeType: "MODIFIED" },
+              { path: "src/a.ts", additions: 2, deletions: 1, changeType: "MODIFIED" }, // duplicate (pr_id, path)
+            ],
+          }),
+        ],
+        { dwhDir, botPatterns: [] },
+      );
+
+      const labels = await queryRows<{ count: bigint }>(
+        dwhDir,
+        "SELECT count(*) AS count FROM read_parquet('$DWH/pr_labels.parquet')",
+      );
+      expect(labels[0]?.count).toBe(1n);
+
+      const files = await queryRows<{ count: bigint }>(
+        dwhDir,
+        "SELECT count(*) AS count FROM read_parquet('$DWH/pr_files.parquet')",
+      );
+      expect(files[0]?.count).toBe(1n);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps issue-comment bodies idempotent across rebuilds when the comment has no node id", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dwh-"));
+    const dwhDir = join(root, "dwh");
+    const withAnonComment = () =>
+      warehousePr({
+        reviews: [],
+        comments: [
+          {
+            // no sourceNodeId → both activities.event_id and bodies.subject_id
+            // fall back to the shared deterministic id
+            author: "bob",
+            authorActor: bob,
+            bodyText: "anon comment",
+            createdAt: "2026-04-20T03:00:00.000Z",
+            updatedAt: null,
+            url: null,
+          },
+        ],
+      });
+    try {
+      await buildDwhFromPullRequests([withAnonComment()], { dwhDir, botPatterns: [] });
+      await buildDwhFromPullRequests([withAnonComment()], { dwhDir, botPatterns: [] });
+
+      const bodies = await queryRows<{ count: bigint }>(
+        dwhDir,
+        "SELECT count(*) AS count FROM read_parquet('$DWH/bodies.parquet') WHERE subject_kind = 'issue_comment'",
+      );
+      expect(bodies[0]?.count).toBe(1n);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

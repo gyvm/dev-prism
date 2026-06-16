@@ -1,5 +1,5 @@
 import type { NormalizedActor, NormalizedPullRequest } from "../shared/types.js";
-import { actorId, actorType, requirePrId, requireRepoId, stableHash } from "./identity.js";
+import { actorId, actorType, issueCommentFallbackId, requirePrId, requireRepoId, stableHash } from "./identity.js";
 import { isoToSqlTimestamp, type DwhRow } from "./rows.js";
 
 export type ActivityRows = Readonly<{
@@ -116,7 +116,7 @@ export function buildActivityRows(pullRequests: readonly NormalizedPullRequest[]
     });
 
     pr.comments.forEach((comment, index) => {
-      const eventId = comment.sourceNodeId ?? fallbackEventId([prId, "issue-comment", String(index), comment.createdAt]);
+      const eventId = comment.sourceNodeId ?? issueCommentFallbackId(prId, index, comment.createdAt);
       addActivity({
         event_id: eventId,
         source_node_id: comment.sourceNodeId ?? null,

@@ -91,12 +91,27 @@ async function insertRows(
   }
 }
 
+// Collapse incoming rows that share a logical primary key (keep the last
+// occurrence). The final-table merge only de-dupes incoming against existing,
+// so an intra-batch duplicate — e.g. the same path twice in one PR's files, a
+// repeated label, or a duplicate commit oid — would otherwise be appended as a
+// duplicate row and inflate aggregates. Parquet enforces no uniqueness.
+function dedupeByPrimaryKey(table: DwhTableDefinition, rows: readonly DwhRow[]): readonly DwhRow[] {
+  if (table.logicalPrimaryKey.length === 0) return rows;
+  const byKey = new Map<string, DwhRow>();
+  for (const row of rows) {
+    const key = table.logicalPrimaryKey.map((column) => `${row[column] ?? ""}`).join("\u0000");
+    byKey.set(key, row);
+  }
+  return [...byKey.values()];
+}
+
 async function insertIncomingRows(
   connection: DuckDBConnection,
   rowsByTable: Readonly<Record<string, readonly DwhRow[]>>,
 ): Promise<void> {
   for (const table of dwhTables) {
-    await insertRows(connection, table, rowsByTable[table.name] ?? []);
+    await insertRows(connection, table, dedupeByPrimaryKey(table, rowsByTable[table.name] ?? []));
   }
 }
 
