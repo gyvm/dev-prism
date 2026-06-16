@@ -43,6 +43,21 @@ describe("scope URL serialization", () => {
     });
   });
 
+  it("round-trips thresholds exactly", () => {
+    const scope = resolveScope({
+      from: new Date("2026-04-20T00:00:00.000Z"),
+      to: new Date("2026-04-27T00:00:00.000Z"),
+      thresholds: { firstReviewThresholdHours: 24 },
+    });
+    const params = scopeToSearchParams(scope);
+    expect(params.get("th_firstReviewThresholdHours")).toBe("24");
+    expect(scopeFromSearchParams(params).thresholds).toEqual({ firstReviewThresholdHours: 24 });
+  });
+
+  it("rejects a non-numeric threshold", () => {
+    expect(() => scopeFromSearchParams(new URLSearchParams("th_x=abc"))).toThrow(/threshold/);
+  });
+
   it("round-trips the default scope", () => {
     const restored = scopeFromSearchParams(scopeToSearchParams(resolveScope()));
     expect(restored).toEqual(resolveScope());

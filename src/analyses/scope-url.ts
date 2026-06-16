@@ -3,10 +3,16 @@ import { resolveScope, type Grain, type Scope } from "./scope.js";
 // Scope ↔ URL serialization. Two uses:
 //   - Explore keeps its filter state in the URL (shareable permalink).
 //   - A frozen report's "Explore で深掘り" link carries its scope to /explore.
-// Defaults (all repos/users, bots included, week grain) are omitted to keep
-// URLs clean; resolveScope restores them on parse, so the round-trip is exact.
+// Defaults (all repos/users, bots included, week grain, no thresholds) are
+// omitted to keep URLs clean; resolveScope restores them on parse, so the
+// round-trip is exact for the full scope (including thresholds).
+//
+// NOTE: repos/users are comma-joined; their members must not contain commas
+// (GitHub repo keys "owner/name" and logins never do). Leading/trailing
+// whitespace in a member is not preserved (parse trims).
 
 const GRAINS: ReadonlySet<string> = new Set(["day", "week", "month"]);
+const THRESHOLD_PREFIX = "th_";
 
 function splitList(value: string | null): string[] {
   if (!value) return [];
@@ -21,6 +27,9 @@ export function scopeToSearchParams(scope: Scope): URLSearchParams {
   if (scope.users.length > 0) params.set("users", scope.users.join(","));
   if (!scope.includeBots) params.set("bots", "exclude");
   if (scope.grain !== "week") params.set("grain", scope.grain);
+  for (const [key, value] of Object.entries(scope.thresholds)) {
+    params.set(`${THRESHOLD_PREFIX}${key}`, String(value));
+  }
   return params;
 }
 
@@ -33,12 +42,22 @@ export function scopeFromSearchParams(params: URLSearchParams): Scope {
   if (botsParam !== null && botsParam !== "include" && botsParam !== "exclude") {
     throw new Error(`Invalid bots in scope URL: ${JSON.stringify(botsParam)}`);
   }
+  const thresholds: Record<string, number> = {};
+  for (const [key, value] of params.entries()) {
+    if (!key.startsWith(THRESHOLD_PREFIX)) continue;
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      throw new Error(`Invalid threshold in scope URL: ${key}=${JSON.stringify(value)}`);
+    }
+    thresholds[key.slice(THRESHOLD_PREFIX.length)] = numeric;
+  }
   return resolveScope({
     from: params.get("from"),
     to: params.get("to"),
     repos: splitList(params.get("repos")),
     users: splitList(params.get("users")),
     includeBots: botsParam === null ? true : botsParam === "include",
+    thresholds,
     ...(grainParam ? { grain: grainParam as Grain } : {}),
   });
 }
