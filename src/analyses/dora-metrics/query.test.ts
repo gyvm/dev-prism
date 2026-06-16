@@ -79,6 +79,29 @@ describe("queryDora parity with computeDora", () => {
     }
   });
 
+  it("filters merged PRs by scope.users (author axis)", async () => {
+    const bob: NormalizedActor = { sourceNodeId: "U_bob", type: "User", login: "bob", slug: null, name: "Bob", url: null };
+    const prs = [
+      // alice: two merged in-window
+      { ...pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T02:00:00.000Z" }) },
+      { ...pr(2, { created: "2026-04-21T00:00:00.000Z", merged: "2026-04-21T04:00:00.000Z" }) },
+      // bob: one merged in-window
+      { ...pr(3, { created: "2026-04-22T00:00:00.000Z", merged: "2026-04-22T06:00:00.000Z" }), author: "bob", authorActor: bob },
+    ];
+
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const all = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to })));
+      const onlyAlice = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to, users: ["alice"] })));
+      expect(all.deploymentFrequency).toBe(3);
+      expect(onlyAlice.deploymentFrequency).toBe(2);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("returns null metrics when nothing merged in the window", async () => {
     const prs = [pr(1, { created: "2026-04-01T00:00:00.000Z", merged: "2026-04-05T00:00:00.000Z" })];
     const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));

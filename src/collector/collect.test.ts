@@ -324,6 +324,47 @@ describe("fetchRepositoryPullRequests child connection pagination", () => {
     expect(followUp.variables).toEqual({ id: "PR_1", after: "rc1" });
   });
 
+  it("drains multiple child connections on one PR without cross-wiring", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              id: "PR_M",
+              number: 42,
+              title: "Big PR",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviews: { nodes: [{ id: "R1", author: { login: "r" }, state: "APPROVED", submittedAt: "2026-03-31T01:00:00.000Z" }], pageInfo: { hasNextPage: true, endCursor: "rc1" } },
+              commits: { nodes: [{ commit: { oid: "C1", committedDate: "2026-03-30T00:00:00.000Z", messageHeadline: "a" } }], pageInfo: { hasNextPage: true, endCursor: "cc1" } },
+              files: { nodes: [{ path: "a.ts", additions: 1, deletions: 0, changeType: "MODIFIED" }], pageInfo: { hasNextPage: true, endCursor: "fc1" } },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+      child: {
+        reviews: [nodeChildPayload("reviews", [{ id: "R2", author: { login: "r" }, state: "COMMENTED", submittedAt: "2026-03-31T02:00:00.000Z" }], { hasNextPage: false, endCursor: "rc2" })],
+        commits: [nodeChildPayload("commits", [{ commit: { oid: "C2", committedDate: "2026-03-30T06:00:00.000Z", messageHeadline: "b" } }], { hasNextPage: false, endCursor: "cc2" })],
+        files: [nodeChildPayload("files", [{ path: "b.ts", additions: 2, deletions: 1, changeType: "ADDED" }], { hasNextPage: false, endCursor: "fc2" })],
+      },
+    });
+
+    const prs = await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    const pr = prs[0]!;
+    expect(pr.reviews?.nodes?.map((n) => n?.id)).toEqual(["R1", "R2"]);
+    expect(pr.commits?.nodes?.map((n) => n?.commit?.oid)).toEqual(["C1", "C2"]);
+    expect(pr.files?.nodes?.map((n) => n?.path)).toEqual(["a.ts", "b.ts"]);
+  });
+
   it("drains a review thread's nested comments connection", async () => {
     const fetchFn = routedFetch({
       search: [

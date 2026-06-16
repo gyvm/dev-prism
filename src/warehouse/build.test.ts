@@ -145,6 +145,40 @@ describe("buildDwhFromPullRequests", () => {
     }
   });
 
+  it("purges stale path-keyed child rows when a PR shrinks across rebuilds", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dwh-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(
+        [warehousePr({
+          reviews: [], comments: [],
+          files: [
+            { path: "a.ts", additions: 1, deletions: 0, changeType: "MODIFIED" },
+            { path: "b.ts", additions: 2, deletions: 0, changeType: "ADDED" },
+            { path: "c.ts", additions: 3, deletions: 1, changeType: "MODIFIED" },
+          ],
+        })],
+        { dwhDir, botPatterns: [] },
+      );
+      // Same PR re-fetched with only one file remaining.
+      await buildDwhFromPullRequests(
+        [warehousePr({
+          reviews: [], comments: [], updatedAt: "2026-04-23T00:00:00.000Z",
+          files: [{ path: "a.ts", additions: 5, deletions: 0, changeType: "MODIFIED" }],
+        })],
+        { dwhDir, botPatterns: [] },
+      );
+
+      const files = await queryRows<{ path: string }>(
+        dwhDir,
+        "SELECT path FROM read_parquet('$DWH/pr_files.parquet') WHERE pr_id = 'PR_1' ORDER BY path",
+      );
+      expect(files.map((f) => f.path)).toEqual(["a.ts"]); // b.ts / c.ts purged, no stale rows
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("de-dupes intra-batch rows that share a logical primary key", async () => {
     const root = await mkdtemp(join(tmpdir(), "gh-insights-dwh-"));
     const dwhDir = join(root, "dwh");

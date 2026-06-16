@@ -120,6 +120,18 @@ describe("migrateDwh", () => {
     }
   });
 
+  it("refuses a DWH written by a newer engine (stored > target)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-mig-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildBaselineDwh(dwhDir); // stamps version 1
+      await expect(migrateDwh(dwhDir, { targetVersion: 0 })).rejects.toThrow(/newer than this engine supports/);
+      expect(await readSchemaVersion(dwhDir)).toBe(1); // untouched
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("throws when a migration for an intermediate version is missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "gh-insights-mig-"));
     const dwhDir = join(root, "dwh");

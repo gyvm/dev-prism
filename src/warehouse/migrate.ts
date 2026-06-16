@@ -83,7 +83,14 @@ export async function migrateDwh(
   const registry = [...(options.migrations ?? MIGRATIONS)].sort((a, b) => a.version - b.version);
   const stored = await readSchemaVersion(root);
 
-  if (stored >= target) {
+  // Refuse a DWH written by a newer engine: this version cannot safely read or
+  // migrate it, and proceeding would let the build downgrade the version stamp.
+  if (stored > target) {
+    throw new Error(
+      `DWH schema version ${stored} is newer than this engine supports (${target}); upgrade the engine`,
+    );
+  }
+  if (stored === target) {
     return { from: stored, to: stored, applied: [] };
   }
   // No committed DWH yet (e.g. the first-ever build): nothing to migrate — the
