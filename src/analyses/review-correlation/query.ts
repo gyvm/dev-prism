@@ -56,7 +56,7 @@ export function buildReviewCorrelationSql(
       JOIN actors reviewer ON reviewer.actor_id = rv.author_actor_id
       WHERE reviewer.login IS NOT NULL
         AND author.login IS NOT NULL
-        AND reviewer.login <> author.login${botFilter("reviewer.is_bot", scope)}${repoFilter}${reviewTime}${eitherInListFilter("author.login", "reviewer.login", scope.users)}
+        AND reviewer.login <> author.login${botFilter("reviewer.is_bot", scope)}${botFilter("author.is_bot", scope)}${repoFilter}${reviewTime}${eitherInListFilter("author.login", "reviewer.login", scope.users)}
     )`;
 
   const reviewers = `

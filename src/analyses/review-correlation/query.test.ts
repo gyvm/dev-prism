@@ -94,6 +94,54 @@ describe("queryReviewCorrelation parity with computeReviewCorrelation", () => {
     }
   });
 
+  it("excludes bot authors and reviewers when includeBots is false", async () => {
+    const prs = [
+      pr(1, alice, [
+        review(bob, "APPROVED", "2026-04-20T04:00:00.000Z"),
+        review(bot, "COMMENTED", "2026-04-20T03:00:00.000Z"),
+      ]),
+      pr(2, bot, [review(alice, "APPROVED", "2026-04-20T05:00:00.000Z")]), // bot-authored PR
+    ];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-rc-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: ["\\[bot\\]$"] });
+      const result = await withDwh(dwhDir, (runner) =>
+        queryReviewCorrelation(runner, resolveScope({ includeBots: false })),
+      );
+
+      // The bot must not appear as an author, a reviewer, or in any pair.
+      expect(result.authors.map((a) => a.login)).not.toContain("renovate[bot]");
+      expect(result.reviewers.map((r) => r.login)).not.toContain("renovate[bot]");
+      expect(result.pairs.every((p) => p.author !== "renovate[bot]" && p.reviewer !== "renovate[bot]")).toBe(true);
+      // Humans still present.
+      expect(result.authors.map((a) => a.login)).toContain("alice");
+      expect(result.reviewers.map((r) => r.login)).toContain("bob");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("counts a reviewer once per PR even with multiple reviews (distinct)", async () => {
+    const prs = [
+      pr(1, alice, [
+        review(bob, "COMMENTED", "2026-04-20T04:00:00.000Z"),
+        review(bob, "APPROVED", "2026-04-20T05:00:00.000Z"), // same reviewer, same PR
+      ]),
+    ];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-rc-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const result = await withDwh(dwhDir, (runner) => queryReviewCorrelation(runner, resolveScope()));
+      const bobReviewer = result.reviewers.find((r) => r.login === "bob");
+      expect(bobReviewer?.reviewCount).toBe(1); // count(DISTINCT pr_id), not count(*)
+      expect(result.pairs.find((p) => p.author === "alice" && p.reviewer === "bob")?.count).toBe(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("applies scope.users across both author and reviewer axes", async () => {
     const prs = [
       pr(1, alice, [review(bob, "APPROVED", "2026-04-20T04:00:00.000Z")]), // alice as author

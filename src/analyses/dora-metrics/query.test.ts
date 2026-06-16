@@ -79,6 +79,67 @@ describe("queryDora parity with computeDora", () => {
     }
   });
 
+  it("matches in-memory DORA for an even number of merged PRs (median interpolation)", async () => {
+    const prs = [
+      pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T01:00:00.000Z" }), // 1h
+      pr(2, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T03:00:00.000Z" }), // 3h
+      pr(3, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T05:00:00.000Z" }), // 5h
+      pr(4, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T09:00:00.000Z" }), // 9h → median (3+5)/2=4
+    ];
+    const expected = expectedDora(prs);
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const actual = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to })));
+      expect(actual).toEqual(expected);
+      expect(actual.leadTimeForChangesHours).toBe(4);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("includes PRs merged exactly on the window boundaries (inclusive both ends)", async () => {
+    const prs = [
+      pr(1, { created: "2026-04-19T00:00:00.000Z", merged: from.toISOString() }), // mergedAt === from
+      pr(2, { created: "2026-04-26T00:00:00.000Z", merged: to.toISOString() }), // mergedAt === to
+    ];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const actual = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to })));
+      expect(actual.deploymentFrequency).toBe(2);
+      expect(actual.deploymentFrequency).toBe(expectedDora(prs).deploymentFrequency);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("filters merged PRs by scope.repos", async () => {
+    const prs = [
+      pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T02:00:00.000Z" }), // openai/codex
+      {
+        ...pr(2, { created: "2026-04-21T00:00:00.000Z", merged: "2026-04-21T02:00:00.000Z" }),
+        repo: { owner: "openai", name: "evals", sourceNodeId: "R_2", visibility: "PUBLIC" },
+        sourceNodeId: "PR_evals",
+      },
+    ];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const all = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to })));
+      const codexOnly = await withDwh(dwhDir, (runner) =>
+        queryDora(runner, resolveScope({ from, to, repos: ["openai/codex"] })),
+      );
+      expect(all.deploymentFrequency).toBe(2);
+      expect(codexOnly.deploymentFrequency).toBe(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("filters merged PRs by scope.users (author axis)", async () => {
     const bob: NormalizedActor = { sourceNodeId: "U_bob", type: "User", login: "bob", slug: null, name: "Bob", url: null };
     const prs = [

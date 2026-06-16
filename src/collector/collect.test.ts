@@ -427,6 +427,39 @@ describe("fetchRepositoryPullRequests child connection pagination", () => {
     expect(followUp.variables).toEqual({ id: "TH_1", after: "cc1" });
   });
 
+  it("stops draining a child connection when endCursor is null despite hasNextPage", async () => {
+    const fetchFn = routedFetch({
+      search: [
+        searchPayload(
+          [
+            {
+              id: "PR_N",
+              number: 5,
+              title: "Null cursor",
+              author: { login: "alice" },
+              createdAt: "2026-03-31T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+              reviews: { nodes: [{ id: "R1", author: { login: "r" }, state: "APPROVED", submittedAt: "2026-03-31T01:00:00.000Z" }], pageInfo: { hasNextPage: true, endCursor: null } },
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ],
+    });
+
+    const prs = await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    // No usable cursor → stop cleanly (no infinite loop, no follow-up request).
+    expect(prs[0]!.reviews?.nodes?.map((n) => n?.id)).toEqual(["R1"]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it("does not issue follow-ups when no child connection has another page", async () => {
     const fetchFn = routedFetch({
       search: [
