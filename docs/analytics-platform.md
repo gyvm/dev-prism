@@ -1091,11 +1091,16 @@ src/warehouse/migrations/
    SQL-native 3 分析は in-memory compute との **parity テスト**で数値一致を担保。残るは live report
    パイプライン本体の置換(step 6 / G の並走→置換)。
 5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
-6. **フロント Reports + 生成**:`reports.toml`(宣言的)/ `workflow_dispatch`(オンデマンド)
-   で scope を受け、CI で既存 render.ts / renderers を使い自己完結
-   `reports/<id>.html` + 薄い `index.json` を凍結出力。一覧(Astro)は index.json を
-   読むだけ。既存 AI findings をここへ移植。常設の全 repo 週次を `reports.toml` に1つ入れて
-   現状挙動を再現。
+   **未着手**(Astro + DuckDB-WASM のフロントビルド基盤が必要。SQL は step 4 の共有モジュールを
+   そのまま WASM 側でも流す前提)。
+6. **レポート生成(生成器)**:**実装済み**。`buildFrozenReport`(`src/report/frozen-report.ts`)が
+   scope を受け、step 4 のクエリ層 + 既存 `renderReportHtml`/renderers(不変)で自己完結
+   `reports/<id>.html` を凍結出力。`index.json` は zod 検証付きスキーマ + 冪等 upsert、一覧 HTML は
+   `renderIndexHtml`/`buildIndexHtmlFromIndex` が index.json から生成(ファイル走査を置換)。
+   `reports.toml`(宣言的)/ オンデマンド両モードを `report:dwh` CLI(`src/cli/dwh-report.ts`)で受ける。
+   report id は scope シグネチャ込みで衝突回避しつつ日付シリーズで積み上がる。**残り**:AI findings の
+   scope 対応(`with_ai` / `aiCount`。ai-runner 配線が要るため未実装。設定スキーマからは一旦除外)、
+   「Explore で深掘り」ディープリンク、常設レポートを CI ワークフローへ配線(現状は旧週次と並走)。
 7. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
    参照(主軸 = GitHub Action)。`migrate.ts` + `migrations/` の移行フレームワークを整備。
 8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
