@@ -163,8 +163,11 @@ describe("fetchRepositoryPullRequests", () => {
 
     const firstCall = fetchFn.mock.calls[0]!;
     const body = JSON.parse(String((firstCall[1] as RequestInit).body));
-    expect(body.variables.q).toBe("repo:openai/codex is:pr created:>=2026-01-01");
+    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
     expect(body.variables.after).toBeNull();
+    expect(body.query).toContain("fragment ActorFields on Actor");
+    expect(body.query).toContain("updatedAt");
+    expect(body.query).toContain("... on Node");
   });
 
   it("filters out non-PullRequest nodes defensively", async () => {

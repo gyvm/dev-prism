@@ -29,55 +29,91 @@ export type ReviewState =
   | "DISMISSED"
   | "PENDING";
 
+export type NormalizedActor = Readonly<{
+  sourceNodeId: string | null;
+  type: string | null;
+  login: string | null;
+  slug: string | null;
+  name: string | null;
+  url: string | null;
+}>;
+
 export type NormalizedPullRequest = Readonly<{
   repo: RepositoryConfig;
+  sourceNodeId?: string | null;
   number: number;
   title: string;
   bodyText?: string | null;
   url?: string | null;
   state?: string | null;
   author: string | null;
+  authorActor?: NormalizedActor | null;
+  mergedByActor?: NormalizedActor | null;
   createdAt: string;
+  updatedAt: string;
   mergedAt: string | null;
   closedAt: string | null;
   additions: number;
   deletions: number;
   labels: readonly { name: string }[];
   reviews: readonly {
+    sourceNodeId?: string | null;
     author: string | null;
+    authorActor?: NormalizedActor | null;
     state: ReviewState | null;
     submittedAt: string | null;
+    updatedAt?: string | null;
+    commitOid?: string | null;
+    url?: string | null;
     bodyText?: string | null;
   }[];
   reviewRequests: readonly {
+    sourceNodeId?: string | null;
     requestedReviewer: string | null;
+    requestedReviewerActor?: NormalizedActor | null;
+    asCodeOwner?: boolean | null;
   }[];
   isDraft: boolean;
   timelineEvents: readonly {
+    sourceNodeId?: string | null;
     type: "ready_for_review" | "review_requested";
     createdAt: string;
+    actor?: NormalizedActor | null;
+    requestedReviewerActor?: NormalizedActor | null;
   }[];
   comments: readonly {
+    sourceNodeId?: string | null;
     author: string | null;
+    authorActor?: NormalizedActor | null;
     bodyText: string;
     createdAt: string;
     updatedAt: string | null;
     url: string | null;
   }[];
   reviewThreads: readonly {
+    sourceNodeId?: string | null;
     isResolved: boolean | null;
     isOutdated: boolean | null;
     path: string | null;
     line: number | null;
     startLine: number | null;
+    subjectType?: string | null;
+    resolvedByActor?: NormalizedActor | null;
     comments: readonly {
+      sourceNodeId?: string | null;
       author: string | null;
+      authorActor?: NormalizedActor | null;
       bodyText: string;
       createdAt: string;
       updatedAt: string | null;
       url: string | null;
       path: string | null;
       line: number | null;
+      startLine?: number | null;
+      originalLine?: number | null;
+      state?: string | null;
+      isOutdated?: boolean | null;
+      reviewSourceNodeId?: string | null;
     }[];
   }[];
   commits: readonly {
@@ -86,6 +122,9 @@ export type NormalizedPullRequest = Readonly<{
     authoredDate: string;
     messageHeadline: string;
     author: string | null;
+    authorActor?: NormalizedActor | null;
+    authorName?: string | null;
+    authorEmail?: string | null;
   }[];
   files?: readonly {
     path: string;
@@ -213,4 +252,3 @@ export type PrTimeline = Readonly<{
   segments: readonly TimelineSegment[];
   auxiliary: TimelineAuxiliary;
 }>;
-

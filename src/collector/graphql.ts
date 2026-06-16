@@ -14,29 +14,42 @@ type GraphQLLabelNode = {
 };
 
 type GraphQLActor = {
+  __typename?: string | null;
+  id?: string | null;
   login?: string | null;
   slug?: string | null;
   name?: string | null;
+  url?: string | null;
 };
 
 export type GraphQLReviewNode = {
+  id?: string | null;
   author?: GraphQLActor | null;
   state?: string | null;
   submittedAt?: string | null;
+  updatedAt?: string | null;
+  commit?: { oid?: string | null } | null;
+  url?: string | null;
   bodyText?: string | null;
 };
 
 export type GraphQLReviewRequestNode = {
+  id?: string | null;
+  asCodeOwner?: boolean | null;
   requestedReviewer?: GraphQLActor | null;
 };
 
 export type GraphQLTimelineItemNode = {
+  id?: string | null;
   __typename?: string | null;
   createdAt?: string | null;
+  actor?: GraphQLActor | null;
+  requestedReviewer?: GraphQLActor | null;
 };
 
 export type GraphQLPullRequestNode = {
   __typename?: string | null;
+  id?: string | null;
   number?: number | null;
   title?: string | null;
   bodyText?: string | null;
@@ -44,8 +57,10 @@ export type GraphQLPullRequestNode = {
   state?: string | null;
   author?: GraphQLActor | null;
   createdAt?: string | null;
+  updatedAt?: string | null;
   mergedAt?: string | null;
   closedAt?: string | null;
+  mergedBy?: GraphQLActor | null;
   isDraft?: boolean | null;
   additions?: number | null;
   deletions?: number | null;
@@ -76,6 +91,7 @@ export type GraphQLPullRequestNode = {
 };
 
 export type GraphQLCommentNode = {
+  id?: string | null;
   author?: GraphQLActor | null;
   bodyText?: string | null;
   createdAt?: string | null;
@@ -83,14 +99,22 @@ export type GraphQLCommentNode = {
   url?: string | null;
   path?: string | null;
   line?: number | null;
+  startLine?: number | null;
+  originalLine?: number | null;
+  state?: string | null;
+  outdated?: boolean | null;
+  pullRequestReview?: { id?: string | null } | null;
 };
 
 export type GraphQLReviewThreadNode = {
+  id?: string | null;
   isResolved?: boolean | null;
   isOutdated?: boolean | null;
   path?: string | null;
   line?: number | null;
   startLine?: number | null;
+  subjectType?: string | null;
+  resolvedBy?: GraphQLActor | null;
   comments?: {
     nodes?: Array<GraphQLCommentNode | null> | null;
   } | null;
@@ -133,22 +157,74 @@ export type RepositoryPullRequestPage = {
 };
 
 const pullRequestQuery = `
+  fragment ActorFields on Actor {
+    __typename
+    login
+    url
+    ... on Node {
+      id
+    }
+    ... on User {
+      name
+    }
+    ... on Organization {
+      name
+    }
+  }
+
+  fragment RequestedReviewerFields on RequestedReviewer {
+    __typename
+    ... on Bot {
+      id
+      login
+      url
+    }
+    ... on Mannequin {
+      id
+      login
+      url
+    }
+    ... on Team {
+      id
+      slug
+      name
+      url
+    }
+    ... on User {
+      id
+      login
+      name
+      url
+    }
+    ... on EnterpriseTeam {
+      id
+      slug
+      name
+      url
+    }
+  }
+
   query SearchPullRequests($q: String!, $after: String) {
     search(query: $q, type: ISSUE, first: 10, after: $after) {
       nodes {
         __typename
         ... on PullRequest {
+          id
           number
           title
           bodyText
           url
           state
           author {
-            login
+            ...ActorFields
           }
           createdAt
+          updatedAt
           mergedAt
           closedAt
+          mergedBy {
+            ...ActorFields
+          }
           isDraft
           additions
           deletions
@@ -159,28 +235,26 @@ const pullRequestQuery = `
           }
           reviews(first: 100) {
             nodes {
+              id
               author {
-                login
+                ...ActorFields
               }
               state
               submittedAt
+              updatedAt
+              commit {
+                oid
+              }
+              url
               bodyText
             }
           }
           reviewRequests(first: 100) {
             nodes {
+              id
+              asCodeOwner
               requestedReviewer {
-                __typename
-                ... on User {
-                  login
-                }
-                ... on Team {
-                  slug
-                  name
-                }
-                ... on Bot {
-                  login
-                }
+                ...RequestedReviewerFields
               }
             }
           }
@@ -188,17 +262,29 @@ const pullRequestQuery = `
             nodes {
               __typename
               ... on ReadyForReviewEvent {
+                id
                 createdAt
+                actor {
+                  ...ActorFields
+                }
               }
               ... on ReviewRequestedEvent {
+                id
                 createdAt
+                actor {
+                  ...ActorFields
+                }
+                requestedReviewer {
+                  ...RequestedReviewerFields
+                }
               }
             }
           }
           comments(first: 100) {
             nodes {
+              id
               author {
-                login
+                ...ActorFields
               }
               bodyText
               createdAt
@@ -208,15 +294,21 @@ const pullRequestQuery = `
           }
           reviewThreads(first: 50) {
             nodes {
+              id
               isResolved
               isOutdated
               path
               line
               startLine
+              subjectType
+              resolvedBy {
+                ...ActorFields
+              }
               comments(first: 50) {
                 nodes {
+                  id
                   author {
-                    login
+                    ...ActorFields
                   }
                   bodyText
                   createdAt
@@ -224,6 +316,13 @@ const pullRequestQuery = `
                   url
                   path
                   line
+                  startLine
+                  originalLine
+                  state
+                  outdated
+                  pullRequestReview {
+                    id
+                  }
                 }
               }
             }
@@ -237,7 +336,7 @@ const pullRequestQuery = `
                 messageHeadline
                 author {
                   user {
-                    login
+                    ...ActorFields
                   }
                   name
                   email
@@ -274,7 +373,7 @@ function getReviewerIdentifier(actor: GraphQLActor | null | undefined): string |
 
 function buildSearchQuery(repository: RepositoryConfig, cutoffDate: Date): string {
   const since = cutoffDate.toISOString().slice(0, 10);
-  return `repo:${repository.owner}/${repository.name} is:pr created:>=${since}`;
+  return `repo:${repository.owner}/${repository.name} is:pr updated:>=${since}`;
 }
 
 export async function fetchRepositoryPullRequestPage(options: {
