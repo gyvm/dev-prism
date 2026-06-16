@@ -22,6 +22,7 @@ type DoraRow = {
 export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<DoraMetrics> {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const mergedTime = timeRangeFilter("pr.merged_at", scope);
+  const authorUsers = inListFilter("author.login", scope.users);
   const failureList = FAILURE_LABELS.map((label) => `'${label}'`).join(", ");
 
   const rows = await runner.all<DoraRow>(`
@@ -34,7 +35,8 @@ export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<D
              ) AS is_failure
       FROM pull_requests pr
       JOIN repos r ON r.repo_id = pr.repo_id
-      WHERE pr.merged_at IS NOT NULL${repoFilter}${mergedTime}
+      LEFT JOIN actors author ON author.actor_id = pr.author_actor_id
+      WHERE pr.merged_at IS NOT NULL${repoFilter}${mergedTime}${authorUsers}
     )
     SELECT count(*) AS deploys,
            median(lead_hours) AS p50_lead,

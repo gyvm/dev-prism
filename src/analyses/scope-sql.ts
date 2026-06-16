@@ -16,6 +16,21 @@ export function inListFilter(column: string, values: readonly string[]): string 
   return ` AND ${column} IN (${literals})`;
 }
 
+/**
+ * ` AND (colA IN (...) OR colB IN (...))` — a row matches when either column is
+ * in the list. Used for analyses where `scope.users` spans two axes
+ * (review-correlation: author OR reviewer).
+ */
+export function eitherInListFilter(
+  columnA: string,
+  columnB: string,
+  values: readonly string[],
+): string {
+  if (values.length === 0) return "";
+  const literals = values.map(sqlString).join(", ");
+  return ` AND (${columnA} IN (${literals}) OR ${columnB} IN (${literals}))`;
+}
+
 /** ` AND col >= TIMESTAMP '…' AND col <= TIMESTAMP '…'` for the bounds that are set. */
 export function timeRangeFilter(column: string, scope: Scope): string {
   const parts: string[] = [];

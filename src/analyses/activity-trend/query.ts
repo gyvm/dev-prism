@@ -26,6 +26,7 @@ export async function queryActivityTrend(
 ): Promise<ActivityTrend> {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const timeFilter = timeRangeFilter("a.occurred_at", scope);
+  const userFilter = inListFilter("act.login", scope.users);
   const botFilter = scope.includeBots ? "" : " AND NOT coalesce(act.is_bot, false)";
 
   const rows = await runner.all<TrendRow>(`
@@ -37,7 +38,7 @@ export async function queryActivityTrend(
     FROM activities a
     JOIN repos r ON r.repo_id = a.repo_id
     LEFT JOIN actors act ON act.actor_id = a.actor_id
-    WHERE TRUE${repoFilter}${timeFilter}${botFilter}
+    WHERE TRUE${repoFilter}${timeFilter}${userFilter}${botFilter}
     GROUP BY bucket_text
     ORDER BY bucket_text
   `);

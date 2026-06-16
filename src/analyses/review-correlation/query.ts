@@ -1,7 +1,7 @@
 import type { ReviewCorrelation, ReviewerPair } from "../../shared/types.js";
 import type { DwhQueryRunner } from "../../warehouse/query.js";
 import type { Scope } from "../scope.js";
-import { botFilter, inListFilter, timeRangeFilter } from "../scope-sql.js";
+import { botFilter, eitherInListFilter, inListFilter, timeRangeFilter } from "../scope-sql.js";
 
 // SQL-native review correlation. Produces the same view-model
 // (`ReviewCorrelation`, login-keyed) the bipartite-graph renderer already eats,
@@ -9,8 +9,9 @@ import { botFilter, inListFilter, timeRangeFilter } from "../scope-sql.js";
 // flag instead of recomputing the bot match at query time (design D5).
 //
 // Note: PRs whose author has no resolved actor id are excluded (correlation is
-// defined over author×reviewer). `scope.users` filtering is not applied yet
-// (see TODO B in the platform doc — both-axis semantics still to be pinned).
+// defined over author×reviewer). `scope.users` spans both axes — authors are
+// filtered by login; reviewer/pair rows match when the author OR the reviewer
+// is in `users` (design B: both-axis semantics).
 
 type AuthorRow = { login: string; pr_count: bigint | number; is_bot: boolean };
 type ReviewerRow = { login: string; review_count: bigint | number; is_bot: boolean };
@@ -28,12 +29,13 @@ export async function queryReviewCorrelation(
   const prTime = timeRangeFilter("pr.created_at", scope);
   const reviewTime = timeRangeFilter("rv.submitted_at", scope);
 
+  const authorUsers = inListFilter("a.login", scope.users);
   const authorRows = await runner.all<AuthorRow>(`
     SELECT a.login AS login, count(*) AS pr_count, a.is_bot AS is_bot
     FROM pull_requests pr
     JOIN actors a ON a.actor_id = pr.author_actor_id
     JOIN repos r ON r.repo_id = pr.repo_id
-    WHERE a.login IS NOT NULL${botFilter("a.is_bot", scope)}${repoFilter}${prTime}
+    WHERE a.login IS NOT NULL${botFilter("a.is_bot", scope)}${repoFilter}${prTime}${authorUsers}
     GROUP BY a.login, a.is_bot
     ORDER BY pr_count DESC, login ASC
   `);
@@ -50,7 +52,7 @@ export async function queryReviewCorrelation(
       JOIN actors reviewer ON reviewer.actor_id = rv.author_actor_id
       WHERE reviewer.login IS NOT NULL
         AND author.login IS NOT NULL
-        AND reviewer.login <> author.login${botFilter("reviewer.is_bot", scope)}${repoFilter}${reviewTime}
+        AND reviewer.login <> author.login${botFilter("reviewer.is_bot", scope)}${repoFilter}${reviewTime}${eitherInListFilter("author.login", "reviewer.login", scope.users)}
     )`;
 
   const reviewerRows = await runner.all<ReviewerRow>(`

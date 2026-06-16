@@ -1080,13 +1080,16 @@ src/warehouse/migrations/
    CLI が repo ごとに `max(updated_at)−overlap`、未登録 repo は `cutoffDate` フォールバック)。
    付随して、build の TIMESTAMP 二重正規化による tz ずれを修正(`isoToSqlTimestamp` を冪等化:
    tz 指定の無い文字列は UTC 解釈)。
-4. **接続部(view-model 契約)**:**一部実装済み**。scope 正準形(`src/analyses/scope.ts`)、
+4. **接続部(view-model 契約)**:**実装済み**。scope 正準形(`src/analyses/scope.ts`)、
    DWH クエリランナー(`src/warehouse/query.ts`、各テーブルを native/WASM 共通の view として公開)、
-   SQL-native 化した **review-correlation** / **DORA**(`<analysis>/query.ts`、既存 view-model 型を
-   そのまま出力 = renderer 不変)、新指標 **件数推移**(`activities` 集計、`activity-trend/`)。
-   各 SQL-native 分析は in-memory compute との **parity テスト**で数値一致を担保。正規化は build 時へ
-   移設済み(`actors.is_bot` を query 時に列参照)。残作業:timeline の「薄く引いて TS 流用」、
-   `scope.users` の両軸セマンティクス、`config` の build/query 仕分けの形式化、renderer への配線。
+   SQL-native 化した **review-correlation** / **DORA**、`activities` 集計の **件数推移**
+   (`activity-trend/`)、そして **pr-timeline** は「薄く引いて TS 流用」(`pr-timeline/query.ts` が
+   scope 内 PR の行だけドリルダウンして `NormalizedPullRequest` を部分再構築 → 既存 `selectTimelinePrs`
+   を不変で再利用)。各分析は既存 view-model 型をそのまま出力し、`scope.users` は両軸/author/actor 軸で
+   解釈。正規化は build 時へ移設済み(`actors.is_bot` を query 時に列参照)。`config` の build/query 仕分けを
+   `config-split.ts` で形式化。renderer 配線は `dwh-report.ts`(scope→SQL→view-model→既存 renderer→HTML)。
+   SQL-native 3 分析は in-memory compute との **parity テスト**で数値一致を担保。残るは live report
+   パイプライン本体の置換(step 6 / G の並走→置換)。
 5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
 6. **フロント Reports + 生成**:`reports.toml`(宣言的)/ `workflow_dispatch`(オンデマンド)
    で scope を受け、CI で既存 render.ts / renderers を使い自己完結

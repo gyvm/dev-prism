@@ -93,4 +93,27 @@ describe("queryReviewCorrelation parity with computeReviewCorrelation", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("applies scope.users across both author and reviewer axes", async () => {
+    const prs = [
+      pr(1, alice, [review(bob, "APPROVED", "2026-04-20T04:00:00.000Z")]), // alice as author
+      pr(2, bob, [review(carol, "APPROVED", "2026-04-20T05:00:00.000Z")]), // neither axis is alice
+      pr(3, carol, [review(alice, "COMMENTED", "2026-04-20T06:00:00.000Z")]), // alice as reviewer
+    ];
+
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-rc-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const result = await withDwh(dwhDir, (runner) =>
+        queryReviewCorrelation(runner, resolveScope({ users: ["alice"] })),
+      );
+
+      expect(result.authors.map((a) => a.login)).toEqual(["alice"]);
+      const pairKeys = result.pairs.map((p) => `${p.author}->${p.reviewer}`).sort();
+      expect(pairKeys).toEqual(["alice->bob", "carol->alice"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
