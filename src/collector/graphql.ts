@@ -13,6 +13,13 @@ type GraphQLLabelNode = {
   name: string;
 };
 
+type GraphQLRepository = {
+  id?: string | null;
+  name?: string | null;
+  owner?: { login?: string | null } | null;
+  visibility?: string | null;
+};
+
 type GraphQLActor = {
   __typename?: string | null;
   id?: string | null;
@@ -55,6 +62,7 @@ export type GraphQLPullRequestNode = {
   bodyText?: string | null;
   url?: string | null;
   state?: string | null;
+  repository?: GraphQLRepository | null;
   author?: GraphQLActor | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -64,6 +72,7 @@ export type GraphQLPullRequestNode = {
   isDraft?: boolean | null;
   additions?: number | null;
   deletions?: number | null;
+  changedFiles?: number | null;
   labels?: {
     nodes?: Array<GraphQLLabelNode | null> | null;
   } | null;
@@ -215,6 +224,14 @@ const pullRequestQuery = `
           bodyText
           url
           state
+          repository {
+            id
+            name
+            owner {
+              login
+            }
+            visibility
+          }
           author {
             ...ActorFields
           }
@@ -228,6 +245,7 @@ const pullRequestQuery = `
           isDraft
           additions
           deletions
+          changedFiles
           labels(first: 20) {
             nodes {
               name

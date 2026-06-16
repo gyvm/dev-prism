@@ -73,8 +73,10 @@ export function normalizePullRequest(
 
   return {
     repo: {
-      owner: repository.owner,
-      name: repository.name,
+      owner: node.repository?.owner?.login ?? repository.owner,
+      name: node.repository?.name ?? repository.name,
+      ...(typeof node.repository?.id === "string" ? { sourceNodeId: node.repository.id } : {}),
+      ...(typeof node.repository?.visibility === "string" ? { visibility: node.repository.visibility } : {}),
     },
     ...withSourceNodeId(node.id),
     number: node.number,
@@ -91,6 +93,7 @@ export function normalizePullRequest(
     closedAt: node.closedAt ?? null,
     additions: node.additions,
     deletions: node.deletions,
+    ...(typeof node.changedFiles === "number" ? { changedFiles: node.changedFiles } : {}),
     labels: (node.labels?.nodes ?? [])
       .filter((label): label is { name: string } => label !== null && typeof label.name === "string")
       .map((label) => ({ name: label.name })),

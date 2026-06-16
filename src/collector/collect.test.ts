@@ -166,7 +166,9 @@ describe("fetchRepositoryPullRequests", () => {
     expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
     expect(body.variables.after).toBeNull();
     expect(body.query).toContain("fragment ActorFields on Actor");
+    expect(body.query).toContain("repository {");
     expect(body.query).toContain("updatedAt");
+    expect(body.query).toContain("changedFiles");
     expect(body.query).toContain("... on Node");
   });
 

@@ -1,6 +1,8 @@
 export type RepositoryConfig = {
   owner: string;
   name: string;
+  sourceNodeId?: string | null;
+  visibility?: string | null;
 };
 
 export type RepositorySpec =
@@ -55,6 +57,7 @@ export type NormalizedPullRequest = Readonly<{
   closedAt: string | null;
   additions: number;
   deletions: number;
+  changedFiles?: number | null;
   labels: readonly { name: string }[];
   reviews: readonly {
     sourceNodeId?: string | null;

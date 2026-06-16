@@ -164,12 +164,19 @@ describe("normalizePullRequest", () => {
         id: "PR_kwDO123",
         number: 7,
         title: "Add warehouse feed",
+        repository: {
+          id: "R_1",
+          name: "codex",
+          owner: { login: "openai" },
+          visibility: "PRIVATE",
+        },
         author: { __typename: "User", id: "U_1", login: "alice", name: "Alice", url: "https://example.com/alice" },
         createdAt: "2026-04-20T00:00:00.000Z",
         updatedAt: "2026-04-22T00:00:00.000Z",
         mergedBy: { __typename: "User", id: "U_5", login: "merge-admin" },
         additions: 20,
         deletions: 5,
+        changedFiles: 3,
         reviews: {
           nodes: [
             {
@@ -273,6 +280,8 @@ describe("normalizePullRequest", () => {
     );
 
     expect(normalized.sourceNodeId).toBe("PR_kwDO123");
+    expect(normalized.repo).toMatchObject({ sourceNodeId: "R_1", visibility: "PRIVATE" });
+    expect(normalized.changedFiles).toBe(3);
     expect(normalized.updatedAt).toBe("2026-04-22T00:00:00.000Z");
     expect(normalized.authorActor).toMatchObject({ sourceNodeId: "U_1", type: "User", login: "alice" });
     expect(normalized.mergedByActor).toMatchObject({ sourceNodeId: "U_5", type: "User", login: "merge-admin" });
