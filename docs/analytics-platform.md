@@ -1098,11 +1098,16 @@ src/warehouse/migrations/
    `reports/<id>.html` を凍結出力。`index.json` は zod 検証付きスキーマ + 冪等 upsert、一覧 HTML は
    `renderIndexHtml`/`buildIndexHtmlFromIndex` が index.json から生成(ファイル走査を置換)。
    `reports.toml`(宣言的)/ オンデマンド両モードを `report:dwh` CLI(`src/cli/dwh-report.ts`)で受ける。
-   report id は scope シグネチャ込みで衝突回避しつつ日付シリーズで積み上がる。**残り**:AI findings の
+   report id は scope シグネチャ込みで衝突回避しつつ日付シリーズで積み上がる。「Explore で深掘り」
+   ディープリンクも実装済み(`scope-url.ts` の `exploreHref` をレポートフッタへ)。**残り**:AI findings の
    scope 対応(`with_ai` / `aiCount`。ai-runner 配線が要るため未実装。設定スキーマからは一旦除外)、
-   「Explore で深掘り」ディープリンク、常設レポートを CI ワークフローへ配線(現状は旧週次と並走)。
-7. **配布の分離**:エンジン / 利用者リポジトリを分離、テンプレート repo + versioned
-   参照(主軸 = GitHub Action)。`migrate.ts` + `migrations/` の移行フレームワークを整備。
+   常設レポートを CI ワークフローへ配線(現状は旧週次と並走)。
+   Explore 用に分析 SQL は共有モジュール化済み(`explore-queries.ts` の `buildDashboardSql` を
+   native/WASM が共有 = D4 parity)。残るブラウザ殻(Astro + DuckDB-WASM)はフロントビルド基盤が必要。
+7. **配布の分離**:**移行フレームワーク実装済み**(`migrate.ts`:`_meta.json` 版比較 → 順序適用 →
+   アトミック swap、`dwh:build` が起動時に version-gate)。`migrations/` レジストリは v1 ベースラインで空、
+   新版で追加。**残り**:エンジン / 利用者リポジトリ分離、テンプレート repo + versioned 参照
+   (主軸 = GitHub Action)。
 8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
 
 既存の静的レポート(`src/report` / `src/pipeline`)は移行中は並走させ、新フロントが

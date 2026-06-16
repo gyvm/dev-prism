@@ -86,8 +86,10 @@ export async function migrateDwh(
   if (stored >= target) {
     return { from: stored, to: stored, applied: [] };
   }
+  // No committed DWH yet (e.g. the first-ever build): nothing to migrate — the
+  // build creates it fresh at the current schema version.
   if (!(await exists(root))) {
-    throw new Error(`Cannot migrate: DWH not found at ${root}`);
+    return { from: stored, to: stored, applied: [] };
   }
 
   const pending = registry.filter((migration) => migration.version > stored && migration.version <= target);

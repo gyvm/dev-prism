@@ -59,6 +59,17 @@ describe("readSchemaVersion", () => {
 });
 
 describe("migrateDwh", () => {
+  it("is a no-op when the DWH does not exist yet (first-ever build)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-mig-"));
+    const migrations: Migration[] = [{ version: 2, name: "002", up: async () => {} }];
+    try {
+      const result = await migrateDwh(join(root, "dwh"), { migrations, targetVersion: 2 });
+      expect(result).toEqual({ from: 0, to: 0, applied: [] });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("is a no-op when already at the target version", async () => {
     const root = await mkdtemp(join(tmpdir(), "gh-insights-mig-"));
     const dwhDir = join(root, "dwh");
