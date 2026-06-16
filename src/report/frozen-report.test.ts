@@ -12,9 +12,12 @@ import { withDwh } from "../warehouse/query.js";
 import {
   REPORT_INDEX_SCHEMA,
   buildFrozenReport,
+  buildIndexHtmlFromIndex,
   deriveReportId,
+  renderIndexHtml,
   upsertIndexEntry,
   writeFrozenReport,
+  type ReportIndexEntry,
 } from "./frozen-report.js";
 
 const alice: NormalizedActor = { sourceNodeId: "U_alice", type: "User", login: "alice", slug: null, name: "Alice", url: null };
@@ -105,6 +108,44 @@ describe("writeFrozenReport + index.json", () => {
 
       const index = REPORT_INDEX_SCHEMA.parse(JSON.parse(await readFile(indexPath, "utf8")));
       expect(index.map((e) => e.id)).toEqual(["b", "a"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("renderIndexHtml / buildIndexHtmlFromIndex", () => {
+  const entry: ReportIndexEntry = {
+    id: "weekly-20260420",
+    title: "Weekly",
+    scope: { from: "2026-04-20T00:00:00.000Z", to: "2026-04-27T00:00:00.000Z", repos: [], users: [], includeBots: false, grain: "week" },
+    generatedAt: "2026-04-27T09:00:00.000Z",
+    kpi: { deploymentFrequency: 3, leadTimeForChangesHours: 12.5, prOpened: 5, prMerged: 3 },
+    highlights: ["3 件マージ / 5 件オープン"],
+    aiCount: 0,
+  };
+
+  it("renders list entries with title, scope summary and KPI", () => {
+    const html = renderIndexHtml([entry]);
+    expect(html).toContain('href="reports/weekly-20260420.html"');
+    expect(html).toContain("Weekly");
+    expect(html).toContain("3 merged · 5 opened · lead 12.5h");
+    expect(html).toContain("bot 除外");
+  });
+
+  it("renders an empty-state message", () => {
+    expect(renderIndexHtml([])).toContain("レポートはまだありません");
+  });
+
+  it("builds the list page from an index.json file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-index-"));
+    try {
+      const indexPath = join(root, "index.json");
+      const outPath = join(root, "out", "index.html");
+      await upsertIndexEntry(indexPath, entry);
+      await buildIndexHtmlFromIndex(indexPath, outPath);
+      const html = await readFile(outPath, "utf8");
+      expect(html).toContain("Weekly");
     } finally {
       await rm(root, { recursive: true, force: true });
     }

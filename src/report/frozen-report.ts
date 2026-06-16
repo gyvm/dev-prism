@@ -3,6 +3,8 @@ import { dirname, join, resolve } from "node:path";
 
 import { z } from "zod";
 
+import { escapeHtml } from "../renderers/utils.js";
+
 import { queryActivityTrend } from "../analyses/activity-trend/query.js";
 import { DWH_ANALYSIS_REGISTRY, type DwhAnalysisId } from "../analyses/dwh-report.js";
 import type { DoraMetrics } from "../shared/types.js";
@@ -12,6 +14,7 @@ import type { DwhQueryRunner } from "../warehouse/query.js";
 import { renderReportHtml } from "../pipeline/stages/render.js";
 import type { Period } from "../pipeline/period.js";
 import type { AnalysisResult } from "../pipeline/types.js";
+import { withDwh } from "../warehouse/query.js";
 
 // Step 6: generate a frozen, self-contained report HTML from the DWH for a
 // given scope, reusing the existing renderReportHtml (renderers unchanged), and
@@ -177,6 +180,68 @@ export async function upsertIndexEntry(indexPath: string, entry: ReportIndexEntr
   await rename(tmp, path);
 }
 
+function scopeSummary(scope: ReportIndexEntry["scope"]): string {
+  const parts: string[] = [];
+  if (scope.from && scope.to) {
+    parts.push(`${scope.from.slice(0, 10)} – ${scope.to.slice(0, 10)}`);
+  }
+  parts.push(scope.repos.length === 0 ? "全 repo" : `${scope.repos.length} repo`);
+  if (scope.users.length > 0) parts.push(`${scope.users.length} 名`);
+  if (!scope.includeBots) parts.push("bot 除外");
+  return parts.join(" · ");
+}
+
+function renderIndexEntry(entry: ReportIndexEntry): string {
+  const lead = entry.kpi.leadTimeForChangesHours;
+  const kpi = `${entry.kpi.prMerged} merged · ${entry.kpi.prOpened} opened${lead === null ? "" : ` · lead ${lead}h`}`;
+  const highlights = entry.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+  return `      <li class="report-card">
+        <a class="report-link" href="reports/${escapeHtml(entry.id)}.html">${escapeHtml(entry.title)}</a>
+        <div class="report-scope">${escapeHtml(scopeSummary(entry.scope))}</div>
+        <div class="report-kpi">${escapeHtml(kpi)}</div>
+        ${highlights ? `<ul class="report-highlights">${highlights}</ul>` : ""}
+        <time datetime="${escapeHtml(entry.generatedAt)}">${escapeHtml(entry.generatedAt.slice(0, 10))}</time>
+      </li>`;
+}
+
+/** Renders the reports list page from index.json metadata (no filesystem scan). */
+export function renderIndexHtml(entries: readonly ReportIndexEntry[]): string {
+  const items = entries.map(renderIndexEntry).join("\n");
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR レポート一覧</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 820px; margin: 40px auto; padding: 0 20px; color: #172026; }
+    h1 { font-size: 24px; }
+    ul { list-style: none; padding: 0; }
+    .report-card { padding: 14px 0; border-bottom: 1px solid #e5e7eb; }
+    .report-link { color: #246bfe; text-decoration: none; font-size: 17px; font-weight: 650; }
+    .report-link:hover { text-decoration: underline; }
+    .report-scope, .report-kpi { color: #586574; font-size: 13px; margin-top: 3px; }
+    .report-highlights { margin: 6px 0 0; padding-left: 18px; color: #3a4452; font-size: 13px; }
+    time { display: block; margin-top: 4px; color: #8a94a3; font-size: 12px; }
+    .empty { color: #64707d; }
+  </style>
+</head>
+<body>
+  <h1>PR レポート一覧</h1>
+  ${entries.length === 0 ? '<p class="empty">レポートはまだありません。</p>' : `<ul>\n${items}\n  </ul>`}
+</body>
+</html>
+`;
+}
+
+/** Reads index.json and writes the list page HTML to `outputPath`. */
+export async function buildIndexHtmlFromIndex(indexPath: string, outputPath: string): Promise<void> {
+  const entries = await readIndex(indexPath);
+  const out = resolve(outputPath);
+  await mkdir(dirname(out), { recursive: true });
+  await writeFile(out, renderIndexHtml(entries), "utf8");
+}
+
 /** Builds the frozen report, writes `<reportsDir>/<id>.html`, and updates index.json. */
 export async function writeFrozenReport(
   runner: DwhQueryRunner,
@@ -190,4 +255,45 @@ export async function writeFrozenReport(
   await writeFile(htmlPath, report.html, "utf8");
   await upsertIndexEntry(paths.indexPath ?? join(reportsDir, "index.json"), report.indexEntry);
   return { id: report.id, htmlPath };
+}
+
+export type ReportTask = Readonly<{ scope: Scope; title: string }>;
+
+/**
+ * Opens the DWH once, generates each report task into `reportsDir`, then
+ * rebuilds the list page from index.json. The single source of truth for the
+ * list is index.json (no filesystem scan).
+ */
+export async function generateReports(options: Readonly<{
+  dwhDir: string;
+  reportsDir: string;
+  indexHtmlPath?: string;
+  tasks: readonly ReportTask[];
+  generatedAt: Date;
+  timezone?: string;
+}>): Promise<Readonly<{ ids: string[] }>> {
+  const reportsDir = resolve(options.reportsDir);
+  const indexPath = join(reportsDir, "index.json");
+  const ids: string[] = [];
+
+  await withDwh(options.dwhDir, async (runner) => {
+    for (const task of options.tasks) {
+      const written = await writeFrozenReport(
+        runner,
+        {
+          scope: task.scope,
+          title: task.title,
+          generatedAt: options.generatedAt,
+          ...(options.timezone ? { timezone: options.timezone } : {}),
+        },
+        { reportsDir, indexPath },
+      );
+      ids.push(written.id);
+    }
+  });
+
+  if (options.indexHtmlPath) {
+    await buildIndexHtmlFromIndex(indexPath, options.indexHtmlPath);
+  }
+  return { ids };
 }

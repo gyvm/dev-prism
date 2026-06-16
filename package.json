@@ -16,6 +16,7 @@
     "dwh:build": "tsx src/cli/dwh-build.ts",
     "dwh:schema": "tsx src/cli/dwh-schema.ts",
     "report": "tsx src/cli/report.ts",
+    "report:dwh": "tsx src/cli/dwh-report.ts",
     "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
   },
   "dependencies": {
