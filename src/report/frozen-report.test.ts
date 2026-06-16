@@ -67,6 +67,40 @@ describe("buildFrozenReport", () => {
   });
 });
 
+describe("deriveReportId", () => {
+  it("is stable across dates for the same definition (series stacking)", () => {
+    const a = deriveReportId("Weekly", resolveScope({ from: new Date("2026-04-20T00:00:00.000Z"), to: new Date("2026-04-27T00:00:00.000Z") }), "UTC");
+    const b = deriveReportId("Weekly", resolveScope({ from: new Date("2026-04-27T00:00:00.000Z"), to: new Date("2026-05-04T00:00:00.000Z") }), "UTC");
+    expect(a).toBe("weekly-20260420");
+    expect(b).toBe("weekly-20260427");
+  });
+
+  it("disambiguates reports that share a title and date but differ in scope", () => {
+    const base = { from: new Date("2026-04-20T00:00:00.000Z"), to: new Date("2026-04-27T00:00:00.000Z") };
+    const repoA = deriveReportId("Weekly", resolveScope({ ...base, repos: ["openai/codex"] }), "UTC");
+    const repoB = deriveReportId("Weekly", resolveScope({ ...base, repos: ["openai/evals"] }), "UTC");
+    const noBots = deriveReportId("Weekly", resolveScope({ ...base, includeBots: false }), "UTC");
+    expect(new Set([repoA, repoB, noBots, "weekly-20260420"]).size).toBe(4);
+  });
+});
+
+describe("buildFrozenReport guards", () => {
+  it("requires both scope.from and scope.to", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-frozen-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests([fixture()], { dwhDir, botPatterns: [] });
+      await withDwh(dwhDir, async (runner) => {
+        await expect(
+          buildFrozenReport(runner, { scope: resolveScope({ to: new Date("2026-04-27T00:00:00.000Z") }), generatedAt }),
+        ).rejects.toThrow(/scope\.from and scope\.to/);
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("writeFrozenReport + index.json", () => {
   it("writes the html and upserts the index entry idempotently", async () => {
     const root = await mkdtemp(join(tmpdir(), "gh-insights-frozen-"));

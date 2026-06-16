@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
@@ -82,10 +83,30 @@ function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "report";
 }
 
-/** Stable, series-friendly id: `<title-slug>-<YYYYMMDD>` from the scope start. */
+// A short, order-insensitive signature of the scope's *filtering* identity
+// (NOT the date window) so a recurring definition keeps a stable id across
+// dates (series stacking) while reports that differ in repos/users/grain/bots
+// get distinct ids instead of silently colliding. Returns null for the default
+// "everything" scope so the common id stays clean.
+function scopeDiscriminator(scope: Scope): string | null {
+  const isDefault =
+    scope.repos.length === 0 && scope.users.length === 0 && scope.includeBots && scope.grain === "week";
+  if (isDefault) return null;
+  const signature = JSON.stringify({
+    repos: [...scope.repos].sort(),
+    users: [...scope.users].sort(),
+    grain: scope.grain,
+    includeBots: scope.includeBots,
+  });
+  return createHash("sha1").update(signature).digest("hex").slice(0, 8);
+}
+
+/** Stable, series-friendly id: `<title-slug>-<YYYYMMDD>[-<scope-hash>]`. */
 export function deriveReportId(title: string, scope: Scope, timezone: string): string {
   const anchor = scope.from ?? scope.to ?? new Date(0);
-  return `${slugify(title)}-${toDateSlug(anchor, timezone).replace(/-/g, "")}`;
+  const base = `${slugify(title)}-${toDateSlug(anchor, timezone).replace(/-/g, "")}`;
+  const discriminator = scopeDiscriminator(scope);
+  return discriminator ? `${base}-${discriminator}` : base;
 }
 
 function roundOrNull(value: number | null): number | null {
@@ -96,13 +117,13 @@ export async function buildFrozenReport(
   runner: DwhQueryRunner,
   options: BuildFrozenReportOptions,
 ): Promise<FrozenReport> {
-  if (options.scope.to === null) {
-    throw new Error("buildFrozenReport requires scope.to (report period end)");
+  if (options.scope.from === null || options.scope.to === null) {
+    throw new Error("buildFrozenReport requires scope.from and scope.to (the report period)");
   }
   const timezone = options.timezone ?? "UTC";
   const title = options.title ?? "PR レポート";
   const id = options.id ?? deriveReportId(title, options.scope, timezone);
-  const from = options.scope.from ?? options.scope.to;
+  const from = options.scope.from;
   const to = options.scope.to;
 
   const results: AnalysisResult[] = [];

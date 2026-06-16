@@ -20,7 +20,9 @@ const reportDefinitionSchema = z
     repos: z.array(z.string()).default([]),
     users: z.array(z.string()).default([]),
     include_bots: z.boolean().default(true),
-    with_ai: z.boolean().default(false),
+    // NOTE: AI findings (`with_ai`) are not yet wired into the DWH report path.
+    // The knob is intentionally omitted until implemented so config never
+    // silently no-ops; `index.json` carries `aiCount` (0 for now) for the schema.
   })
   .strict();
 
