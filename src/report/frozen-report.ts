@@ -10,6 +10,7 @@ import { queryActivityTrend } from "../analyses/activity-trend/query.js";
 import { DWH_ANALYSIS_REGISTRY, type DwhAnalysisId } from "../analyses/dwh-report.js";
 import type { DoraMetrics } from "../shared/types.js";
 import type { Scope } from "../analyses/scope.js";
+import { exploreHref } from "../analyses/scope-url.js";
 import { toDateSlug } from "../shared/timezone.js";
 import type { DwhQueryRunner } from "../warehouse/query.js";
 import { renderReportHtml } from "../pipeline/stages/render.js";
@@ -161,7 +162,13 @@ export async function buildFrozenReport(
     warnings: [],
   };
 
-  const html = renderReportHtml(period, reportInput, results);
+  // Footer deep-link carrying this scope into Explore. It is a plain <a> link
+  // (no external resource), so single-file shareability is preserved.
+  const footer = `<footer class="report-explore-link" style="margin-top:18px;text-align:right;font-size:13px;"><a href="${escapeHtml(exploreHref(options.scope))}">Explore で深掘り →</a></footer>`;
+  const html = renderReportHtml(period, reportInput, results).replace(
+    "</main>",
+    `    ${footer}\n  </main>`,
+  );
 
   return {
     id,
