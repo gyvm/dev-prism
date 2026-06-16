@@ -19,13 +19,17 @@ type DoraRow = {
   mttr: number | null;
 };
 
-export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<DoraMetrics> {
+/**
+ * SQL for the DORA metrics. Exported so DuckDB-WASM (Explore) and DuckDB-native
+ * (Reports) run the identical query — parity by shared module (design D4).
+ */
+export function buildDoraSql(scope: Scope): string {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const mergedTime = timeRangeFilter("pr.merged_at", scope);
   const authorUsers = inListFilter("author.login", scope.users);
   const failureList = FAILURE_LABELS.map((label) => `'${label}'`).join(", ");
 
-  const rows = await runner.all<DoraRow>(`
+  return `
     WITH merged AS (
       SELECT pr.pr_id AS pr_id,
              (epoch_ms(pr.merged_at) - epoch_ms(pr.created_at)) / 3600000.0 AS lead_hours,
@@ -43,7 +47,11 @@ export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<D
            count(*) FILTER (WHERE is_failure) AS failure_count,
            avg(lead_hours) FILTER (WHERE is_failure) AS mttr
     FROM merged
-  `);
+  `;
+}
+
+export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<DoraMetrics> {
+  const rows = await runner.all<DoraRow>(buildDoraSql(scope));
 
   const row = rows[0] ?? { deploys: 0, p50_lead: null, failure_count: 0, mttr: null };
   const deploys = Number(row.deploys);

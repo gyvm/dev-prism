@@ -20,16 +20,17 @@ function toIso(bucketText: string): string {
   return new Date(`${bucketText.replace(" ", "T")}Z`).toISOString();
 }
 
-export async function queryActivityTrend(
-  runner: DwhQueryRunner,
-  scope: Scope,
-): Promise<ActivityTrend> {
+/**
+ * SQL for the activity trend. Exported so DuckDB-WASM (Explore) runs the exact
+ * same query as DuckDB-native (Reports) — parity by shared module (design D4).
+ */
+export function buildActivityTrendSql(scope: Scope): string {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const timeFilter = timeRangeFilter("a.occurred_at", scope);
   const userFilter = inListFilter("act.login", scope.users);
   const botFilter = scope.includeBots ? "" : " AND NOT coalesce(act.is_bot, false)";
 
-  const rows = await runner.all<TrendRow>(`
+  return `
     SELECT CAST(date_trunc('${scope.grain}', a.occurred_at) AS VARCHAR) AS bucket_text,
            count(*) FILTER (WHERE a.event_type = 'pr_opened') AS pr_opened,
            count(*) FILTER (WHERE a.event_type = 'pr_merged') AS pr_merged,
@@ -41,7 +42,14 @@ export async function queryActivityTrend(
     WHERE TRUE${repoFilter}${timeFilter}${userFilter}${botFilter}
     GROUP BY bucket_text
     ORDER BY bucket_text
-  `);
+  `;
+}
+
+export async function queryActivityTrend(
+  runner: DwhQueryRunner,
+  scope: Scope,
+): Promise<ActivityTrend> {
+  const rows = await runner.all<TrendRow>(buildActivityTrendSql(scope));
 
   const buckets: ActivityTrendBucket[] = rows.map((row) => ({
     bucket: toIso(row.bucket_text),

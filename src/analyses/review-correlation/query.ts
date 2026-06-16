@@ -21,16 +21,20 @@ function kindOf(isBot: boolean): "bot" | "human" {
   return isBot ? "bot" : "human";
 }
 
-export async function queryReviewCorrelation(
-  runner: DwhQueryRunner,
+/**
+ * SQL for review correlation (authors / reviewers / pairs). Exported so
+ * DuckDB-WASM (Explore) and DuckDB-native (Reports) run identical queries —
+ * parity by shared module (design D4).
+ */
+export function buildReviewCorrelationSql(
   scope: Scope,
-): Promise<ReviewCorrelation> {
+): Readonly<{ authors: string; reviewers: string; pairs: string }> {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const prTime = timeRangeFilter("pr.created_at", scope);
   const reviewTime = timeRangeFilter("rv.submitted_at", scope);
-
   const authorUsers = inListFilter("a.login", scope.users);
-  const authorRows = await runner.all<AuthorRow>(`
+
+  const authors = `
     SELECT a.login AS login, count(*) AS pr_count, a.is_bot AS is_bot
     FROM pull_requests pr
     JOIN actors a ON a.actor_id = pr.author_actor_id
@@ -38,7 +42,7 @@ export async function queryReviewCorrelation(
     WHERE a.login IS NOT NULL${botFilter("a.is_bot", scope)}${repoFilter}${prTime}${authorUsers}
     GROUP BY a.login, a.is_bot
     ORDER BY pr_count DESC, login ASC
-  `);
+  `;
 
   // Distinct (pr, author, reviewer) excluding self-review, keyed by login.
   const pairsCte = `
@@ -55,21 +59,33 @@ export async function queryReviewCorrelation(
         AND reviewer.login <> author.login${botFilter("reviewer.is_bot", scope)}${repoFilter}${reviewTime}${eitherInListFilter("author.login", "reviewer.login", scope.users)}
     )`;
 
-  const reviewerRows = await runner.all<ReviewerRow>(`
+  const reviewers = `
     ${pairsCte}
     SELECT reviewer AS login, count(DISTINCT pr_id) AS review_count, bool_or(reviewer_is_bot) AS is_bot
     FROM review_pairs
     GROUP BY reviewer
     ORDER BY review_count DESC, login ASC
-  `);
+  `;
 
-  const pairRows = await runner.all<PairRow>(`
+  const pairs = `
     ${pairsCte}
     SELECT author, reviewer, count(*) AS cnt
     FROM review_pairs
     GROUP BY author, reviewer
     ORDER BY cnt DESC, author ASC, reviewer ASC
-  `);
+  `;
+
+  return { authors, reviewers, pairs };
+}
+
+export async function queryReviewCorrelation(
+  runner: DwhQueryRunner,
+  scope: Scope,
+): Promise<ReviewCorrelation> {
+  const sql = buildReviewCorrelationSql(scope);
+  const authorRows = await runner.all<AuthorRow>(sql.authors);
+  const reviewerRows = await runner.all<ReviewerRow>(sql.reviewers);
+  const pairRows = await runner.all<PairRow>(sql.pairs);
 
   const pairs: ReviewerPair[] = pairRows.map((row) => ({
     author: row.author,
