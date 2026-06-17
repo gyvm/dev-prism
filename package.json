@@ -18,8 +18,6 @@
     "report": "tsx src/cli/report.ts",
     "report:dwh": "tsx src/cli/dwh-report.ts",
     "explore:data": "tsx src/cli/explore-data.ts",
-    "explore:dev": "vite",
-    "explore:build": "vite build",
     "build:nav": "esbuild src/web/shell/nav-entry.ts --bundle --format=esm --minify --outfile=src/web/public/nav.js",
     "web:dev": "npm run build:nav && astro dev --root src/web",
     "web:build": "npm run build:nav && ASTRO_BASE=/pr-weekly-report astro build --root src/web",
