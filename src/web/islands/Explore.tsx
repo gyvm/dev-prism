@@ -1,27 +1,61 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
-import { resolveScope, type Scope } from "../../analyses/scope.js";
+import { resolveScope, type Grain, type Scope } from "../../analyses/scope.js";
 import { scopeToSearchParams } from "../../analyses/scope-url.js";
 import { createWasmRunner, type WasmRunner } from "../duckdb-runner.js";
 import { buildExploreHtml, scopeFromUrl } from "../explore.js";
-import { scopeFromForm } from "../filters.js";
+import PeriodPicker from "./PeriodPicker.js";
 
 // Client-only island port of the former vanilla `main.ts`. React owns the DOM
-// shell, status, and filter form; the heavy lifting (DuckDB-WASM runner, scope
-// parsing, analyses, renderers) stays in the framework-free modules above, so
-// Reports/Explore parity and the scope unit tests are untouched.
+// shell, the controlled filter state, and the period picker; the heavy lifting
+// (DuckDB-WASM runner, scope parsing, analyses, renderers) stays in the
+// framework-free modules above, preserving Reports/Explore parity.
+
+type Draft = Readonly<{
+  from: Date | null;
+  to: Date | null;
+  grain: Grain;
+  reposText: string;
+  usersText: string;
+  includeBots: boolean;
+}>;
+
+function parseList(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function draftFromScope(scope: Scope): Draft {
+  return {
+    from: scope.from,
+    to: scope.to,
+    grain: scope.grain,
+    reposText: scope.repos.join(", "),
+    usersText: scope.users.join(", "),
+    includeBots: scope.includeBots,
+  };
+}
+
+function scopeFromDraft(draft: Draft): Scope {
+  return resolveScope({
+    from: draft.from,
+    to: draft.to,
+    grain: draft.grain,
+    repos: parseList(draft.reposText),
+    users: parseList(draft.usersText),
+    includeBots: draft.includeBots,
+  });
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function dateValue(date: Date | null): string {
-  return date ? date.toISOString().slice(0, 10) : "";
+function dateLabel(date: Date | null): string {
+  return date ? date.toISOString().slice(0, 10) : "—";
 }
 
 // The report renderers ship hover/tooltip behavior as inline <script> tags.
-// innerHTML does not execute them, so re-create each script element to run it
-// (identical to the former main.ts activateScripts).
+// innerHTML does not execute them, so re-create each script element to run it.
 function activateScripts(root: HTMLElement): void {
   for (const old of [...root.querySelectorAll("script")]) {
     const fresh = document.createElement("script");
@@ -33,30 +67,29 @@ function activateScripts(root: HTMLElement): void {
 
 export default function Explore() {
   const [status, setStatus] = useState("DuckDB-WASM を起動中…");
-  // Initial scope from the URL (client:only, so window is available at init).
-  const [scope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
+  const [initialScope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
+  const [draft, setDraft] = useState<Draft>(() => draftFromScope(initialScope));
   const runnerRef = useRef<WasmRunner | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
   // Monotonic guard: a slower earlier run must not overwrite a newer one.
   const generation = useRef(0);
 
-  const run = useCallback(async (next: Scope): Promise<void> => {
+  const run = useCallback(async (scope: Scope): Promise<void> => {
     const runner = runnerRef.current;
     if (!runner) return;
     const gen = ++generation.current;
-    const query = scopeToSearchParams(next).toString();
+    const query = scopeToSearchParams(scope).toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
     setStatus("集計中…");
     try {
-      const html = await buildExploreHtml(runner, next);
-      if (gen !== generation.current) return; // superseded by a later submit
+      const html = await buildExploreHtml(runner, scope);
+      if (gen !== generation.current) return; // superseded by a later run
       const el = resultsRef.current;
       if (el) {
         el.innerHTML = html;
         activateScripts(el);
       }
-      setStatus(`集計完了 (${dateValue(next.from)} 〜 ${dateValue(next.to)})`);
+      setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
     } catch (error) {
       if (gen === generation.current) setStatus(`エラー: ${errorMessage(error)}`);
     }
@@ -72,7 +105,7 @@ export default function Explore() {
           return;
         }
         runnerRef.current = runner;
-        void run(scope);
+        void run(scopeFromDraft(draftFromScope(initialScope)));
       })
       .catch((error) => setStatus(`エラー: ${errorMessage(error)}`));
     return () => {
@@ -80,31 +113,37 @@ export default function Explore() {
       void runnerRef.current?.close();
       runnerRef.current = null;
     };
-    // Mount-only: `run`/`scope` are stable for the component's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Mount-only: run/initialScope are stable for the component's lifetime.
+  }, [run, initialScope]);
+
+  const applyDraft = (next: Draft): void => {
+    setDraft(next);
+    void run(scopeFromDraft(next));
+  };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (formRef.current) void run(scopeFromForm(formRef.current));
+    void run(scopeFromDraft(draft));
   };
 
   return (
     <main className="explore-main">
       <header>
         <h1>Explore</h1>
-        <form ref={formRef} className="explore-filters" aria-label="フィルタ" onSubmit={onSubmit}>
-          <label className="explore-field">
-            <span>From</span>
-            <input type="date" name="from" defaultValue={dateValue(scope.from)} />
-          </label>
-          <label className="explore-field">
-            <span>To</span>
-            <input type="date" name="to" defaultValue={dateValue(scope.to)} />
-          </label>
+        <form className="explore-filters" aria-label="フィルタ" onSubmit={onSubmit}>
+          <PeriodPicker
+            from={draft.from}
+            to={draft.to}
+            onPreset={(from, to) => applyDraft({ ...draft, from, to })}
+            onRange={(from, to) => setDraft({ ...draft, from, to })}
+          />
           <label className="explore-field">
             <span>粒度</span>
-            <select name="grain" defaultValue={scope.grain}>
+            <select
+              name="grain"
+              value={draft.grain}
+              onChange={(event) => setDraft({ ...draft, grain: event.target.value as Grain })}
+            >
               <option value="day">日</option>
               <option value="week">週</option>
               <option value="month">月</option>
@@ -112,15 +151,32 @@ export default function Explore() {
           </label>
           <label className="explore-field">
             <span>Repos</span>
-            <input type="text" name="repos" placeholder="owner/name, …" defaultValue={scope.repos.join(", ")} />
+            <input
+              type="text"
+              name="repos"
+              placeholder="owner/name, …"
+              value={draft.reposText}
+              onChange={(event) => setDraft({ ...draft, reposText: event.target.value })}
+            />
           </label>
           <label className="explore-field">
             <span>Users</span>
-            <input type="text" name="users" placeholder="login, …" defaultValue={scope.users.join(", ")} />
+            <input
+              type="text"
+              name="users"
+              placeholder="login, …"
+              value={draft.usersText}
+              onChange={(event) => setDraft({ ...draft, usersText: event.target.value })}
+            />
           </label>
           <label className="explore-field">
             <span>Bot を含む</span>
-            <input type="checkbox" name="includeBots" defaultChecked={scope.includeBots} />
+            <input
+              type="checkbox"
+              name="includeBots"
+              checked={draft.includeBots}
+              onChange={(event) => setDraft({ ...draft, includeBots: event.target.checked })}
+            />
           </label>
           <button type="submit">更新</button>
         </form>
