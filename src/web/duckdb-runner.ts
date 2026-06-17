@@ -42,8 +42,17 @@ function rowsFromArrow<T extends Record<string, unknown>>(table: {
 /**
  * Boots DuckDB-WASM, registers each DWH table's Parquet (served from
  * `${dataBase}/<table>.parquet`) as a view, and returns a query runner.
+ *
+ * The default base is resolved against the site root (`import.meta.env.BASE_URL`),
+ * not the current page, so it works regardless of which route Explore is served
+ * from (e.g. `/explore/` under Astro) and respects the GitHub Pages project base
+ * path (`/<repo>/`). Parquet is emitted at `<base>/data/*` by the build's
+ * publicDir copy. At base `/` this is identical to the previous page-relative
+ * `data/` path, so existing behavior is unchanged.
  */
-export async function createWasmRunner(dataBase = "data"): Promise<WasmRunner> {
+export async function createWasmRunner(
+  dataBase = `${import.meta.env.BASE_URL}data`,
+): Promise<WasmRunner> {
   const { db, worker } = await instantiate();
   const connection = await db.connect();
 
