@@ -5,6 +5,9 @@ import { DuckDBConnection } from "@duckdb/node-api";
 import type { DuckDBValue } from "@duckdb/node-api";
 
 import { dwhTables, renderCreateTableSql } from "./schema.js";
+import type { DwhQueryRunner } from "./runner.js";
+
+export type { DwhQueryRunner } from "./runner.js";
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -18,14 +21,6 @@ async function exists(path: string): Promise<boolean> {
 function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
-
-export type DwhQueryRunner = Readonly<{
-  /** Runs a SELECT and returns plain row objects. */
-  all<T extends Record<string, unknown>>(
-    sql: string,
-    params?: Record<string, DuckDBValue>,
-  ): Promise<T[]>;
-}>;
 
 export type DwhHandle = Readonly<{
   runner: DwhQueryRunner;
@@ -57,10 +52,10 @@ export async function openDwh(dwhDir: string): Promise<DwhHandle> {
   const runner: DwhQueryRunner = {
     async all<T extends Record<string, unknown>>(
       sql: string,
-      params?: Record<string, DuckDBValue>,
+      params?: Record<string, unknown>,
     ): Promise<T[]> {
       const reader = params
-        ? await connection.runAndReadAll(sql, params)
+        ? await connection.runAndReadAll(sql, params as Record<string, DuckDBValue>)
         : await connection.runAndReadAll(sql);
       return reader.getRowObjects() as T[];
     },

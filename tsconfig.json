@@ -18,5 +18,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*.ts", "skills/**/*.ts"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "src/test-fixtures.ts"]
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "src/test-fixtures.ts", "src/web"]
 }

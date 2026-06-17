@@ -17,6 +17,9 @@
     "dwh:schema": "tsx src/cli/dwh-schema.ts",
     "report": "tsx src/cli/report.ts",
     "report:dwh": "tsx src/cli/dwh-report.ts",
+    "explore:data": "tsx src/cli/explore-data.ts",
+    "explore:dev": "vite",
+    "explore:build": "vite build",
     "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
   },
   "dependencies": {
@@ -28,10 +31,12 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.6.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
+    "vite": "^8.0.16",
     "vitest": "^3.2.4"
   }
 }
