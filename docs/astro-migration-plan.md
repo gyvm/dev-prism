@@ -1,6 +1,15 @@
 # Astro + React islands 移行プラン（フロント基盤刷新）— rev2
 
-ステータス: レビュー反映済み / ブランチ: `claude/astro-shell-migration`
+ステータス: **実装完了**（Step 1–9 / 2 回のサブエージェントレビュー反映済み）/ ブランチ: `claude/astro-shell-migration`
+
+## as-built サマリ（実績）
+
+- フロント = Astro 6 + React 19 islands。`src/web/{astro.config.mjs, layouts/Layout.astro, pages/{index,explore}.astro, islands/{Explore,PeriodPicker,MultiSelect}.tsx, shell/{sidebar,nav-entry}.ts, date-presets.ts}`。
+- 3 要望すべて実装・Playwright 検証済み: ①開閉サイドバーで Explore⇄Reports（方式Z オーバーレイ）②日付プリセット+react-day-picker ③repo/user multiselect。
+- 方式D: `report:dwh` 再実行が描画のオンデマンド再生成。方式Z: 凍結レポートは `../nav.js` を view-time 注入（本文は自己完結）。
+- ローカル全ビルド: `rm -rf dist` → `dwh:build` → `explore:data` → `report:dwh --reports-dir dist/reports`（`--index` 無し）→ `web:build`。
+- 撤去: vanilla Explore（main.ts/index.html/vite.config.ts）、standalone `vite` devDep、`tsconfig.web.json`、`filters.ts`。
+- **スコープ外（未着手 follow-up）**: weekly.yml の CI 切替（旧 orchestrate→DWH/Astro）、本番 parquet 配信、レポート履歴の永続化（§0 参照）。
 
 ## 0. レビューで判明した最重要の前提修正
 
