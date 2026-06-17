@@ -215,7 +215,6 @@ const REQUESTED_REVIEWER_FRAGMENT = `
       id
       slug
       name
-      url
     }
   }
 `;
