@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 type Props = Readonly<{
   label: string;
@@ -14,6 +14,7 @@ export default function MultiSelect({ label, options, selected, onChange }: Prop
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const panelId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +46,8 @@ export default function MultiSelect({ label, options, selected, onChange }: Prop
         type="button"
         className="explore-ms__btn"
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
+        aria-controls={panelId}
         disabled={options.length === 0}
         onClick={() => setOpen((value) => !value)}
       >
@@ -53,7 +55,7 @@ export default function MultiSelect({ label, options, selected, onChange }: Prop
         {selected.length > 0 ? ` · ${selected.length}` : ""}
       </button>
       {open && (
-        <div className="explore-ms__panel">
+        <div className="explore-ms__panel" id={panelId} role="group" aria-label={label}>
           <input
             className="explore-ms__search"
             type="text"

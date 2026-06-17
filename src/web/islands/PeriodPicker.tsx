@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
 
@@ -21,10 +21,28 @@ export default function PeriodPicker({ from, to, onPreset, onRange }: Props) {
   const [open, setOpen] = useState(false);
   // `now` is read once per mount; presets are relative windows.
   const [presets] = useState(() => datePresets(new Date()));
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const selected: DateRange | undefined = from ? { from, to: to ?? undefined } : undefined;
 
+  // Dismiss the calendar on outside-click / Escape (parity with MultiSelect).
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   return (
-    <div className="explore-period">
+    <div className="explore-period" ref={containerRef}>
       <div className="explore-presets" role="group" aria-label="期間プリセット">
         {presets.map((preset) => (
           <button type="button" key={preset.id} className="explore-preset" onClick={() => onPreset(preset.from, preset.to)}>
