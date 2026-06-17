@@ -1,12 +1,63 @@
 ---
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import Layout from "../layouts/Layout.astro";
-// Placeholder gallery body — replaced in Step 8 with the index.json-driven SSG
-// reports list. Uses the shared shell so the sidebar is verifiable now.
+import { REPORT_INDEX_SCHEMA, kpiSummary, scopeSummary, type ReportIndexEntry } from "../../report/report-index.js";
+
+// Build-time SSG of the reports gallery. Build order is `report:dwh` (writes
+// dist/reports/*.html + dist/reports/index.json) then `astro build`, so the
+// index JSON exists when this frontmatter runs. Missing/invalid → empty gallery
+// (e.g. a bare `astro build` with no reports yet). Override path via REPORTS_INDEX.
+const indexPath = resolve(process.cwd(), process.env.REPORTS_INDEX ?? "dist/reports/index.json");
+let entries: ReportIndexEntry[] = [];
+try {
+  entries = REPORT_INDEX_SCHEMA.parse(JSON.parse(readFileSync(indexPath, "utf8")));
+} catch {
+  entries = [];
+}
+
+const rawBase = import.meta.env.BASE_URL;
+const base = rawBase.endsWith("/") ? rawBase : `${rawBase}/`;
 ---
 
-<Layout title="PR Analytics" active="reports">
-  <main style="max-width: 820px; margin: 40px auto; padding: 0 20px;">
-    <h1>PR Analytics</h1>
-    <p>Astro scaffold — the reports gallery lands in a later step.</p>
+<Layout title="PR レポート一覧" active="reports">
+  <main class="gallery">
+    <h1>PR レポート一覧</h1>
+    {
+      entries.length === 0 ? (
+        <p class="gallery__empty">レポートはまだありません。</p>
+      ) : (
+        <ul class="gallery__list">
+          {entries.map((entry) => (
+            <li class="gallery__card">
+              <a class="gallery__link" href={`${base}reports/${entry.id}.html`}>{entry.title}</a>
+              <div class="gallery__meta">{scopeSummary(entry.scope)}</div>
+              <div class="gallery__meta">{kpiSummary(entry.kpi)}</div>
+              {entry.highlights.length > 0 && (
+                <ul class="gallery__highlights">
+                  {entry.highlights.map((highlight) => (
+                    <li>{highlight}</li>
+                  ))}
+                </ul>
+              )}
+              <time datetime={entry.generatedAt}>{entry.generatedAt.slice(0, 10)}</time>
+            </li>
+          ))}
+        </ul>
+      )
+    }
   </main>
+  <style>
+    .gallery { max-width: 820px; margin: 0 auto; padding: 56px 20px 48px; color: #202733; }
+    .gallery h1 { font-size: 24px; }
+    .gallery__list { list-style: none; padding: 0; margin: 0; }
+    .gallery__card { padding: 14px 0; border-bottom: 1px solid #e2e8f0; }
+    .gallery__link { color: #2563eb; text-decoration: none; font-size: 17px; font-weight: 650; }
+    .gallery__link:hover { text-decoration: underline; }
+    .gallery__meta { color: #586574; font-size: 13px; margin-top: 3px; }
+    .gallery__highlights { margin: 6px 0 0; padding-left: 18px; color: #3a4452; font-size: 13px; }
+    .gallery time { display: block; margin-top: 4px; color: #728091; font-size: 12px; }
+    .gallery__empty { color: #64707d; }
+  </style>
 </Layout>

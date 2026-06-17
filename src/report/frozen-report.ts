@@ -2,9 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { z } from "zod";
-
 import { escapeHtml } from "../renderers/utils.js";
+import { REPORT_INDEX_SCHEMA, kpiSummary, scopeSummary, type ReportIndexEntry } from "./report-index.js";
 
 import { queryActivityTrend } from "../analyses/activity-trend/query.js";
 import { DWH_ANALYSIS_REGISTRY, type DwhAnalysisId } from "../analyses/dwh-report.js";
@@ -25,35 +24,10 @@ import { withDwh } from "../warehouse/query.js";
 // Order matches the existing report layout: DORA, then timeline, then review.
 const REPORT_ANALYSES: readonly DwhAnalysisId[] = ["dora-metrics", "pr-timeline", "review-correlation"];
 
-const KPI_SCHEMA = z.object({
-  deploymentFrequency: z.number(),
-  leadTimeForChangesHours: z.number().nullable(),
-  prOpened: z.number(),
-  prMerged: z.number(),
-});
-
-const SERIALIZED_SCOPE_SCHEMA = z.object({
-  from: z.string().nullable(),
-  to: z.string().nullable(),
-  repos: z.array(z.string()),
-  users: z.array(z.string()),
-  includeBots: z.boolean(),
-  grain: z.enum(["day", "week", "month"]),
-});
-
-export const REPORT_INDEX_ENTRY_SCHEMA = z.object({
-  id: z.string(),
-  title: z.string(),
-  scope: SERIALIZED_SCOPE_SCHEMA,
-  generatedAt: z.string(),
-  kpi: KPI_SCHEMA,
-  highlights: z.array(z.string()),
-  aiCount: z.number(),
-});
-
-export const REPORT_INDEX_SCHEMA = z.array(REPORT_INDEX_ENTRY_SCHEMA);
-
-export type ReportIndexEntry = z.infer<typeof REPORT_INDEX_ENTRY_SCHEMA>;
+// Index schema, types, and view helpers live in the dependency-free
+// report-index.ts (so the Astro gallery can import them without the DWH stack);
+// re-exported here for the existing public API.
+export { REPORT_INDEX_ENTRY_SCHEMA, REPORT_INDEX_SCHEMA, type ReportIndexEntry } from "./report-index.js";
 
 export type BuildFrozenReportOptions = Readonly<{
   scope: Scope;
@@ -69,7 +43,7 @@ export type FrozenReport = Readonly<{
   indexEntry: ReportIndexEntry;
 }>;
 
-function serializeScope(scope: Scope): z.infer<typeof SERIALIZED_SCOPE_SCHEMA> {
+function serializeScope(scope: Scope): ReportIndexEntry["scope"] {
   return {
     from: scope.from ? scope.from.toISOString() : null,
     to: scope.to ? scope.to.toISOString() : null,
@@ -213,20 +187,8 @@ export async function upsertIndexEntry(indexPath: string, entry: ReportIndexEntr
   await rename(tmp, path);
 }
 
-function scopeSummary(scope: ReportIndexEntry["scope"]): string {
-  const parts: string[] = [];
-  if (scope.from && scope.to) {
-    parts.push(`${scope.from.slice(0, 10)} – ${scope.to.slice(0, 10)}`);
-  }
-  parts.push(scope.repos.length === 0 ? "全 repo" : `${scope.repos.length} repo`);
-  if (scope.users.length > 0) parts.push(`${scope.users.length} 名`);
-  if (!scope.includeBots) parts.push("bot 除外");
-  return parts.join(" · ");
-}
-
 function renderIndexEntry(entry: ReportIndexEntry): string {
-  const lead = entry.kpi.leadTimeForChangesHours;
-  const kpi = `${entry.kpi.prMerged} merged · ${entry.kpi.prOpened} opened${lead === null ? "" : ` · lead ${lead}h`}`;
+  const kpi = kpiSummary(entry.kpi);
   const highlights = entry.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join("");
   return `      <li class="report-card">
         <a class="report-link" href="reports/${escapeHtml(entry.id)}.html">${escapeHtml(entry.title)}</a>
