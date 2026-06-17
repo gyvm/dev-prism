@@ -3,11 +3,12 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { resolveScope, type Grain, type Scope } from "../../analyses/scope.js";
 import { scopeToSearchParams } from "../../analyses/scope-url.js";
 import { createWasmRunner, type WasmRunner } from "../duckdb-runner.js";
-import { buildExploreHtml, scopeFromUrl } from "../explore.js";
+import { buildExploreHtml, queryFilterOptions, scopeFromUrl } from "../explore.js";
+import MultiSelect from "./MultiSelect.js";
 import PeriodPicker from "./PeriodPicker.js";
 
 // Client-only island port of the former vanilla `main.ts`. React owns the DOM
-// shell, the controlled filter state, and the period picker; the heavy lifting
+// shell, the controlled filter state, and the pickers; the heavy lifting
 // (DuckDB-WASM runner, scope parsing, analyses, renderers) stays in the
 // framework-free modules above, preserving Reports/Explore parity.
 
@@ -15,22 +16,20 @@ type Draft = Readonly<{
   from: Date | null;
   to: Date | null;
   grain: Grain;
-  reposText: string;
-  usersText: string;
+  repos: readonly string[];
+  users: readonly string[];
   includeBots: boolean;
 }>;
 
-function parseList(value: string): string[] {
-  return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
+type Options = Readonly<{ repos: string[]; users: string[] }>;
 
 function draftFromScope(scope: Scope): Draft {
   return {
     from: scope.from,
     to: scope.to,
     grain: scope.grain,
-    reposText: scope.repos.join(", "),
-    usersText: scope.users.join(", "),
+    repos: [...scope.repos],
+    users: [...scope.users],
     includeBots: scope.includeBots,
   };
 }
@@ -40,8 +39,8 @@ function scopeFromDraft(draft: Draft): Scope {
     from: draft.from,
     to: draft.to,
     grain: draft.grain,
-    repos: parseList(draft.reposText),
-    users: parseList(draft.usersText),
+    repos: [...draft.repos],
+    users: [...draft.users],
     includeBots: draft.includeBots,
   });
 }
@@ -69,6 +68,7 @@ export default function Explore() {
   const [status, setStatus] = useState("DuckDB-WASM を起動中…");
   const [initialScope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
   const [draft, setDraft] = useState<Draft>(() => draftFromScope(initialScope));
+  const [options, setOptions] = useState<Options>({ repos: [], users: [] });
   const runnerRef = useRef<WasmRunner | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   // Monotonic guard: a slower earlier run must not overwrite a newer one.
@@ -95,17 +95,24 @@ export default function Explore() {
     }
   }, []);
 
-  // Boot the WASM runner once, then run the initial scope.
+  // Boot the WASM runner once, then load filter options and run the initial scope.
   useEffect(() => {
     let disposed = false;
     createWasmRunner()
-      .then((runner) => {
+      .then(async (runner) => {
         if (disposed) {
           void runner.close();
           return;
         }
         runnerRef.current = runner;
-        void run(scopeFromDraft(draftFromScope(initialScope)));
+        queryFilterOptions(runner)
+          .then((loaded) => {
+            if (!disposed) setOptions(loaded);
+          })
+          .catch(() => {
+            /* options are a convenience; a failure should not block analyses */
+          });
+        await run(scopeFromDraft(draftFromScope(initialScope)));
       })
       .catch((error) => setStatus(`エラー: ${errorMessage(error)}`));
     return () => {
@@ -149,26 +156,24 @@ export default function Explore() {
               <option value="month">月</option>
             </select>
           </label>
-          <label className="explore-field">
+          <div className="explore-field">
             <span>Repos</span>
-            <input
-              type="text"
-              name="repos"
-              placeholder="owner/name, …"
-              value={draft.reposText}
-              onChange={(event) => setDraft({ ...draft, reposText: event.target.value })}
+            <MultiSelect
+              label="Repos"
+              options={options.repos}
+              selected={draft.repos}
+              onChange={(repos) => setDraft({ ...draft, repos })}
             />
-          </label>
-          <label className="explore-field">
+          </div>
+          <div className="explore-field">
             <span>Users</span>
-            <input
-              type="text"
-              name="users"
-              placeholder="login, …"
-              value={draft.usersText}
-              onChange={(event) => setDraft({ ...draft, usersText: event.target.value })}
+            <MultiSelect
+              label="Users"
+              options={options.users}
+              selected={draft.users}
+              onChange={(users) => setDraft({ ...draft, users })}
             />
-          </label>
+          </div>
           <label className="explore-field">
             <span>Bot を含む</span>
             <input
