@@ -26,10 +26,17 @@ const TOGGLE_ID = "ghs-sidebar-toggle";
 const NAV_ID = "ghs-sidebar-nav";
 const STORAGE_KEY = "ghs-sidebar-open";
 
+// Self-contained attribute escape — keeps this module dependency-free (it is
+// bundled standalone into nav.js by esbuild). Hrefs are build-time trusted
+// today, but escaping is defense-in-depth for any future dynamic deep-links.
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function link(href: string, label: string, key: Exclude<SidebarActive, null>, active: SidebarActive): string {
   const current = active === key ? ' aria-current="page"' : "";
   const activeClass = active === key ? " ghs-sb__link--active" : "";
-  return `<a class="ghs-sb__link${activeClass}" href="${href}" data-key="${key}"${current}>${label}</a>`;
+  return `<a class="ghs-sb__link${activeClass}" href="${escapeAttr(href)}" data-key="${key}"${current}>${label}</a>`;
 }
 
 /**
@@ -52,7 +59,9 @@ export function sidebarHtml(links: SidebarLinks): string {
 }
 
 // Scoped with a `ghs-sb` prefix so it never collides with report/explore styles.
-// Palette follows DESIGN.md tokens (cyan accent, no purple).
+// Palette follows DESIGN.md tokens (cyan accent, no purple). Injected exactly
+// once per page: SSR via Layout.astro on Astro pages, OR at runtime via nav.js
+// on frozen reports — the two consumption paths are mutually exclusive.
 export const SIDEBAR_STYLES = `
 .ghs-sb { position: fixed; top: 0; left: 0; z-index: 1000; font-family: ui-sans-serif, system-ui, sans-serif; }
 .ghs-sb__toggle { position: fixed; top: 12px; left: 12px; width: 40px; height: 40px; display: grid; place-items: center;

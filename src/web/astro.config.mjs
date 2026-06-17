@@ -3,8 +3,9 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 
 // Astro shell for the gh-insights front-end (Reports gallery + Explore island).
-// `root` defaults to this file's directory (src/web), so srcDir/publicDir/outDir
-// below are relative to src/web.
+// The npm scripts invoke `astro --root src/web`, which sets the project root to
+// src/web; the srcDir/publicDir/outDir paths below are resolved relative to it.
+// (Running `astro` from elsewhere without that flag would misresolve outDir.)
 //
 // outDir points at the repo-root dist/, which ALSO holds the CLI-generated
 // frozen reports (dist/reports/*) and the parquet copied from publicDir

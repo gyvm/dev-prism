@@ -97,7 +97,7 @@ src/web/
 
 ### Step 8 — 一覧 SSG + ローカルビルド配線
 - `pages/index.astro`：`reports/index.json` から一覧 SSG（既存 `renderIndexHtml` 意匠＋サイドバー）。`dist/index.html` 所有権を Astro に一本化（M2）。
-- ローカル全ビルド手順を確立: `rm -rf dist` → `dwh:build` → `explore:data` → `report:dwh`（index.json + reports） → `astro build`。base 付きで `dist/` を配信し Playwright で 2 モード往復を検証。
+- ローカル全ビルド手順を確立: `rm -rf dist` → `dwh:build` → `explore:data` → `report:dwh --reports-dir dist/reports --index dist/reports/index.json`（index.json + reports を **dist/reports 直下**に。`../nav.js` 相対が site root に解決される前提を満たす） → `astro build`。base 付きで `dist/` を配信し Playwright で 2 モード往復を検証。
 - `demo` は旧レンダラのまま据え置きを明記（M1）。
 - commit: `feat(web): SSG reports gallery from index.json; local two-stage build`
 
