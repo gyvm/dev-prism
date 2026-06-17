@@ -18,3 +18,6 @@ data/latest.json
 # Explore: served Parquet (generated) and build output
 src/web/public/data/
 dist/explore/
+
+# Astro generated types
+src/web/.astro/
