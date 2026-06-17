@@ -69,6 +69,8 @@ src/web/
 
 ## 5. 実装ステップ（各末でコミット＋サブエージェントレビュー→修正）
 
+> ※ 以下は**計画時点**の記述。撤去済みの項目（`vite` devDep / `tsconfig.web.json` / `explore:dev,build` / vanilla entry）の最終状態は冒頭の as-built サマリを参照。
+
 ### Step 1 — parquet 配置 + BASE_URL（島化の前に単独で）
 - `explore-data.ts` の出力先と `createWasmRunner` の fetch を `dist/data`/`${BASE_URL}data/` 整合へ。`.gitignore`（`src/web/public/data/`・`dist/explore/`）を新レイアウトへ更新。
 - 既存 vanilla Explore が新パスで動くことを先に確認（島化と分離してバイセクト容易に, レビュー I2）。
