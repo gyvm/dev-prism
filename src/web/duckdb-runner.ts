@@ -12,7 +12,7 @@ import { dwhTables, renderCreateTableSql } from "../warehouse/schema.js";
 
 export type WasmRunner = DwhQueryRunner & Readonly<{ close: () => Promise<void> }>;
 
-async function instantiate(): Promise<duckdb.AsyncDuckDB> {
+async function instantiate(): Promise<{ db: duckdb.AsyncDuckDB; worker: Worker }> {
   const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
   // The CDN worker is cross-origin; wrap it in a same-origin blob that
   // importScripts the real worker, which the browser allows.
@@ -24,7 +24,7 @@ async function instantiate(): Promise<duckdb.AsyncDuckDB> {
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
-  return db;
+  return { db, worker };
 }
 
 function rowsFromArrow<T extends Record<string, unknown>>(table: {
@@ -44,7 +44,7 @@ function rowsFromArrow<T extends Record<string, unknown>>(table: {
  * `${dataBase}/<table>.parquet`) as a view, and returns a query runner.
  */
 export async function createWasmRunner(dataBase = "data"): Promise<WasmRunner> {
-  const db = await instantiate();
+  const { db, worker } = await instantiate();
   const connection = await db.connect();
 
   for (const table of dwhTables) {
@@ -56,8 +56,12 @@ export async function createWasmRunner(dataBase = "data"): Promise<WasmRunner> {
       await connection.query(
         `CREATE VIEW ${table.name} AS SELECT * FROM read_parquet('${fileName}')`,
       );
-    } else {
+    } else if (response.status === 404) {
+      // Table legitimately absent from this DWH → expose it empty (matches openDwh).
       await connection.query(renderCreateTableSql(table));
+    } else {
+      // A real transport/server error must not masquerade as "no data".
+      throw new Error(`Failed to load ${fileName}: HTTP ${response.status} ${response.statusText}`);
     }
   }
 
@@ -69,6 +73,7 @@ export async function createWasmRunner(dataBase = "data"): Promise<WasmRunner> {
     async close(): Promise<void> {
       await connection.close();
       await db.terminate();
+      worker.terminate();
     },
   };
 }

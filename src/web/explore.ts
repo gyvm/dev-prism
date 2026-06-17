@@ -22,23 +22,20 @@ export function scopeFromUrl(search: string, now: Date): Scope {
 
 /**
  * Runs the same analyses the frozen report uses (DORA / review-correlation /
- * PR timeline) against the DWH via the WASM runner and renders them with the
- * existing renderers — identical SQL, view-models and renderers as Reports.
- * Each renderer already emits its own <section><h2>, so outputs are joined
- * directly (no extra wrapper).
+ * PR timeline) against the DWH via the WASM runner and returns the combined
+ * HTML using the existing renderers — identical SQL, view-models and renderers
+ * as Reports. Each renderer already emits its own <section><h2>, so outputs are
+ * joined directly. Pure (no DOM) so the caller can guard against stale writes
+ * and re-activate the renderers' inline scripts.
  */
-export async function renderExplore(
-  runner: DwhQueryRunner,
-  scope: Scope,
-  container: HTMLElement,
-): Promise<void> {
+export async function buildExploreHtml(runner: DwhQueryRunner, scope: Scope): Promise<string> {
   const [dora, correlation, timeline] = await Promise.all([
     queryDora(runner, scope),
     queryReviewCorrelation(runner, scope),
     queryPrTimeline(runner, scope),
   ]);
 
-  container.innerHTML = [
+  return [
     renderMetricCards(dora),
     renderBipartiteGraph(correlation),
     renderGanttChart(timeline),
