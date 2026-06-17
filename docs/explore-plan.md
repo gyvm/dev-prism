@@ -97,6 +97,31 @@ package.json scripts:
 9. **DWH 生成の前提ステップ追加**: `explore:data` の前に「`gyvm/*` を収集 → DWH ビルド」を明示
    （`GITHUB_TOKEN=$(gh auth token)` + `dwh:build --config <gyvm config> --dwh-dir <dir>`）。
 
+## 実装完了・起動手順
+
+Explore は実装済み・起動確認済み（DORA / review-correlation / PR timeline をブラウザ内 DuckDB-WASM で
+ライブ集計）。`gyvm/*` 実データで Playwright 検証済み（DORA の数値が凍結レポートと一致 = WASM/native parity）。
+
+```bash
+# 1. DWH を用意（gyvm/* を収集）
+GITHUB_TOKEN="$(gh auth token)" LOOKBACK_DAYS=365 \
+  npx tsx src/cli/dwh-build.ts --config <gyvm config.toml> --dwh-dir /tmp/dwh
+
+# 2. parquet を Explore の公開ディレクトリへ配置
+npm run explore:data -- --dwh-dir /tmp/dwh
+
+# 3. 起動（http://localhost:4321/）
+npm run explore:dev
+```
+
+- フィルタバー（from/to/粒度/repos/users/bot 含む）→ scope → URL 同期（共有可能パーマリンク）→ 再集計（再フェッチ無し）。
+- 既存 `query.ts`・view-model・レンダラを**ブラウザでそのまま再利用**（`duckdb-runner.ts` が `DwhQueryRunner` を WASM 実装）。
+- レンダラのインライン script（gantt ツールチップ / bipartite ホバー）は注入後に再実行して有効化。
+- 本番ビルド: `npm run explore:build`（`dist/explore/`）。
+
+**残り（将来）**: 件数推移チャート（レンダラ未実装）、Astro 化（2 モード統合・SSG 一覧）、Parquet の HTTP range 配信、
+WASM 自前ホスト（オフライン）。
+
 ## リスクと対策
 
 - **Vite の `.js`→`.ts` 解決**: 既存コードは NodeNext 流に `./x.js` で import。Vite が解決できない場合は

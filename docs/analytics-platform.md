@@ -1090,9 +1090,13 @@ src/warehouse/migrations/
    `config-split.ts` で形式化。renderer 配線は `dwh-report.ts`(scope→SQL→view-model→既存 renderer→HTML)。
    SQL-native 3 分析は in-memory compute との **parity テスト**で数値一致を担保。残るは live report
    パイプライン本体の置換(step 6 / G の並走→置換)。
-5. **フロント Explore**:フィルタバー + KPI/チャート + 明細 + SQL コンソール(ライブ集計)。
-   **未着手**(Astro + DuckDB-WASM のフロントビルド基盤が必要。SQL は step 4 の共有モジュールを
-   そのまま WASM 側でも流す前提)。
+5. **フロント Explore**:**実装済み**(Vite + DuckDB-WASM、`src/web/`)。フィルタバー
+   (from/to/粒度/repos/users/bot)→ scope → URL 同期 → ライブ再集計(再フェッチ無し)。
+   `duckdb-runner.ts` が `DwhQueryRunner` を WASM 実装し、既存 `query.ts`・view-model・レンダラを
+   ブラウザでそのまま再利用(設計 D1/D4 の parity が実機で成立 — DORA 値が凍結レポートと一致)。
+   集計項目はレポートと同じ DORA / review-correlation / PR timeline。`gyvm/*` 実データ + Playwright で
+   起動・描画・ツールチップ/ホバーを検証済み。起動: `explore:data` → `explore:dev`(詳細は
+   `docs/explore-plan.md`)。残り: 件数推移チャート(レンダラ未実装)、SQL コンソール、Astro 化。
 6. **レポート生成(生成器)**:**実装済み**。`buildFrozenReport`(`src/report/frozen-report.ts`)が
    scope を受け、step 4 のクエリ層 + 既存 `renderReportHtml`/renderers(不変)で自己完結
    `reports/<id>.html` を凍結出力。`index.json` は zod 検証付きスキーマ + 冪等 upsert、一覧 HTML は
