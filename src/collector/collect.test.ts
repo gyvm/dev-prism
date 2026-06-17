@@ -491,6 +491,46 @@ describe("fetchRepositoryPullRequests child connection pagination", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  it("fails loudly when a child connection never stops paginating (MAX_CHILD_PAGES)", async () => {
+    let cursor = 0;
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String((init as RequestInit).body));
+      if (String(body.query).includes("query SearchPullRequests")) {
+        return createJsonResponse(
+          searchPayload(
+            [
+              {
+                id: "PR_X",
+                number: 9,
+                title: "Runaway",
+                author: { login: "alice" },
+                createdAt: "2026-03-31T00:00:00.000Z",
+                additions: 1,
+                deletions: 0,
+                reviews: { nodes: [], pageInfo: { hasNextPage: true, endCursor: "rc0" } },
+              },
+            ],
+            { hasNextPage: false, endCursor: null },
+          ),
+        );
+      }
+      // Every follow-up keeps reporting another page with a fresh cursor.
+      cursor += 1;
+      return createJsonResponse(
+        nodeChildPayload("reviews", [{ id: `R${cursor}`, author: { login: "r" }, state: "APPROVED", submittedAt: "2026-03-31T01:00:00.000Z" }], { hasNextPage: true, endCursor: `rc${cursor}` }),
+      );
+    });
+
+    await expect(
+      fetchRepositoryPullRequests({
+        repository: { owner: "openai", name: "codex" },
+        token: "token",
+        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+        fetchFn,
+      }),
+    ).rejects.toThrow(/pagination limit exceeded/i);
+  });
+
   it("fails loudly when a connection needs pagination but the PR id is missing", async () => {
     const fetchFn = routedFetch({
       search: [

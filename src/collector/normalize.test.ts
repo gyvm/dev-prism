@@ -386,4 +386,42 @@ describe("normalizePullRequest", () => {
       ),
     ).toThrow(/missing required fields/i);
   });
+
+  it("drops comments/commits/files missing required fields, keeping valid siblings", () => {
+    const normalized = normalizePullRequest(
+      { owner: "openai", name: "codex" },
+      {
+        number: 1,
+        title: "Test",
+        createdAt: "2026-04-01T00:00:00.000Z",
+        additions: 0,
+        deletions: 0,
+        comments: {
+          nodes: [
+            { author: { login: "a" }, bodyText: "ok", createdAt: "2026-04-01T01:00:00.000Z" },
+            { author: { login: "b" }, bodyText: null, createdAt: "2026-04-01T02:00:00.000Z" }, // no body → dropped
+            { author: { login: "c" }, bodyText: "x", createdAt: null }, // no createdAt → dropped
+          ],
+        },
+        commits: {
+          nodes: [
+            { commit: { oid: "C1", committedDate: "2026-04-01T00:00:00.000Z", messageHeadline: "ok" } },
+            { commit: { oid: null, committedDate: "2026-04-01T00:00:00.000Z", messageHeadline: "x" } }, // no oid → dropped
+            { commit: { oid: "C3", committedDate: null, messageHeadline: "x" } }, // no date → dropped
+          ],
+        },
+        files: {
+          nodes: [
+            { path: "a.ts", additions: 1, deletions: 0, changeType: "MODIFIED" },
+            { path: "b.ts", additions: null, deletions: 0 }, // no additions → dropped
+            { path: null, additions: 1, deletions: 0 }, // no path → dropped
+          ],
+        },
+      },
+    );
+
+    expect(normalized.comments.map((c) => c.author)).toEqual(["a"]);
+    expect(normalized.commits.map((c) => c.oid)).toEqual(["C1"]);
+    expect(normalized.files?.map((f) => f.path)).toEqual(["a.ts"]);
+  });
 });
