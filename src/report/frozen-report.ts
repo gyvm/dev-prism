@@ -165,10 +165,15 @@ export async function buildFrozenReport(
   // Footer deep-link carrying this scope into Explore. It is a plain <a> link
   // (no external resource), so single-file shareability is preserved.
   const footer = `<footer class="report-explore-link" style="margin-top:18px;text-align:right;font-size:13px;"><a href="${escapeHtml(exploreHref(options.scope))}">Explore で深掘り →</a></footer>`;
-  const html = renderReportHtml(period, reportInput, results).replace(
-    "</main>",
-    `    ${footer}\n  </main>`,
-  );
+  // App-shell sidebar overlay (method Z): injected at view-time by nav.js so the
+  // report body stays frozen while the nav reflects the latest deploy. Relative
+  // `../nav.js` resolves to the site root (reports live one level down at
+  // <root>/reports/<id>.html). Opened offline as a single file the script 404s
+  // harmlessly — the body still renders fully; only the overlay nav is absent.
+  const navScript = `<script type="module" src="../nav.js"></script>`;
+  const html = renderReportHtml(period, reportInput, results)
+    .replace("</main>", `    ${footer}\n  </main>`)
+    .replace("</body>", `  ${navScript}\n</body>`);
 
   return {
     id,
