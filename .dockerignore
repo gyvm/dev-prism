@@ -1,0 +1,11 @@
+# Keep the build context small; the image compiles from src and installs deps.
+node_modules
+dist
+data
+.git
+.github
+.astro
+src/web
+docs
+*.log
+*.md
