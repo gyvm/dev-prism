@@ -131,6 +131,7 @@ npm run demo
 |---|---|
 | `GITHUB_TOKEN` | Pull request の read-only 権限がある PAT |
 | `COPILOT_GITHUB_TOKEN` | AI 分析専用の PAT |
+| `LOOKBACK_DAYS` | 初回フルロードで遡る日数 (既定 `30`)。これより古い履歴は `dwh:build --from` で取得する |
 
 ## CLI
 
@@ -138,7 +139,16 @@ npm run demo
 |---|---|
 | `npm run collect` | PR データ取得のみ。`data/raw/<period>.json` を書く |
 | `npm run report` | fetch → analyze → render の全体パイプライン |
+| `npm run dwh:build -- [--config <path>] [--dwh-dir <dir>] [--from YYYY-MM-DD]` | PR を収集して DWH (parquet) を増分構築。`--from` で過去分を backfill |
 | `npm run demo` | 同梱サンプル raw データ (`data/demo/`) でレポート生成 |
+
+### 増分収集と backfill (`dwh:build`)
+
+`dwh:build` の収集カーソルはコミット済み DWH の `updated_at` から自己復元する (別途の状態ファイル不要):
+
+- **増分 (既定)**: 各 repo の `max(updated_at)` 以降のみ取得。初回は `LOOKBACK_DAYS` (既定 30 日) まで遡る。
+- **backfill (`--from YYYY-MM-DD`)**: 各 repo の `min(updated_at)` を読み、**未カバーの古い範囲 `[from, min]` だけ**取得する。指定日が既に収集済みの repo は skip。取り込みは PR 単位の冪等 upsert なので、範囲が重複しても安全。
+- GitHub のレート制限に達したら、取得済み分を書き込んで停止し、リセット時刻と再実行を案内する (カーソルが次回自動で続きから再開する)。
 
 `npm run report` の主なフラグ:
 

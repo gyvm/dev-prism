@@ -770,6 +770,35 @@ describe("collectNormalizedPullRequests", () => {
     expect(result.rateLimited?.pendingRepos).toEqual(["openai/codex", "openai/evals"]);
   });
 
+  it("keeps skip, error, and rate-limit branches exclusive in one run", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" }, // skipped via null window
+      { owner: "openai", name: "evals" }, // errors, then continues
+      { owner: "openai", name: "gpt" }, // rate-limited, stops the run
+    ]);
+
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }))
+      .mockResolvedValueOnce(responseWith(403, { "retry-after": "30" }));
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+      collectionWindowForRepo: (repository) =>
+        repository.name === "codex" ? null : { since: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    // codex skipped (no fetch), evals errored (continue), gpt rate-limited (break).
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result.pullRequests).toHaveLength(0);
+    expect(result.errors.map((entry) => entry.repository)).toEqual(["openai/evals"]);
+    expect(result.rateLimited?.atRepo).toBe("openai/gpt");
+    expect(result.rateLimited?.pendingRepos).toEqual(["openai/gpt"]);
+  });
+
   it("isolates per-repository errors and continues collection", async () => {
     const configPath = await writeConfig([
       { owner: "openai", name: "codex" },
