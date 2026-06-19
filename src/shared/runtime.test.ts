@@ -11,9 +11,9 @@ describe("loadRuntimeConfig", () => {
 
     expect(runtimeConfig.githubToken).toBe("ghp_abc123");
     expect(runtimeConfig.githubAppId).toBeNull();
-    expect(runtimeConfig.lookbackDays).toBe(90);
+    expect(runtimeConfig.lookbackDays).toBe(30);
     expect(runtimeConfig.firstReviewThresholdHours).toBe(48);
-    expect(runtimeConfig.cutoffDate.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(runtimeConfig.cutoffDate.toISOString()).toBe("2026-03-02T00:00:00.000Z");
   });
 
   it("loads config with GitHub App credentials", () => {
@@ -27,7 +27,7 @@ describe("loadRuntimeConfig", () => {
     expect(runtimeConfig.githubAppId).toBe("123");
     expect(runtimeConfig.githubAppPrivateKey).toBe("line1\nline2");
     expect(runtimeConfig.githubAppInstallationId).toBe(456);
-    expect(runtimeConfig.cutoffDate.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(runtimeConfig.cutoffDate.toISOString()).toBe("2026-03-02T00:00:00.000Z");
   });
 
   it("prefers GITHUB_TOKEN when both are provided", () => {

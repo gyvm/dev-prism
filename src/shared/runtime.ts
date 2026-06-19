@@ -9,7 +9,7 @@ const runtimeSchema = z
     GITHUB_APP_ID: z.string().trim().min(1).optional(),
     GITHUB_APP_PRIVATE_KEY: z.string().trim().min(1).optional(),
     GITHUB_APP_INSTALLATION_ID: z.coerce.number().int().positive().optional(),
-    LOOKBACK_DAYS: z.coerce.number().int().positive().default(90),
+    LOOKBACK_DAYS: z.coerce.number().int().positive().default(30),
     FIRST_REVIEW_THRESHOLD_HOURS: z.coerce.number().int().positive().default(48),
   })
   .refine(
@@ -42,7 +42,7 @@ export function loadRuntimeConfig(
     GITHUB_APP_INSTALLATION_ID: emptyToUndefined(
       env.GITHUB_APP_INSTALLATION_ID,
     ),
-    LOOKBACK_DAYS: env.LOOKBACK_DAYS ?? 90,
+    LOOKBACK_DAYS: env.LOOKBACK_DAYS ?? 30,
     FIRST_REVIEW_THRESHOLD_HOURS: env.FIRST_REVIEW_THRESHOLD_HOURS ?? 48,
   });
 
