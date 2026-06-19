@@ -163,13 +163,32 @@ describe("fetchRepositoryPullRequests", () => {
 
     const firstCall = fetchFn.mock.calls[0]!;
     const body = JSON.parse(String((firstCall[1] as RequestInit).body));
-    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
+    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc");
     expect(body.variables.after).toBeNull();
     expect(body.query).toContain("fragment ActorFields on Actor");
     expect(body.query).toContain("repository {");
     expect(body.query).toContain("updatedAt");
     expect(body.query).toContain("changedFiles");
     expect(body.query).toContain("... on Node");
+  });
+
+  it("bounds the query and sorts ascending when an untilDate is given (backfill)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })),
+    );
+
+    await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2025-06-01T00:00:00.000Z"),
+      untilDate: new Date("2026-03-10T08:00:00.000Z"),
+      fetchFn,
+    });
+
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.variables.q).toBe(
+      "repo:openai/codex is:pr updated:>=2025-06-01 updated:<=2026-03-10 sort:updated-asc",
+    );
   });
 
   it("filters out non-PullRequest nodes defensively", async () => {
@@ -625,6 +644,47 @@ describe("collectNormalizedPullRequests", () => {
     expect(result.errors).toHaveLength(0);
     expect(result.pullRequests.map((pr) => `${pr.repo.owner}/${pr.repo.name}`)).toEqual([
       "openai/codex",
+      "openai/evals",
+    ]);
+  });
+
+  it("skips repositories whose collection window resolves to null", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" },
+      { owner: "openai", name: "evals" },
+    ]);
+
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      createJsonResponse(
+        searchPayload(
+          [
+            {
+              number: 2,
+              title: "Evals PR",
+              author: { login: "bob" },
+              createdAt: "2026-03-30T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ),
+    );
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+      collectionWindowForRepo: (repository) =>
+        repository.name === "codex" ? null : { since: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    // codex skipped (no fetch, no error); only evals collected.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(result.errors).toHaveLength(0);
+    expect(result.pullRequests.map((pr) => `${pr.repo.owner}/${pr.repo.name}`)).toEqual([
       "openai/evals",
     ]);
   });

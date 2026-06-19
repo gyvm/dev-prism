@@ -28,12 +28,18 @@ export async function collectNormalizedPullRequests(
   for (const repository of repositories) {
     const repoLabel = `${repository.owner}/${repository.name}`;
     try {
-      const cutoffDate =
-        dependencies.cutoffDateForRepo?.(repository) ?? runtimeConfig.cutoffDate;
+      const window = dependencies.collectionWindowForRepo
+        ? dependencies.collectionWindowForRepo(repository)
+        : { since: runtimeConfig.cutoffDate };
+      if (window === null) {
+        // Repo skipped (e.g. backfill floor already within covered history).
+        continue;
+      }
       const rawPullRequests = await fetchRepositoryPullRequests({
         repository,
         token,
-        cutoffDate,
+        cutoffDate: window.since,
+        ...(window.until ? { untilDate: window.until } : {}),
         ...(fetchFn ? { fetchFn } : {}),
       });
 

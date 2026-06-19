@@ -137,16 +137,22 @@ export type NormalizedPullRequest = Readonly<{
   }[];
 }>;
 
+// Per-repo collection window. `since` is the lower (inclusive) bound; `until`,
+// when set, is the upper (inclusive) bound used by backfill to fetch only the
+// uncovered older slice. Both are day-granular in practice (the GraphQL search
+// query rounds them to YYYY-MM-DD).
+export type CollectionWindow = Readonly<{ since: Date; until?: Date }>;
+
 export type CollectorDependencies = {
   fetchFn?: typeof fetch;
   now?: Date;
   env?: NodeJS.ProcessEnv;
   configPath?: string;
   authFactory?: AppAuthFactory;
-  // Per-repo incremental cursor. When provided, overrides the static
-  // cutoffDate (used to drive the DWH-derived `max(updated_at) − overlap`
-  // watermark). Returning undefined falls back to cutoffDate.
-  cutoffDateForRepo?: (repository: RepositoryConfig) => Date | undefined;
+  // Per-repo collection window. When provided, overrides the static cutoffDate.
+  // Returning `null` skips the repo entirely (e.g. a backfill whose floor is
+  // already within covered history).
+  collectionWindowForRepo?: (repository: RepositoryConfig) => CollectionWindow | null;
 };
 
 export type AppAuthFactory = (options: {

@@ -542,9 +542,29 @@ function getReviewerIdentifier(actor: GraphQLActor | null | undefined): string |
   return actor?.login ?? actor?.slug ?? actor?.name ?? null;
 }
 
-function buildSearchQuery(repository: RepositoryConfig, cutoffDate: Date): string {
-  const since = cutoffDate.toISOString().slice(0, 10);
-  return `repo:${repository.owner}/${repository.name} is:pr updated:>=${since}`;
+type SearchSort = "updated-asc" | "updated-desc";
+
+// GitHub search rounds `updated:` qualifiers to day granularity (YYYY-MM-DD).
+// An explicit `sort:` is required for stable cursor pagination — the default
+// relevance order is not guaranteed stable across pages. Incremental fetches
+// sort newest-first (`updated-desc`) so a MAX_PAGES cutoff drops the oldest,
+// not the just-changed PRs; backfill sorts oldest-first (`updated-asc`).
+function buildSearchQuery(
+  repository: RepositoryConfig,
+  since: Date,
+  until: Date | undefined,
+  sort: SearchSort,
+): string {
+  const parts = [
+    `repo:${repository.owner}/${repository.name}`,
+    "is:pr",
+    `updated:>=${since.toISOString().slice(0, 10)}`,
+  ];
+  if (until) {
+    parts.push(`updated:<=${until.toISOString().slice(0, 10)}`);
+  }
+  parts.push(`sort:${sort}`);
+  return parts.join(" ");
 }
 
 // Low-level POST + error handling shared by the search query and all follow-up
@@ -794,10 +814,13 @@ export async function fetchRepositoryPullRequests(options: {
   repository: RepositoryConfig;
   token: string;
   cutoffDate: Date;
+  untilDate?: Date;
   fetchFn?: typeof fetch;
 }): Promise<GraphQLPullRequestNode[]> {
   const repoLabel = `${options.repository.owner}/${options.repository.name}`;
-  const q = buildSearchQuery(options.repository, options.cutoffDate);
+  // Backfill (bounded window) fills oldest-first; incremental fills newest-first.
+  const sort: SearchSort = options.untilDate ? "updated-asc" : "updated-desc";
+  const q = buildSearchQuery(options.repository, options.cutoffDate, options.untilDate, sort);
   const fetchFn = options.fetchFn ?? fetch;
 
   const allNodes: GraphQLPullRequestNode[] = [];
