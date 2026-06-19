@@ -1,6 +1,35 @@
 // @ts-check
+import { existsSync, readFileSync } from "node:fs";
+import { resolve, sep } from "node:path";
+
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
+
+// Dev-only: `astro dev` serves only src/web/pages + publicDir, so the CLI-baked
+// frozen reports in dist/reports/ are unreachable and the gallery links 404
+// (production serves them from dist/ as ordinary static files, so no plugin is
+// needed there). `apply: "serve"` scopes this to the dev server — zero build
+// impact. report:dwh must have run first, same precondition as the gallery
+// index. Caveat: these are the last-baked reports, not live re-renders.
+const serveFrozenReports = {
+  name: "serve-frozen-reports",
+  apply: "serve",
+  /** @param {import("vite").ViteDevServer} server */
+  configureServer(server) {
+    const reportsDir = resolve(process.cwd(), process.env.REPORTS_DIR ?? "dist/reports");
+    server.middlewares.use((req, res, next) => {
+      const match = /^\/reports\/([\w.-]+\.html)$/.exec((req.url ?? "").split("?")[0]);
+      // /reports/ (the gallery) is an Astro page; only frozen {id}.html files
+      // are served here. Never shadow the gallery with a stale built index.html.
+      if (!match || match[1] === "index.html") return next();
+      const filePath = resolve(reportsDir, match[1]);
+      // Regex already forbids slashes; this guards against `..` escaping the dir.
+      if (!filePath.startsWith(reportsDir + sep) || !existsSync(filePath)) return next();
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.end(readFileSync(filePath));
+    });
+  },
+};
 
 // Astro shell for the gh-insights front-end (Reports gallery + Explore island).
 // The npm scripts invoke `astro --root src/web`, which sets the project root to
@@ -25,6 +54,15 @@ export default defineConfig({
   outDir: "../../dist",
   integrations: [react()],
   vite: {
+    // Dev-only static serving of the CLI-baked frozen reports (see above).
+    plugins: [serveFrozenReports],
+    // Tailwind v4 + daisyUI run via @tailwindcss/postcss (postcss.config.mjs),
+    // NOT @tailwindcss/vite: the Vite plugin is incompatible with Astro 6's
+    // rolldown-vite (passes aliasOnly:true → "Missing field tsconfigPaths").
+    // See withastro/astro#16542. PostCSS processes the shared src/ui/theme.css
+    // imported in Layout.astro — the SAME token source the Node CLI report path
+    // consumes, so Explore and frozen reports cannot drift.
+    //
     // duckdb-wasm ships its own workers/wasm; excluding it from dep
     // pre-bundling keeps Vite from mangling the worker URLs.
     optimizeDeps: { exclude: ["@duckdb/duckdb-wasm"] },

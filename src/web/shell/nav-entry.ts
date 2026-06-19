@@ -29,9 +29,11 @@ function injectSidebar(): void {
 
   const root = siteRoot();
   const container = document.createElement("div");
+  // Trailing slashes: directory-format canonical URLs, and they keep dev from
+  // resolving a bare `/explore` to the sibling src/web/explore.ts module.
   container.innerHTML = sidebarHtml({
-    reportsHref: root,
-    exploreHref: new URL("explore", root).href,
+    reportsHref: new URL("reports/", root).href,
+    exploreHref: new URL("explore/", root).href,
     active: null,
   });
   const aside = container.firstElementChild;

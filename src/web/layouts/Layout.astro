@@ -1,4 +1,5 @@
 ---
+import "../../ui/theme.css";
 import { sidebarHtml, SIDEBAR_STYLES, type SidebarActive } from "../shell/sidebar.ts";
 
 interface Props {
@@ -8,11 +9,15 @@ interface Props {
 
 const { title = "PR Analytics", active = null } = Astro.props;
 // BASE_URL mirrors the configured base and is NOT guaranteed to end in "/"
-// (e.g. "/pr-weekly-report" with no trailing slash). Normalize so the gallery
-// link is the base root and Explore is a clean child path.
+// (e.g. "/pr-weekly-report" with no trailing slash). Normalize so Reports and
+// Explore are clean child paths of the base (the base root itself redirects to
+// Explore — see pages/index.astro).
+// Trailing slashes are required: a bare `/explore` collides with the sibling
+// module src/web/explore.ts in dev (Vite serves it as JS); `/explore/` resolves
+// to the page. Slashes are also the canonical directory-format URLs in prod.
 const raw = import.meta.env.BASE_URL;
 const base = raw.endsWith("/") ? raw : `${raw}/`;
-const links = { reportsHref: base, exploreHref: `${base}explore`, active };
+const links = { reportsHref: `${base}reports/`, exploreHref: `${base}explore/`, active };
 ---
 
 <!doctype html>
