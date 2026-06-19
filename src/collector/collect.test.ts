@@ -7,6 +7,11 @@ import { describe, expect, it, vi } from "vitest";
 import { collectNormalizedPullRequests } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
 import { resolveToken } from "./auth.js";
+import { CollectorError, RateLimitError } from "../shared/errors.js";
+
+function responseWith(status: number, headers: Record<string, string>, body = ""): Response {
+  return new Response(body, { status, headers });
+}
 
 async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
@@ -67,6 +72,58 @@ describe("fetchRepositoryPullRequestPage", () => {
         fetchFn,
       }),
     ).rejects.toThrow(/403/);
+  });
+
+  it("throws RateLimitError on a 403 carrying retry-after (secondary limit)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, { "retry-after": "60" }));
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect((error as RateLimitError).scope).toBe("secondary");
+    expect((error as RateLimitError).resetAt!.getTime()).toBeGreaterThan(Date.now() + 55_000);
+  });
+
+  it("keeps a plain 403 (no retry-after) as a generic CollectorError", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, {}, "Forbidden"));
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(CollectorError);
+    expect(error).not.toBeInstanceOf(RateLimitError);
+  });
+
+  it("throws RateLimitError on a 200 RATE_LIMITED payload (primary limit)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ errors: [{ type: "RATE_LIMITED", message: "rate limited" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json", "x-ratelimit-reset": "1800000000" },
+      }),
+    );
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect((error as RateLimitError).scope).toBe("primary");
+    expect((error as RateLimitError).resetAt!.getTime()).toBe(1_800_000_000_000);
   });
 
   it("throws on malformed JSON response", async () => {
@@ -687,6 +744,30 @@ describe("collectNormalizedPullRequests", () => {
     expect(result.pullRequests.map((pr) => `${pr.repo.owner}/${pr.repo.name}`)).toEqual([
       "openai/evals",
     ]);
+  });
+
+  it("stops collecting and records rateLimited when a shared rate limit is hit", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" },
+      { owner: "openai", name: "evals" },
+    ]);
+
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, { "retry-after": "30" }));
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+    });
+
+    // First repo hit the limit → stop before the second repo is attempted.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(result.pullRequests).toHaveLength(0);
+    expect(result.errors).toHaveLength(0);
+    expect(result.rateLimited?.scope).toBe("secondary");
+    expect(result.rateLimited?.atRepo).toBe("openai/codex");
+    expect(result.rateLimited?.pendingRepos).toEqual(["openai/codex", "openai/evals"]);
   });
 
   it("isolates per-repository errors and continues collection", async () => {

@@ -126,6 +126,15 @@ async function main(): Promise<void> {
     process.stderr.write(`[warning] ${repository}: ${formatError(error)}\n`);
   }
 
+  if (collected.rateLimited) {
+    const { scope, atRepo, resetAt, pendingRepos } = collected.rateLimited;
+    const when = resetAt ? `after ${resetAt.toISOString()}` : "in a few minutes";
+    process.stderr.write(
+      `[rate-limit] GitHub ${scope} rate limit hit at ${atRepo}; stopped with ${pendingRepos.length} repository(s) not yet collected.\n` +
+        `  Partial data is being written. Re-run ${when} to fetch the remaining increment (the cursor resumes automatically).\n`,
+    );
+  }
+
   const result = await buildDwhFromPullRequests(collected.pullRequests, {
     ...(options.dwhDir ? { dwhDir: options.dwhDir } : {}),
     botPatterns: config.bots.patterns,

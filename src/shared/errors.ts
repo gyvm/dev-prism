@@ -19,6 +19,26 @@ export class CollectorError extends Error {
   }
 }
 
+/**
+ * A GitHub rate limit (primary or secondary) was hit during collection. Carries
+ * the reset time when GitHub provided one so the operator knows when a re-run
+ * can resume.
+ */
+export class RateLimitError extends CollectorError {
+  readonly scope: "primary" | "secondary";
+  readonly resetAt: Date | null;
+
+  constructor(
+    message: string,
+    options: { scope: "primary" | "secondary"; resetAt: Date | null; cause?: unknown },
+  ) {
+    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
+    this.name = "RateLimitError";
+    this.scope = options.scope;
+    this.resetAt = options.resetAt;
+  }
+}
+
 export class MetricsError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);

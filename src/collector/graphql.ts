@@ -1,4 +1,4 @@
-import { CollectorError } from "../shared/errors.js";
+import { CollectorError, RateLimitError } from "../shared/errors.js";
 import type { RepositoryConfig } from "../shared/types.js";
 
 const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
@@ -159,7 +159,7 @@ type GraphQLSearchResponse = {
       pageInfo?: GraphQLPageInfo | null;
     } | null;
   };
-  errors?: Array<{ message?: string }>;
+  errors?: Array<{ message?: string; type?: string }>;
 };
 
 export type RepositoryPullRequestPage = {
@@ -567,6 +567,29 @@ function buildSearchQuery(
   return parts.join(" ");
 }
 
+// Resolves when a rate limit resets, from whichever header GitHub supplied.
+// `retry-after` is relative seconds; `x-ratelimit-reset` is an absolute epoch in
+// *seconds* (hence the ×1000). Returns null when neither header is present.
+function parseRateLimitReset(headers: Headers): Date | null {
+  const retryAfter = headers.get("retry-after");
+  if (retryAfter && /^\d+$/.test(retryAfter.trim())) {
+    return new Date(Date.now() + Number(retryAfter.trim()) * 1000);
+  }
+  const reset = headers.get("x-ratelimit-reset");
+  if (reset && /^\d+$/.test(reset.trim())) {
+    return new Date(Number(reset.trim()) * 1000);
+  }
+  return null;
+}
+
+// A non-2xx response is a *secondary* (abuse) rate limit only when GitHub says
+// so: 429 is unambiguous, and a 403 counts only when it carries `retry-after`.
+// A plain 403 (e.g. a bad/again-scoped token) must stay a generic error so it is
+// not mistaken for a transient limit and silently retried forever.
+function isSecondaryRateLimit(response: Response): boolean {
+  return response.status === 429 || (response.status === 403 && response.headers.has("retry-after"));
+}
+
 // Low-level POST + error handling shared by the search query and all follow-up
 // node(id:) queries. Returns the GraphQL `data` payload (errors are thrown).
 async function postGraphQL(options: {
@@ -598,6 +621,12 @@ async function postGraphQL(options: {
   }
 
   if (!response.ok) {
+    if (isSecondaryRateLimit(response)) {
+      throw new RateLimitError(
+        `GitHub secondary rate limit hit while fetching ${options.repoLabel} (HTTP ${response.status})`,
+        { scope: "secondary", resetAt: parseRateLimitReset(response.headers) },
+      );
+    }
     throw new CollectorError(
       `GraphQL request failed for ${options.repoLabel}: ${response.status} ${response.statusText}`,
     );
@@ -620,6 +649,14 @@ async function postGraphQL(options: {
   }
 
   if (rawPayload.errors?.length) {
+    // Primary rate limit: HTTP 200 with a RATE_LIMITED error. Take priority over
+    // any other errors in the array so it is never misreported as a generic one.
+    if (rawPayload.errors.some((error) => error.type === "RATE_LIMITED")) {
+      throw new RateLimitError(
+        `GitHub primary rate limit hit while fetching ${options.repoLabel}`,
+        { scope: "primary", resetAt: parseRateLimitReset(response.headers) },
+      );
+    }
     throw new CollectorError(
       `GraphQL error for ${options.repoLabel}: ${rawPayload.errors
         .map((error) => error.message ?? "Unknown error")
