@@ -1,7 +1,12 @@
 import { CollectorError, RateLimitError } from "../shared/errors.js";
 import type { RepositoryConfig } from "../shared/types.js";
 
-const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
+// GitHub.com by default; on GitHub Enterprise Server the Actions runner sets
+// GITHUB_GRAPHQL_URL (e.g. https://ghe.example.com/api/graphql). `||` (not `??`)
+// so an empty env var — a common Actions footgun — falls back rather than breaks.
+function resolveGraphqlEndpoint(): string {
+  return process.env.GITHUB_GRAPHQL_URL?.trim() || "https://api.github.com/graphql";
+}
 const MAX_PAGES = 100;
 // Runaway safety valve for child-connection pagination (per connection, per PR).
 // At 100 nodes/page this allows up to ~10k items before failing loudly.
@@ -601,7 +606,7 @@ async function postGraphQL(options: {
 }): Promise<Record<string, unknown>> {
   let response: Response;
   try {
-    response = await options.fetchFn(GITHUB_GRAPHQL_ENDPOINT, {
+    response = await options.fetchFn(resolveGraphqlEndpoint(), {
       method: "POST",
       headers: {
         "content-type": "application/json",

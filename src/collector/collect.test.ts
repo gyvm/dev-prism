@@ -74,6 +74,27 @@ describe("fetchRepositoryPullRequestPage", () => {
     ).rejects.toThrow(/403/);
   });
 
+  it("targets GITHUB_GRAPHQL_URL when set (GitHub Enterprise Server)", async () => {
+    const original = process.env.GITHUB_GRAPHQL_URL;
+    process.env.GITHUB_GRAPHQL_URL = "https://ghe.example.com/api/graphql";
+    try {
+      const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+        createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })),
+      );
+      await fetchRepositoryPullRequestPage({
+        q: "repo:openai/codex is:pr",
+        repoLabel: "openai/codex",
+        token: "token",
+        after: null,
+        fetchFn,
+      });
+      expect(String(fetchFn.mock.calls[0]![0])).toBe("https://ghe.example.com/api/graphql");
+    } finally {
+      if (original === undefined) delete process.env.GITHUB_GRAPHQL_URL;
+      else process.env.GITHUB_GRAPHQL_URL = original;
+    }
+  });
+
   it("throws RateLimitError on a 403 carrying retry-after (secondary limit)", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, { "retry-after": "60" }));
 

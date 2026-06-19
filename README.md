@@ -132,6 +132,7 @@ npm run demo
 | `GITHUB_TOKEN` | Pull request の read-only 権限がある PAT |
 | `COPILOT_GITHUB_TOKEN` | AI 分析専用の PAT |
 | `LOOKBACK_DAYS` | 初回フルロードで遡る日数 (既定 `30`)。これより古い履歴は `dwh:build --from` で取得する |
+| `GITHUB_GRAPHQL_URL` / `GITHUB_API_URL` | GitHub Enterprise Server 用。未設定なら github.com。GitHub Actions ランナーでは自動設定される |
 
 ## CLI
 

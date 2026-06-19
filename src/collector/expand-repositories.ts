@@ -1,7 +1,13 @@
 import { CollectorError } from "../shared/errors.js";
 import type { RepositoryConfig, RepositorySpec } from "../shared/types.js";
 
-const GITHUB_SEARCH_ENDPOINT = "https://api.github.com/search/repositories";
+// REST search base is GitHub.com by default; on GitHub Enterprise Server the
+// Actions runner sets GITHUB_API_URL (e.g. https://ghe.example.com/api/v3).
+// `||` (not `??`) so an empty env var falls back rather than breaks the URL.
+function resolveSearchEndpoint(): string {
+  const base = process.env.GITHUB_API_URL?.trim() || "https://api.github.com";
+  return `${base.replace(/\/+$/, "")}/search/repositories`;
+}
 const PER_PAGE = 100;
 const MAX_PAGES = 10;
 const SEARCH_API_HARD_LIMIT = 1000;
@@ -48,7 +54,7 @@ async function fetchWildcardRepositories(
   const query = `user:${owner} archived:false`;
 
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = new URL(GITHUB_SEARCH_ENDPOINT);
+    const url = new URL(resolveSearchEndpoint());
     url.searchParams.set("q", query);
     url.searchParams.set("per_page", String(PER_PAGE));
     url.searchParams.set("page", String(page));
