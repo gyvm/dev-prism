@@ -1,8 +1,7 @@
 import { resolveScope, type Grain, type Scope } from "./scope.js";
 
-// Scope ↔ URL serialization. Two uses:
-//   - Explore keeps its filter state in the URL (shareable permalink).
-//   - A frozen report's "Explore で深掘り" link carries its scope to /explore.
+// Scope ↔ URL serialization. Explore keeps its filter state in the URL
+// (shareable permalink) and `exploreHref` builds a scoped deep-link to it.
 // Defaults (all repos/users, bots included, week grain, no thresholds) are
 // omitted to keep URLs clean; resolveScope restores them on parse, so the
 // round-trip is exact for the full scope (including thresholds).
