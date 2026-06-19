@@ -1,6 +1,8 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
+import { renderToStaticMarkup } from "react-dom/server";
+
 import { renderAnalysis } from "../../renderers/index.js";
 import { escapeHtml } from "../../renderers/utils.js";
 import { markdownToHtml } from "../../renderers/markdown.js";
@@ -81,27 +83,61 @@ function formatDateTimeInTimezone(value: string, timezone: string): string {
   }).format(new Date(value));
 }
 
-function renderReportMeta(reportInput: ReportInput): string {
+function ReportHeader({ reportInput }: { reportInput: ReportInput }) {
   const weekStart = formatWeekDate(reportInput.week.start, reportInput.timezone);
   const weekEnd = formatWeekDate(reportInput.week.end, reportInput.timezone);
   const generated = formatDateTimeInTimezone(reportInput.generatedAt, reportInput.timezone);
 
-  return `<dl class="report-meta" aria-label="レポート情報">
-        <div class="report-meta-item report-meta-period">
+  return (
+    <header>
+      <h1>GitHub PR 週次レポート</h1>
+      <dl className="report-meta" aria-label="レポート情報">
+        <div className="report-meta-item report-meta-period">
           <dt>対象期間</dt>
-          <dd>${escapeHtml(weekStart)} - ${escapeHtml(weekEnd)}</dd>
+          <dd>
+            {weekStart} - {weekEnd}
+          </dd>
         </div>
-        <div class="report-meta-item">
+        <div className="report-meta-item">
           <dt>タイムゾーン</dt>
-          <dd>${escapeHtml(reportInput.timezone)}</dd>
+          <dd>{reportInput.timezone}</dd>
         </div>
-        <div class="report-meta-item">
+        <div className="report-meta-item">
           <dt>生成日時</dt>
-          <dd>${escapeHtml(generated)}</dd>
+          <dd>{generated}</dd>
         </div>
-      </dl>`;
+      </dl>
+    </header>
+  );
 }
 
+// Frozen-report document shell. The section bodies (DORA cards, gantt,
+// bipartite, AI markdown) are produced as HTML strings — the charts carry their
+// own inline hover <script>, and metric-cards is itself SSR'd React — so they
+// are injected verbatim via dangerouslySetInnerHTML. PAGE_STYLES likewise: React
+// would escape its `>`/`&`, so it must be raw. No client React ships: this is
+// renderToStaticMarkup, the report stays frozen.
+function ReportDocument({
+  title,
+  bodyHtml,
+}: {
+  title: string;
+  bodyHtml: string;
+}) {
+  return (
+    <html lang="ja">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{title}</title>
+        <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
+      </head>
+      <body>
+        <main dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+      </body>
+    </html>
+  );
+}
 
 export function renderReportHtml(
   period: Period,
@@ -117,25 +153,17 @@ export function renderReportHtml(
     .filter((html) => html !== "")
     .join("\n");
 
-  return `<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GitHub PR 週次レポート - ${escapeHtml(period.id)}</title>
-  <style>${PAGE_STYLES}</style>
-</head>
-<body>
-  <main>
-    <header>
-      <h1>GitHub PR 週次レポート</h1>
-      ${renderReportMeta(reportInput)}
-    </header>
-    ${sections}
-  </main>
-</body>
-</html>
-`;
+  const headerHtml = renderToStaticMarkup(
+    <ReportHeader reportInput={reportInput} />,
+  );
+  const document = renderToStaticMarkup(
+    <ReportDocument
+      title={`GitHub PR 週次レポート - ${period.id}`}
+      bodyHtml={`${headerHtml}\n${sections}`}
+    />,
+  );
+
+  return `<!doctype html>\n${document}\n`;
 }
 
 export async function renderStage(

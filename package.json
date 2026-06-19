@@ -21,16 +21,18 @@
     "build:nav": "esbuild src/web/shell/nav-entry.ts --bundle --format=esm --minify --outfile=src/web/public/nav.js",
     "web:dev": "npm run build:nav && astro dev --root src/web",
     "web:build": "npm run build:nav && ASTRO_BASE=/pr-weekly-report astro build --root src/web",
+    "web:preview": "ASTRO_BASE=/pr-weekly-report astro preview --root src/web",
     "web:check": "astro check --root src/web",
     "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.3-r.3",
     "@github/copilot-sdk": "^0.3.0",
+    "@internationalized/date": "^3.12.2",
     "@octokit/auth-app": "^8.1.1",
     "markdown-it": "^14.1.1",
     "react": "^19.2.7",
-    "react-day-picker": "^10.0.1",
+    "react-aria-components": "^1.19.0",
     "react-dom": "^19.2.7",
     "smol-toml": "^1.6.1",
     "zod": "^4.1.5"
@@ -38,14 +40,20 @@
   "devDependencies": {
     "@astrojs/react": "^5.0.7",
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@tailwindcss/postcss": "^4.3.1",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.6.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "astro": "^6.4.8",
+    "daisyui": "^5.5.23",
     "esbuild": "^0.28.1",
+    "tailwindcss": "^4.3.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "vite": "^7"
   }
 }

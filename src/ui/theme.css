@@ -1,0 +1,65 @@
+/* Single source of truth for the design system, to be consumed by BOTH build
+   paths so Explore and frozen reports cannot drift:
+   - Astro/Vite (Explore shell) via @tailwindcss/postcss (postcss.config.mjs) —
+     WIRED NOW (imported by layouts/Layout.astro).
+   - Node CLI report path via @tailwindcss/cli — NOT WIRED YET; arrives in
+     Phase 2, which replaces the hand-written PAGE_STYLES :root block. Until
+     then the frozen report still ships PAGE_STYLES, not this theme.
+   DESIGN.md palette mapped onto daisyUI semantic theme variables. No purple;
+   borders over shadows; GitHub-inspired restraint. */
+@import "tailwindcss";
+/* themes: false disables daisyUI's bundled light/dark themes (whose palettes
+   include pinks/purples that violate DESIGN.md). Only our custom `ghinsights`
+   theme below is emitted, keeping frozen-report CSS lean and deterministic. */
+@plugin "daisyui" {
+  themes: false;
+  logs: false;
+}
+
+/* DESIGN.md palette → daisyUI custom theme. `default: true` makes it active so
+   daisyUI's bundled themes (and their purples) never apply. */
+@plugin "daisyui/theme" {
+  name: "ghinsights";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #ffffff;        /* panel / card surfaces */
+  --color-base-200: #f7f9fc;        /* page background (--bg-default) */
+  --color-base-300: #eef3f8;        /* muted surfaces / rails (--bg-muted) */
+  --color-base-content: #202733;    /* primary text (--fg-default) */
+
+  --color-primary: #0891b2;         /* primary report accent (--accent-cyan) */
+  --color-primary-content: #ffffff;
+  --color-secondary: #2563eb;       /* links / GitHub-adjacent (--accent-blue) */
+  --color-secondary-content: #ffffff;
+  --color-accent: #0891b2;          /* keep cyan; never purple */
+  --color-accent-content: #ffffff;
+  --color-neutral: #202733;
+  --color-neutral-content: #ffffff;
+
+  --color-info: #2563eb;
+  --color-info-content: #ffffff;
+  --color-success: #1f8f5f;         /* merged/positive (--success) */
+  --color-success-content: #ffffff;
+  --color-warning: #b7791f;         /* waiting/attention (--attention) */
+  --color-warning-content: #ffffff;
+  --color-error: #c2413a;           /* fixing/failure (--danger) */
+  --color-error-content: #ffffff;
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;           /* 8px — cards/fields */
+  --radius-box: 0.75rem;            /* 12px — sections */
+  --border: 1px;                    /* DESIGN.md: prefer borders over shadows */
+}
+
+/* Raw DESIGN.md tokens kept as theme variables so bespoke inline styles
+   (timeline rails, role colors, chart CSS vars) resolve identically in both
+   build paths without re-declaring a :root block per file. */
+@theme {
+  --color-fg-muted: #586574;
+  --color-fg-subtle: #728091;
+  --color-border-default: #d6dee8;
+  --color-border-muted: #e2e8f0;
+  --color-panel-subtle: #f5f8fb;
+}

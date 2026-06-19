@@ -1,6 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { DayPicker, type DateRange } from "react-day-picker";
-import "react-day-picker/style.css";
+import { useState } from "react";
+import {
+  Button,
+  CalendarCell,
+  CalendarGrid,
+  DateInput,
+  DateRangePicker,
+  DateSegment,
+  Dialog,
+  Group,
+  Heading,
+  I18nProvider,
+  Popover,
+  RangeCalendar,
+  type DateValue,
+  type RangeValue,
+} from "react-aria-components";
+import { CalendarDate } from "@internationalized/date";
 
 import { datePresets } from "../date-presets.js";
 
@@ -13,62 +28,88 @@ type Props = Readonly<{
   onRange: (from: Date | null, to: Date | null) => void;
 }>;
 
-function label(date: Date | null): string {
-  return date ? date.toISOString().slice(0, 10) : "—";
+// The app models periods as UTC day boundaries (Date.toISOString().slice(0,10)),
+// so convert on the UTC fields to keep the displayed calendar day stable across
+// the viewer's timezone.
+function toCalendar(date: Date | null): CalendarDate | null {
+  return date
+    ? new CalendarDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+    : null;
+}
+
+function fromCalendar(date: DateValue): Date {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day));
 }
 
 export default function PeriodPicker({ from, to, onPreset, onRange }: Props) {
-  const [open, setOpen] = useState(false);
   // `now` is read once per mount; presets are relative windows.
   const [presets] = useState(() => datePresets(new Date()));
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const selected: DateRange | undefined = from ? { from, to: to ?? undefined } : undefined;
-
-  // Dismiss the calendar on outside-click / Escape (parity with MultiSelect).
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  const start = toCalendar(from);
+  const end = toCalendar(to);
+  const value: RangeValue<CalendarDate> | null = start && end ? { start, end } : null;
 
   return (
-    <div className="explore-period" ref={containerRef}>
-      <div className="explore-presets" role="group" aria-label="期間プリセット">
+    <I18nProvider locale="ja-JP">
+      <div className="explore-period">
+        <div className="explore-presets" role="group" aria-label="期間プリセット">
         {presets.map((preset) => (
-          <button type="button" key={preset.id} className="explore-preset" onClick={() => onPreset(preset.from, preset.to)}>
+          <button
+            type="button"
+            key={preset.id}
+            className="explore-preset"
+            onClick={() => onPreset(preset.from, preset.to)}
+          >
             {preset.label}
           </button>
         ))}
-        <button
-          type="button"
-          className="explore-preset explore-preset--cal"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
-          📅 {label(from)} 〜 {label(to)}
-        </button>
       </div>
-      {open && (
-        <div className="explore-calendar">
-          <DayPicker
-            mode="range"
-            selected={selected}
-            onSelect={(range) => onRange(range?.from ?? null, range?.to ?? null)}
-            numberOfMonths={2}
-            weekStartsOn={1}
-          />
-        </div>
-      )}
-    </div>
+      <DateRangePicker
+        className="rac-daterange"
+        aria-label="期間"
+        value={value}
+        onChange={(range) =>
+          range ? onRange(fromCalendar(range.start), fromCalendar(range.end)) : onRange(null, null)
+        }
+      >
+        <Group className="rac-group">
+          <DateInput slot="start" className="rac-dateinput">
+            {(segment) => <DateSegment segment={segment} className="rac-segment" />}
+          </DateInput>
+          <span aria-hidden="true" className="rac-dash">
+            〜
+          </span>
+          <DateInput slot="end" className="rac-dateinput">
+            {(segment) => <DateSegment segment={segment} className="rac-segment" />}
+          </DateInput>
+          <Button className="rac-calbtn" aria-label="カレンダーを開く">
+            📅
+          </Button>
+        </Group>
+        <Popover className="rac-popover" placement="bottom start">
+          <Dialog className="rac-dialog">
+            <RangeCalendar className="rac-calendar" firstDayOfWeek="mon" visibleDuration={{ months: 2 }}>
+              <header className="rac-calheader">
+                <Button slot="previous" className="rac-navbtn" aria-label="前月">
+                  ‹
+                </Button>
+                <Heading className="rac-calheading" />
+                <Button slot="next" className="rac-navbtn" aria-label="翌月">
+                  ›
+                </Button>
+              </header>
+              <div className="rac-calgrids">
+                <CalendarGrid className="rac-calgrid">
+                  {(date) => <CalendarCell date={date} className="rac-calcell" />}
+                </CalendarGrid>
+                <CalendarGrid className="rac-calgrid" offset={{ months: 1 }}>
+                  {(date) => <CalendarCell date={date} className="rac-calcell" />}
+                </CalendarGrid>
+              </div>
+            </RangeCalendar>
+          </Dialog>
+        </Popover>
+      </DateRangePicker>
+      </div>
+    </I18nProvider>
   );
 }
