@@ -259,6 +259,7 @@ jobs:
 - **入力**: `config` (既定 `config.toml`) / `dwh-dir` (既定 `data/dwh`) / `from` (任意・過去分 backfill)。
 - **認証**: `GITHUB_TOKEN` を **step の `env:` で必ず渡す** (コンテナ Action は secret を自動注入しない)。GitHub Enterprise Server では `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` がランナーから自動で渡ります。
 - 生成物の所有者はエントリポイントが workspace のユーザーに戻すため、後段の `git commit` / 次回 `checkout` は権限エラーになりません。
+- **レート制限時**: Action は取得済み分を書き込んで success (exit 0) で終了し、stderr に reset 時刻を出します。後段の commit は partial データをコミットし、次回実行 (reset 後の手動トリガまたはスケジュール) で DWH カーソルが自動的に続きから再開します。
 - v1 では `image: 'Dockerfile'` (毎 run ビルド)。公開時は `docker://ghcr.io/...` のプリビルドイメージへ切り替えるのが望ましい (follow-up)。
 
 ## GitHub Actions による週次自動デプロイ
