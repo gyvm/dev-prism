@@ -29,6 +29,11 @@ inputs:
 # GITHUB_APP_* trio). See the README for a complete consumer workflow.
 runs:
   using: 'docker'
+  # Built on the runner each run. After cutting the first v1 release (which
+  # pushes the image via .github/workflows/release.yml), switch to the prebuilt
+  # image for much faster consumer runs — consumers reference the action at @v1,
+  # which matches the :1 image tag:
+  #   image: 'docker://ghcr.io/your-org/pr-weekly-report:1'
   image: 'Dockerfile'
   args:
     - ${{ inputs.config }}
