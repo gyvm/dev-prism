@@ -7,10 +7,13 @@
 # Two stages: compile TypeScript with the full toolchain, then ship only the
 # emitted JS plus production dependencies (no tsx/astro/vitest in the runtime).
 
-# Pin amd64: the duckdb prebuilt is published per-arch via optionalDependencies,
-# and GitHub-hosted runners are amd64. This also keeps local builds on Apple
-# Silicon from silently skipping the linux-x64 binding.
-FROM --platform=linux/amd64 node:24-slim AS build
+# @duckdb/node-api ships its native binding per-arch via optionalDependencies
+# (linux-x64 / linux-arm64, both glibc). As a `Dockerfile` action the image is
+# built on the runner, so it resolves the matching prebuilt for that arch — no
+# platform pin needed here. (When pre-building a fixed-arch ghcr image instead,
+# pass --platform at `docker build` time.) Debian slim = glibc; Alpine/musl
+# would not resolve these prebuilts.
+FROM node:24-slim AS build
 WORKDIR /engine
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -18,7 +21,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM --platform=linux/amd64 node:24-slim
+FROM node:24-slim
 # Engine code lives at a fixed path; the runner mounts the consumer repo at
 # GITHUB_WORKSPACE and the entrypoint cd's there (no WORKDIR dependence).
 COPY package.json package-lock.json /engine/
