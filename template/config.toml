@@ -1,0 +1,7 @@
+# Repositories to analyze. "owner/name" for a single repo, or "owner/*" for all
+# non-archived repos under an owner.
+[repositories]
+include = ["your-org/*"]
+
+[general]
+timezone = "Asia/Tokyo"

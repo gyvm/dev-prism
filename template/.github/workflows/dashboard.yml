@@ -1,0 +1,67 @@
+# PR dashboard for a consumer repo. Replace __OWNER__/__REPO__ with the engine
+# repo you reference (e.g. your-org/pr-weekly-report). See README for setup.
+name: PR Dashboard
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # weekly, Monday 00:00 UTC
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "One-time backfill: collect history down to this date (YYYY-MM-DD)"
+        required: false
+
+permissions:
+  contents: write # commit the accumulating data/dwh
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pr-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # 1. Collect PRs and refresh the committed DWH (incremental; --from backfills).
+      - uses: __OWNER__/__REPO__@v1
+        with:
+          config: config.toml
+          from: ${{ github.event.inputs.from }}
+        env:
+          # Read-only PAT with access to the target repos. NOT auto-injected into
+          # container actions — must be passed here.
+          GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
+
+      # 2. Persist the DWH so the next run resumes incrementally.
+      - name: Commit DWH
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/dwh
+          if git diff --cached --quiet; then
+            echo "No DWH changes to commit"
+          else
+            git commit -m "chore: refresh DWH ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+
+      # 3. Build the static dashboard into dist/. base must be "/<repo>/" for a
+      #    Pages project page; use "/" for a custom domain or Cloudflare.
+      - uses: __OWNER__/__REPO__/site@v1
+        with:
+          base: /${{ github.event.repository.name }}/
+
+      # 4. Deploy dist/ to GitHub Pages.
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v5

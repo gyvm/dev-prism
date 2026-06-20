@@ -47,8 +47,11 @@ const serveFrozenReports = {
 // than import.meta.env.PROD, which is unreliable at config-load time. Dev runs
 // at base "/", production GitHub Pages project page at "/pr-weekly-report".
 export default defineConfig({
-  site: "https://gyvm.github.io/pr-weekly-report",
-  base: process.env.ASTRO_BASE ?? "/",
+  // base/site are env-driven so the same build serves any deployment: "/" for a
+  // custom domain / Cloudflare, "/<repo>/" for a Pages project page. `|| ` (not
+  // `??`) so an empty env var — a common Actions footgun — falls back.
+  site: process.env.ASTRO_SITE?.trim() || "https://gyvm.github.io/pr-weekly-report",
+  base: process.env.ASTRO_BASE?.trim() || "/",
   srcDir: "./",
   publicDir: "./public",
   outDir: "../../dist",
