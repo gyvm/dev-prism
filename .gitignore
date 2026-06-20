@@ -14,6 +14,7 @@ data/raw/
 data/analysis/
 data/history/
 data/latest.json
+data/dwh/
 
 # Explore: served Parquet (generated) and build output
 src/web/public/data/

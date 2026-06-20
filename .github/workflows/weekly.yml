@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -47,25 +47,29 @@ jobs:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
 
-      - name: Generate weekly report
-        run: npm run report -- --skip-ai
+      # Persist the DWH across runs WITHOUT committing PR data to the repo: the
+      # collection cursor self-heals from it, so each week is an incremental
+      # collect rather than a full rebuild. A unique key always saves a fresh
+      # cache; restore-keys pulls the most recent one. (A >7-day gap evicts it,
+      # which just falls back to a full LOOKBACK_DAYS load — still correct.)
+      - name: Restore DWH cache
+        uses: actions/cache@v4
+        with:
+          path: data/dwh
+          key: dwh-${{ github.run_id }}
+          restore-keys: |
+            dwh-
+
+      - name: Build DWH and dashboard
+        run: |
+          npm run dwh:build -- --dwh-dir data/dwh
+          npm run explore:data -- --dwh-dir data/dwh
+          npm run web:build
         env:
           GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
           GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-
-      - name: Commit data to repository
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/
-          if git diff --cached --quiet; then
-            echo "No data changes to commit"
-          else
-            git commit -m "chore: update report data ($(TZ=Asia/Tokyo date +%Y-%m-%d))"
-            git push
-          fi
 
       - name: Check if GitHub Pages is enabled
         id: pages-check
