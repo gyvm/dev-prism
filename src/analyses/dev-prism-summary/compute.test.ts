@@ -46,12 +46,26 @@ describe("dev-prism-summary compute", () => {
             },
           ],
         }),
+        makePr({
+          number: 4,
+          title: "Previous period",
+          createdAt: "2026-04-21T00:00:00.000Z",
+          updatedAt: "2026-04-22T00:00:00.000Z",
+          mergedAt: "2026-04-22T00:00:00.000Z",
+          additions: 40,
+          deletions: 10,
+          reviews: [{ author: "bob", state: "APPROVED", submittedAt: "2026-04-21T10:00:00.000Z" }],
+        }),
       ],
     });
 
     const summary = compute(ctx);
 
     expect(summary.flowSnapshot.mergedPrCount).toBe(2);
+    expect(summary.flowSnapshot.previousMergedPrCount).toBe(1);
+    expect(summary.flowSnapshot.mergedPrDelta).toBe(1);
+    expect(summary.flowSnapshot.previousLeadTimeHours).toBe(24);
+    expect(summary.flowSnapshot.leadTimeDeltaHours).toBe(38);
     expect(summary.flowSnapshot.activePrCount).toBe(3);
     expect(summary.whatChanged.longLeadTimePrs[0]?.number).toBe(1);
     expect(summary.whatChanged.largePrs[0]?.number).toBe(1);

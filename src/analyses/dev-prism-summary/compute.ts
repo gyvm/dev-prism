@@ -35,6 +35,23 @@ function formatHours(value: number | null): string {
   return `${round1(value)}h`;
 }
 
+function formatSignedHours(value: number | null): string {
+  if (value === null) return "N/A";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatHours(value)}`;
+}
+
+function formatSignedCount(value: number): string {
+  return value > 0 ? `+${value}件` : `${value}件`;
+}
+
+function previousPeriod(weekStart: Date, weekEnd: Date): { start: Date; end: Date } {
+  const durationMs = weekEnd.getTime() - weekStart.getTime();
+  const end = new Date(weekStart.getTime() - 1);
+  const start = new Date(end.getTime() - durationMs);
+  return { start, end };
+}
+
 function formatPr(pr: NormalizedPullRequest): Pick<DevPrismPrCandidate, "repo" | "number" | "title" | "url" | "author"> {
   return {
     repo: formatRepoSlug(pr.repo),
@@ -112,8 +129,17 @@ function firstReviewWaitHours(metric: PrMetrics, weekEnd: Date): number | null {
   return diffHours(metric.createdAt, weekEnd.toISOString());
 }
 
-function trendForLeadTime(leadTimeHours: number | null, mergedPrCount: number): DevPrismTrend {
+function trendForLeadTime(
+  leadTimeHours: number | null,
+  mergedPrCount: number,
+  deltaHours: number | null,
+): DevPrismTrend {
   if (leadTimeHours === null || mergedPrCount === 0) return "unknown";
+  if (deltaHours !== null) {
+    if (deltaHours <= -1) return "improved";
+    if (deltaHours >= 1) return "worse";
+    return "flat";
+  }
   if (leadTimeHours <= 24) return "improved";
   if (leadTimeHours >= 72) return "worse";
   return "flat";
@@ -121,6 +147,7 @@ function trendForLeadTime(leadTimeHours: number | null, mergedPrCount: number): 
 
 function analystComment(
   leadTimeHours: number | null,
+  leadTimeDeltaHours: number | null,
   reviewWaitHours: number | null,
   mergedPrCount: number,
   activePrCount: number,
@@ -132,13 +159,14 @@ function analystComment(
   }
   const lead = formatHours(leadTimeHours);
   const review = formatHours(reviewWaitHours);
+  const leadDelta = leadTimeDeltaHours === null ? "" : `前回比${formatSignedHours(leadTimeDeltaHours)}、`;
   if (leadTimeHours !== null && leadTimeHours >= 72) {
-    return `今週のリードタイム中央値は${lead}で重めです。レビュー待ち(${review})、大型PR、議論が多いPRが影響している可能性があります。`;
+    return `今週のリードタイム中央値は${lead}で、${leadDelta}重めです。レビュー待ち(${review})、大型PR、議論が多いPRが影響している可能性があります。`;
   }
   if (reviewWaitHours !== null && reviewWaitHours >= 24) {
-    return `今週のリードタイム中央値は${lead}です。レビュー待ち平均が${review}あるため、初回レビューまでの流れを確認するとよさそうです。`;
+    return `今週のリードタイム中央値は${lead}です。${leadDelta}レビュー待ち平均が${review}あるため、初回レビューまでの流れを確認するとよさそうです。`;
   }
-  return `今週のリードタイム中央値は${lead}で、完了したPRは${mergedPrCount}件です。流れが良かったPRを拾い、再現できる進め方を確認するとよさそうです。`;
+  return `今週のリードタイム中央値は${lead}で、${leadDelta}完了したPRは${mergedPrCount}件です。流れが良かったPRを拾い、再現できる進め方を確認するとよさそうです。`;
 }
 
 function metric(label: string, value: string, detail: string, trend: DevPrismTrend): DevPrismMetric {
@@ -151,6 +179,13 @@ export function compute(ctx: AnalysisContext): DevPrismSummary {
   );
   const mergedPrs = ctx.rawPrs.filter((pr) =>
     isMergedInWeek(pr, ctx.weekStart, ctx.weekEnd),
+  );
+  const previous = previousPeriod(ctx.weekStart, ctx.weekEnd);
+  const previousActivePrs = ctx.rawPrs.filter((pr) =>
+    hasPrActivityInWeek(pr, previous.start, previous.end),
+  );
+  const previousMergedPrs = ctx.rawPrs.filter((pr) =>
+    isMergedInWeek(pr, previous.start, previous.end),
   );
   const metricsByKey = new Map<string, PrMetrics>(
     activePrs.map((pr) => [`${formatRepoSlug(pr.repo)}#${pr.number}`, calculatePrMetrics(pr)]),
@@ -167,11 +202,34 @@ export function compute(ctx: AnalysisContext): DevPrismSummary {
       return firstReviewWaitHours(m, ctx.weekEnd);
     })
     .filter((value): value is number => value !== null);
+  const previousMetrics = previousActivePrs.map(calculatePrMetrics);
+  const previousLeadTimeHours = median(
+    previousMergedPrs
+      .map(calculatePrMetrics)
+      .map((pr) => pr.leadTimeHours)
+      .filter((value): value is number => value !== null)
+      .sort((a, b) => a - b),
+  );
+  const previousAverageReviewWaitHours = average(
+    previousMetrics
+      .map((m) => firstReviewWaitHours(m, previous.end))
+      .filter((value): value is number => value !== null),
+  );
 
   const leadTimeHours = median(leadTimes);
   const averageReviewWaitHours = average(reviewWaits);
+  const leadTimeDeltaHours =
+    leadTimeHours === null || previousLeadTimeHours === null
+      ? null
+      : leadTimeHours - previousLeadTimeHours;
+  const reviewWaitDeltaHours =
+    averageReviewWaitHours === null || previousAverageReviewWaitHours === null
+      ? null
+      : averageReviewWaitHours - previousAverageReviewWaitHours;
+  const mergedPrDelta = mergedPrs.length - previousMergedPrs.length;
   const comment = analystComment(
     leadTimeHours,
+    leadTimeDeltaHours,
     averageReviewWaitHours,
     mergedPrs.length,
     activePrs.length,
@@ -330,28 +388,34 @@ export function compute(ctx: AnalysisContext): DevPrismSummary {
   return {
     flowSnapshot: {
       leadTimeHours,
+      previousLeadTimeHours,
+      leadTimeDeltaHours,
       mergedPrCount: mergedPrs.length,
+      previousMergedPrCount: previousMergedPrs.length,
+      mergedPrDelta,
       averageReviewWaitHours,
+      previousAverageReviewWaitHours,
+      reviewWaitDeltaHours,
       activePrCount: activePrs.length,
       analystComment: comment,
       metrics: [
         metric(
           "リードタイム",
           formatHours(leadTimeHours),
-          "PR作成からマージまでの中央値",
-          trendForLeadTime(leadTimeHours, mergedPrs.length),
+          `PR作成からマージまでの中央値 / 前回 ${formatHours(previousLeadTimeHours)} (${formatSignedHours(leadTimeDeltaHours)})`,
+          trendForLeadTime(leadTimeHours, mergedPrs.length, leadTimeDeltaHours),
         ),
         metric(
           "完了PR",
           `${mergedPrs.length}件`,
-          "対象期間にマージされたPR",
+          `対象期間にマージされたPR / 前回 ${previousMergedPrs.length}件 (${formatSignedCount(mergedPrDelta)})`,
           mergedPrs.length === 0 ? "unknown" : "flat",
         ),
         metric(
           "レビュー待ち",
           formatHours(averageReviewWaitHours),
-          "初回レビューまでの平均",
-          averageReviewWaitHours === null ? "unknown" : averageReviewWaitHours >= 24 ? "worse" : "flat",
+          `初回レビューまでの平均 / 前回 ${formatHours(previousAverageReviewWaitHours)} (${formatSignedHours(reviewWaitDeltaHours)})`,
+          averageReviewWaitHours === null ? "unknown" : reviewWaitDeltaHours !== null && reviewWaitDeltaHours >= 1 ? "worse" : "flat",
         ),
         metric(
           "活動PR",

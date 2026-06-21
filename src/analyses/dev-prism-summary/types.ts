@@ -21,8 +21,14 @@ export type DevPrismPrCandidate = Readonly<{
 export type DevPrismSummary = Readonly<{
   flowSnapshot: Readonly<{
     leadTimeHours: number | null;
+    previousLeadTimeHours: number | null;
+    leadTimeDeltaHours: number | null;
     mergedPrCount: number;
+    previousMergedPrCount: number;
+    mergedPrDelta: number;
     averageReviewWaitHours: number | null;
+    previousAverageReviewWaitHours: number | null;
+    reviewWaitDeltaHours: number | null;
     activePrCount: number;
     analystComment: string;
     metrics: readonly DevPrismMetric[];

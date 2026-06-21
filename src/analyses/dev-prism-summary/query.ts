@@ -94,6 +94,24 @@ function formatHours(value: number | null): string {
   return `${round1(value)}h`;
 }
 
+function formatSignedHours(value: number | null): string {
+  if (value === null) return "N/A";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatHours(value)}`;
+}
+
+function formatSignedCount(value: number): string {
+  return value > 0 ? `+${value}件` : `${value}件`;
+}
+
+function previousScope(scope: Scope): Scope | null {
+  if (scope.from === null || scope.to === null) return null;
+  const durationMs = scope.to.getTime() - scope.from.getTime();
+  const to = new Date(scope.from.getTime() - 1);
+  const from = new Date(to.getTime() - durationMs);
+  return { ...scope, from, to };
+}
+
 function activeWindowFilter(scope: Scope): string {
   const parts: string[] = [];
   const columns = ["pr.created_at", "pr.updated_at", "pr.merged_at"];
@@ -137,8 +155,17 @@ function metric(label: string, value: string, detail: string, trend: DevPrismTre
   return { label, value, detail, trend };
 }
 
-function trendForLeadTime(leadTimeHours: number | null, mergedPrCount: number): DevPrismTrend {
+function trendForLeadTime(
+  leadTimeHours: number | null,
+  mergedPrCount: number,
+  deltaHours: number | null,
+): DevPrismTrend {
   if (leadTimeHours === null || mergedPrCount === 0) return "unknown";
+  if (deltaHours !== null) {
+    if (deltaHours <= -1) return "improved";
+    if (deltaHours >= 1) return "worse";
+    return "flat";
+  }
   if (leadTimeHours <= 24) return "improved";
   if (leadTimeHours >= 72) return "worse";
   return "flat";
@@ -146,6 +173,7 @@ function trendForLeadTime(leadTimeHours: number | null, mergedPrCount: number): 
 
 function analystComment(
   leadTimeHours: number | null,
+  leadTimeDeltaHours: number | null,
   reviewWaitHours: number | null,
   mergedPrCount: number,
   activePrCount: number,
@@ -157,13 +185,14 @@ function analystComment(
   }
   const lead = formatHours(leadTimeHours);
   const review = formatHours(reviewWaitHours);
+  const leadDelta = leadTimeDeltaHours === null ? "" : `前回比${formatSignedHours(leadTimeDeltaHours)}、`;
   if (leadTimeHours !== null && leadTimeHours >= 72) {
-    return `今週のリードタイム中央値は${lead}で重めです。レビュー待ち(${review})、大型PR、議論が多いPRが影響している可能性があります。`;
+    return `今週のリードタイム中央値は${lead}で、${leadDelta}重めです。レビュー待ち(${review})、大型PR、議論が多いPRが影響している可能性があります。`;
   }
   if (reviewWaitHours !== null && reviewWaitHours >= 24) {
-    return `今週のリードタイム中央値は${lead}です。レビュー待ち平均が${review}あるため、初回レビューまでの流れを確認するとよさそうです。`;
+    return `今週のリードタイム中央値は${lead}です。${leadDelta}レビュー待ち平均が${review}あるため、初回レビューまでの流れを確認するとよさそうです。`;
   }
-  return `今週のリードタイム中央値は${lead}で、完了したPRは${mergedPrCount}件です。流れが良かったPRを拾い、再現できる進め方を確認するとよさそうです。`;
+  return `今週のリードタイム中央値は${lead}で、${leadDelta}完了したPRは${mergedPrCount}件です。流れが良かったPRを拾い、再現できる進め方を確認するとよさそうです。`;
 }
 
 function normalize(row: SummaryPrRow): SummaryPr {
@@ -186,11 +215,10 @@ function normalize(row: SummaryPrRow): SummaryPr {
   };
 }
 
-export async function queryDevPrismSummary(
+async function fetchPrRows(
   runner: DwhQueryRunner,
   scope: Scope,
-): Promise<DevPrismSummary> {
-  const to = scope.to ?? new Date();
+): Promise<SummaryPr[]> {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const userFilter = inListFilter("author.login", scope.users);
   const activeFilter = activeWindowFilter(scope);
@@ -263,8 +291,21 @@ export async function queryDevPrismSummary(
     WHERE TRUE${repoFilter}${userFilter}${botFilter("pr.is_bot_author", scope)}${activeFilter}
   `);
 
-  const activePrs = rows.map(normalize);
+  return rows.map(normalize);
+}
+
+export async function queryDevPrismSummary(
+  runner: DwhQueryRunner,
+  scope: Scope,
+): Promise<DevPrismSummary> {
+  const to = scope.to ?? new Date();
+  const previous = previousScope(scope);
+  const [activePrs, previousActivePrs] = await Promise.all([
+    fetchPrRows(runner, scope),
+    previous ? fetchPrRows(runner, previous) : Promise.resolve([]),
+  ]);
   const mergedPrs = activePrs.filter((pr) => pr.mergedAt !== null);
+  const previousMergedPrs = previousActivePrs.filter((pr) => pr.mergedAt !== null);
   const leadTimeFor = (pr: SummaryPr): number | null =>
     pr.mergedAt === null ? null : diffHours(pr.createdAt, pr.mergedAt);
   const reviewWaitFor = (pr: SummaryPr): number | null => {
@@ -278,23 +319,55 @@ export async function queryDevPrismSummary(
   const averageReviewWaitHours = average(
     activePrs.map(reviewWaitFor).filter((value): value is number => value !== null),
   );
+  const previousLeadTimeHours = median(
+    previousMergedPrs
+      .map(leadTimeFor)
+      .filter((value): value is number => value !== null),
+  );
+  const previousTo = previous?.to ?? new Date(0);
+  const previousReviewWaitFor = (pr: SummaryPr): number | null => {
+    if (pr.firstReviewAt !== null) return diffHours(pr.createdAt, pr.firstReviewAt);
+    if (pr.mergedAt !== null) return null;
+    return diffHours(pr.createdAt, previousTo.toISOString());
+  };
+  const previousAverageReviewWaitHours = average(
+    previousActivePrs
+      .map(previousReviewWaitFor)
+      .filter((value): value is number => value !== null),
+  );
+  const leadTimeDeltaHours =
+    leadTimeHours === null || previousLeadTimeHours === null
+      ? null
+      : leadTimeHours - previousLeadTimeHours;
+  const reviewWaitDeltaHours =
+    averageReviewWaitHours === null || previousAverageReviewWaitHours === null
+      ? null
+      : averageReviewWaitHours - previousAverageReviewWaitHours;
+  const mergedPrDelta = mergedPrs.length - previousMergedPrs.length;
 
   return {
     flowSnapshot: {
       leadTimeHours,
+      previousLeadTimeHours,
+      leadTimeDeltaHours,
       mergedPrCount: mergedPrs.length,
+      previousMergedPrCount: previousMergedPrs.length,
+      mergedPrDelta,
       averageReviewWaitHours,
+      previousAverageReviewWaitHours,
+      reviewWaitDeltaHours,
       activePrCount: activePrs.length,
       analystComment: analystComment(
         leadTimeHours,
+        leadTimeDeltaHours,
         averageReviewWaitHours,
         mergedPrs.length,
         activePrs.length,
       ),
       metrics: [
-        metric("リードタイム", formatHours(leadTimeHours), "PR作成からマージまでの中央値", trendForLeadTime(leadTimeHours, mergedPrs.length)),
-        metric("完了PR", `${mergedPrs.length}件`, "対象期間にマージされたPR", mergedPrs.length === 0 ? "unknown" : "flat"),
-        metric("レビュー待ち", formatHours(averageReviewWaitHours), "初回レビューまでの平均", averageReviewWaitHours === null ? "unknown" : averageReviewWaitHours >= 24 ? "worse" : "flat"),
+        metric("リードタイム", formatHours(leadTimeHours), `PR作成からマージまでの中央値 / 前回 ${formatHours(previousLeadTimeHours)} (${formatSignedHours(leadTimeDeltaHours)})`, trendForLeadTime(leadTimeHours, mergedPrs.length, leadTimeDeltaHours)),
+        metric("完了PR", `${mergedPrs.length}件`, `対象期間にマージされたPR / 前回 ${previousMergedPrs.length}件 (${formatSignedCount(mergedPrDelta)})`, mergedPrs.length === 0 ? "unknown" : "flat"),
+        metric("レビュー待ち", formatHours(averageReviewWaitHours), `初回レビューまでの平均 / 前回 ${formatHours(previousAverageReviewWaitHours)} (${formatSignedHours(reviewWaitDeltaHours)})`, averageReviewWaitHours === null ? "unknown" : reviewWaitDeltaHours !== null && reviewWaitDeltaHours >= 1 ? "worse" : "flat"),
         metric("活動PR", `${activePrs.length}件`, "対象期間に作成・更新・レビュー・コメントがあったPR", activePrs.length === 0 ? "unknown" : "flat"),
       ],
     },
