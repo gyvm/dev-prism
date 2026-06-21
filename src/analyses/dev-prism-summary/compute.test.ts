@@ -68,7 +68,6 @@ describe("dev-prism-summary compute", () => {
     expect(summary.flowSnapshot.leadTimeDeltaHours).toBe(38);
     expect(summary.flowSnapshot.activePrCount).toBe(3);
     expect(summary.whatChanged.longLeadTimePrs[0]?.number).toBe(1);
-    expect(summary.whatChanged.largePrs[0]?.number).toBe(1);
     expect(summary.rememberThisWeek.quickWins[0]?.number).toBe(2);
     expect(summary.needsFollowUp.staleOpenPrs[0]?.number).toBe(3);
     expect(summary.needsFollowUp.unresolvedReviewPrs[0]?.number).toBe(3);

@@ -23,7 +23,7 @@ function requirePrompt(id: string): string {
 
 export const AI_REGISTRY: Readonly<Record<string, AiEntry>> = {
   "flow-analyst": {
-    title: "Flow Analyst",
+    title: "その数字に効いたPR",
     prompt: requirePrompt("flow-analyst"),
   },
   "project-progress": {
@@ -34,8 +34,8 @@ export const AI_REGISTRY: Readonly<Record<string, AiEntry>> = {
     title: "フォローアップが必要なPR",
     prompt: requirePrompt("follow-up-prs"),
   },
-  "debated-prs": {
-    title: "議論があったPR",
-    prompt: requirePrompt("debated-prs"),
+  "review-balance": {
+    title: "レビューバランス",
+    prompt: requirePrompt("review-balance"),
   },
 };

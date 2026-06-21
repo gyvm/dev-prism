@@ -198,12 +198,7 @@ export function renderReportHtml(
     "Summary",
     "開発内容の要約",
     "今週は何が動いたか、拾っておきたい貢献、来週に持ち越す確認事項を振り返ります。",
-    [
-      ai("project-progress"),
-      compute("dev-prism-summary"),
-      ai("follow-up-prs"),
-      ai("debated-prs"),
-    ],
+    [ai("project-progress"), compute("dev-prism-summary"), ai("follow-up-prs")],
   );
   const reviewBand = renderBand(
     "Review",

@@ -1,6 +1,6 @@
 # ADR 0001: 凍結レポートの情報設計（問い別 IA への再編）
 
-- ステータス: Accepted
+- ステータス: Implemented（2026-06-22, branch `claude/frozen-report-v2`）
 - 日付: 2026-06-22
 - 決定方法: grilling（壁打ち）で確定
 - 関連: [[design-modernization-plan]]、`src/pipeline/stages/render.tsx`、`src/analyses/dora-metrics/`
@@ -86,6 +86,14 @@
 - `src/analyses/dora-metrics/internal/dora.ts`（in-memory）と `src/analyses/dora-metrics/query.ts`（SQL）の**両方**を Revert タイトル検知（`title LIKE 'Revert "%'`）に変更、ラベル定数 `FAILURE_LABELS` を両経路で廃止（parity 契約のため必須）。指標ラベルを正直化（metric-cards）。
 - `dev-prism-summary` と `dora-metrics` のリードタイム表示を統合（重複削除）。
 - AI プロンプト `03_debated-prs` を `02_follow-up-prs` 文脈へ統合。
+
+## 実装メモ（2026-06-22）
+
+- ①〜③の3バンドは `render.tsx` の `renderBand` 配列で実装（順序の単一の源）。
+- **debated は独立セクションを廃止し、`follow-up-prs` プロンプトの `💬 議論` カテゴリへ統合**（ユーザー Q15 の意図どおり）。決定的な「議論が多かったPR」候補リストは `dev-prism-summary` に残置。
+- **`review-balance`（AI）を新設**し ③PRレビューに配置。`flow-analyst` のセクション見出しは「その数字に効いたPR」。
+- **PR サイズ（`largePrs`）を全廃**（compute/query/types/renderer/test）。
+- 残課題（軽微・別PR）: `metric-cards` 内の「DORAメトリクス」h2 がバンド h2 と併存（Explore と共有のため据え置き）。プロンプト本文の先頭 H2 は render が除去して扱う（本文側の整形は未実施）。
 
 ## 選択肢と却下理由
 

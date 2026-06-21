@@ -24,7 +24,6 @@ export type DevPrismSummary = Readonly<{
   whatChanged: Readonly<{
     longLeadTimePrs: readonly DevPrismPrCandidate[];
     longReviewWaitPrs: readonly DevPrismPrCandidate[];
-    largePrs: readonly DevPrismPrCandidate[];
     debatedPrs: readonly DevPrismPrCandidate[];
   }>;
   rememberThisWeek: Readonly<{

@@ -1,6 +1,6 @@
 # ADR 0002: AI プロンプトの実装アーキテクチャ（スキル発見の廃止・埋め込み・明示レジストリ）
 
-- ステータス: Accepted
+- ステータス: Implemented（2026-06-22, branch `claude/frozen-report-v2`）
 - 日付: 2026-06-22
 - 決定方法: grilling（壁打ち）で確定
 - スコープ: Node/Copilot パイプラインの AI プロンプト実行のみ。Claude Code 配布面（`commands/`+`agents/`、未実装）は対象外。

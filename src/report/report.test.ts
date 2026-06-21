@@ -209,10 +209,11 @@ describe("report rendering", () => {
     expect(metricsAt).toBeLessThan(reviewAt);
     // Empty band (開発内容の要約 has no blocks here) is dropped.
     expect(summaryAt).toBe(-1);
-    // Render owns the AI title (from AI_REGISTRY), and the prompt's own H2 text
-    // is stripped (the markdown body started with `## Flow Analyst`).
-    expect(html).toContain('<h2 class="ai-section-title">Flow Analyst</h2>');
+    // Render owns the AI title (from AI_REGISTRY), and the prompt's own leading
+    // H2 (`## Flow Analyst`) is stripped — so the fixed title shows, not the
+    // prompt's heading text.
+    expect(html).toContain('<h2 class="ai-section-title">その数字に効いたPR</h2>');
     expect(html).toContain("今週は流れが軽かったです。");
-    expect(html.match(/Flow Analyst/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain("Flow Analyst");
   });
 });

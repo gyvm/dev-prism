@@ -16,7 +16,6 @@ import type {
 const MAX_CANDIDATES = 3;
 const LONG_LEAD_TIME_MIN_HOURS = 24;
 const LONG_REVIEW_WAIT_MIN_HOURS = 24;
-const LARGE_PR_MIN_LINES = 300;
 const QUICK_WIN_MAX_HOURS = 24;
 const QUICK_WIN_MAX_LINES = 300;
 const SMALL_PR_MAX_LINES = 120;
@@ -228,11 +227,6 @@ export function compute(ctx: AnalysisContext): DevPrismSummary {
     return candidate(pr, formatHours(firstReviewWaitHours(m, ctx.weekEnd)));
   });
 
-  const largePrs = topBy(
-    activePrs.filter((pr) => pr.additions + pr.deletions >= LARGE_PR_MIN_LINES),
-    (pr) => pr.additions + pr.deletions,
-  ).map((pr) => candidate(pr, `${pr.additions + pr.deletions}行`));
-
   const debatedPrs = topBy(
     activePrs.filter((pr) => conversationCount(pr) > 0),
     conversationCount,
@@ -315,7 +309,6 @@ export function compute(ctx: AnalysisContext): DevPrismSummary {
     whatChanged: {
       longLeadTimePrs,
       longReviewWaitPrs,
-      largePrs,
       debatedPrs,
     },
     rememberThisWeek: {

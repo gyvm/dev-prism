@@ -2,6 +2,14 @@
 
 [ADR 0001](adr/0001-frozen-report-information-architecture.md)（情報設計）と [ADR 0002](adr/0002-ai-prompt-architecture.md)（AI プロンプト実装アーキテクチャ）を実装する計画。各フェーズは **green で着地**（typecheck + tests、可能なら demo 目視）し、フェーズ単位でコミット→レビュー→指摘対応する。
 
+## 実装ステータス（2026-06-22, branch `claude/frozen-report-v2`, 全 Phase 完了 / tests 345 green）
+
+- **Phase 1 ✅** DORA 正直化（Revert タイトル検知, in-memory+SQL, マージ数ラベル）— code-reviewer approve
+- **Phase 2 ✅** スキル発見廃止→埋め込みプロンプトレジストリ — review P1(順序)/P2 対応済
+- **Phase 3 ✅** 3バンドの問い別レイアウト, AIタイトル render 所有 — review approve, P2 対応済
+- **Phase 4 ✅** debated→follow-up 統合(💬), review-balance 新設, size 全廃, ドキュメント同期
+- 残課題（軽微・別PR可）: metric-cards の「DORAメトリクス」h2 重複(Explore 共有), プロンプト本文の先頭H2整形, demo 成果物(docs/demo)の旧id・AI 再生成は Copilot トークン要, dev-prism-summary の in-memory/SQL parity テスト追加(現状 compute.test のみ)
+
 ## ベースライン（2026-06-22）
 
 - typecheck: green / tests: **345 passed**（**WIP 適用状態で確認済み green**）。

@@ -82,13 +82,6 @@ export function DevPrismSummary({ summary }: { summary: DevPrismSummary }) {
             items={summary.whatChanged.longReviewWaitPrs}
           />
           <CandidateList
-            title="サイズが大きかったPR"
-            description="変更量が大きく、レビューやマージまでの時間に影響しやすいPRです。"
-            prompt="PRサイズを小さくできる余地はありましたか？"
-            empty="サイズが大きいPRは見つかりませんでした。"
-            items={summary.whatChanged.largePrs}
-          />
-          <CandidateList
             title="議論が多かったPR"
             description="コメントやレビュー本文が多く、議論や方針確認が発生していた可能性があります。"
             prompt="これらの議論はPR上で完結しましたか？"
