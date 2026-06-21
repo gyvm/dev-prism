@@ -12,7 +12,6 @@ type ReportCliOptions = {
   analysisDir?: string;
   reportsDir?: string;
   indexHtmlPath?: string;
-  skillsRoot?: string;
   useRawPath?: string;
   now?: Date;
   skipAi: boolean;
@@ -53,7 +52,6 @@ export function parseArgs(argv: string[]): ReportCliOptions {
       ["--analysis-dir", "analysisDir"],
       ["--reports-dir", "reportsDir"],
       ["--index", "indexHtmlPath"],
-      ["--skills", "skillsRoot"],
       ["--use-raw", "useRawPath"],
     ]);
 
@@ -68,7 +66,7 @@ export function parseArgs(argv: string[]): ReportCliOptions {
 
     if (argument === "--help" || argument === "-h") {
       process.stdout.write(
-        "Usage: npm run report -- [--config path] [--raw-dir path] [--analysis-dir path] [--reports-dir path] [--index path] [--skills path] [--use-raw path] [--week YYYY-MM-DD] [--skip-ai]\n" +
+        "Usage: npm run report -- [--config path] [--raw-dir path] [--analysis-dir path] [--reports-dir path] [--index path] [--use-raw path] [--week YYYY-MM-DD] [--skip-ai]\n" +
           "  --week  対象週(月曜始まり)に含まれる任意の日付。--use-raw 併用時は無視\n",
       );
       process.exit(0);

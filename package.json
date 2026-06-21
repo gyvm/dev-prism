@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "gen:prompts": "node scripts/gen-prompts.mjs",
     "test": "vitest run",
     "collect": "tsx src/cli/collect.ts",
     "dwh:build": "tsx src/cli/dwh-build.ts",

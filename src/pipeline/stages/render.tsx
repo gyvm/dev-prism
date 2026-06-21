@@ -43,10 +43,10 @@ function renderJsonSection(result: AnalysisResult): string {
 }
 
 const AI_SECTION_ORDER = [
-  "00_flow-analyst",
-  "01_project-progress",
-  "02_follow-up-prs",
-  "03_debated-prs",
+  "flow-analyst",
+  "project-progress",
+  "follow-up-prs",
+  "debated-prs",
 ] as const;
 
 const DETAIL_SECTION_ORDER = [
