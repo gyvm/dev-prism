@@ -38,7 +38,7 @@ section > h2 { margin-bottom:16px; }
 .dev-prism-pr-line strong { min-width:min(100%, 220px); color:var(--fg-default); font-size:13px; font-weight:650; line-height:1.35; overflow-wrap:anywhere; }
 .dev-prism-pr-metric { color:var(--fg-muted); font-size:12px; font-weight:650; }
 .dev-prism-prompt { margin:10px 0 0; color:var(--fg-default); font-size:12px; font-weight:650; line-height:1.45; }
-.dev-prism-deep-dive p:not(.dev-prism-eyebrow), .dev-prism-ai-intro p:not(.dev-prism-eyebrow) { margin:6px 0 0; color:var(--fg-muted); font-size:13px; }
+.report-band p:not(.dev-prism-eyebrow) { margin:6px 0 0; color:var(--fg-muted); font-size:13px; }
 .section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
 .section-head > div { min-width:0; }
 .section-copy { margin:5px 0 0; color:var(--fg-muted); font-size:12px; line-height:1.45; }

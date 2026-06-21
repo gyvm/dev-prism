@@ -146,4 +146,73 @@ describe("report rendering", () => {
     expect(html).toContain("2026年5月5日(火) 16:41");
     expect(html).not.toContain("2026-05-05T07:41:26.290Z");
   });
+
+  it("lays out the three bands in order and owns AI section titles", () => {
+    const reportInput = buildReportInput({
+      pullRequests: [],
+      generatedAt: new Date("2026-05-05T07:41:26.290Z"),
+      timezone: "UTC",
+      weekStart: new Date("2026-04-27T00:00:00.000Z"),
+      weekEnd: new Date("2026-05-03T23:59:59.999Z"),
+      limits: {
+        maxPrs: 10,
+        maxCommentsPerPr: 10,
+        maxReviewThreadsPerPr: 10,
+        maxFilesPerPr: 10,
+        maxCommitsPerPr: 10,
+        maxBodyLength: 100,
+      },
+    });
+
+    const html = renderReportHtml(
+      {
+        id: "2026-05-03",
+        start: new Date("2026-04-27T00:00:00.000Z"),
+        end: new Date("2026-05-03T23:59:59.999Z"),
+      },
+      reportInput,
+      [
+        {
+          id: "dora-metrics",
+          format: "json",
+          renderer: "metric-cards",
+          status: "ok",
+          data: {
+            deploymentFrequency: 5,
+            leadTimeForChangesHours: 12,
+            changeFailureRatePercent: null,
+            mttrHours: null,
+          },
+        },
+        {
+          id: "flow-analyst",
+          format: "markdown",
+          status: "ok",
+          data: "## Flow Analyst\n\n今週は流れが軽かったです。",
+        },
+        {
+          id: "review-correlation",
+          format: "json",
+          renderer: "bipartite-graph",
+          status: "ok",
+          data: { authors: [], reviewers: [], links: [] },
+        },
+      ],
+    );
+
+    // Bands appear in the ADR 0001 order: 開発メトリクス → 開発内容の要約 → PRレビュー
+    const metricsAt = html.indexOf("開発メトリクス");
+    const summaryAt = html.indexOf("開発内容の要約");
+    const reviewAt = html.indexOf("PRレビュー");
+    expect(metricsAt).toBeGreaterThan(-1);
+    expect(reviewAt).toBeGreaterThan(-1);
+    expect(metricsAt).toBeLessThan(reviewAt);
+    // Empty band (開発内容の要約 has no blocks here) is dropped.
+    expect(summaryAt).toBe(-1);
+    // Render owns the AI title (from AI_REGISTRY), and the prompt's own H2 text
+    // is stripped (the markdown body started with `## Flow Analyst`).
+    expect(html).toContain('<h2 class="ai-section-title">Flow Analyst</h2>');
+    expect(html).toContain("今週は流れが軽かったです。");
+    expect(html.match(/Flow Analyst/g) ?? []).toHaveLength(1);
+  });
 });

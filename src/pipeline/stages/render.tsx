@@ -10,6 +10,7 @@ import { PAGE_STYLES } from "../../renderers/page-styles.js";
 import type { ReportInput } from "../../report/types.js";
 import type { Period } from "../period.js";
 import type { AnalysisResult } from "../types.js";
+import { AI_REGISTRY } from "../../analyses/ai/registry.js";
 
 export type RenderOptions = Readonly<{
   outputPath?: string;
@@ -20,21 +21,6 @@ export type RenderResult = Readonly<{
   htmlPath: string;
 }>;
 
-function renderMarkdownSection(result: AnalysisResult): string {
-  if (result.status === "skipped") {
-    return "";
-  }
-  if (result.status === "ok") {
-    const markdown = typeof result.data === "string" ? result.data : "";
-    return `<section class="ai-markdown">${markdownToHtml(markdown)}</section>`;
-  }
-  const reason = result.reason ?? `status: ${result.status}`;
-  return `<section>
-        <h2>${escapeHtml(result.id)}</h2>
-        <p class="empty">AI analysis unavailable: ${escapeHtml(reason)}</p>
-      </section>`;
-}
-
 function renderJsonSection(result: AnalysisResult): string {
   if (result.status !== "ok" || !result.renderer) {
     return "";
@@ -42,25 +28,43 @@ function renderJsonSection(result: AnalysisResult): string {
   return renderAnalysis(result.renderer, result.data);
 }
 
-const AI_SECTION_ORDER = [
-  "flow-analyst",
-  "project-progress",
-  "follow-up-prs",
-  "debated-prs",
-] as const;
+// The prompt body may still open with its own `## …` heading; render owns the
+// section title now (ADR 0002 §5), so strip a single leading markdown H2 and
+// apply the fixed AI_REGISTRY title instead.
+function stripLeadingH2(markdown: string): string {
+  // Strip a single leading H2 only — the `(?!#)` keeps a leading H3 intact.
+  return markdown.replace(/^\s*##(?!#)[^\n]*\n+/, "");
+}
 
-const DETAIL_SECTION_ORDER = [
-  "pr-timeline",
-  "review-correlation",
-] as const;
+function renderAiSection(result: AnalysisResult, title: string): string {
+  if (result.status === "skipped") {
+    return "";
+  }
+  const heading = `<h2 class="ai-section-title">${escapeHtml(title)}</h2>`;
+  if (result.status === "ok") {
+    const markdown = typeof result.data === "string" ? result.data : "";
+    return `<section class="ai-markdown">${heading}${markdownToHtml(stripLeadingH2(markdown))}</section>`;
+  }
+  const reason = result.reason ?? `status: ${result.status}`;
+  return `<section class="ai-markdown">${heading}<p class="empty">AI analysis unavailable: ${escapeHtml(reason)}</p></section>`;
+}
 
-function orderResults(results: readonly AnalysisResult[], order: readonly string[]): AnalysisResult[] {
-  const rank = new Map(order.map((id, index) => [id, index]));
-  return [...results].sort((a, b) => {
-    const ar = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-    const br = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-    return ar - br || a.id.localeCompare(b.id);
-  });
+// A report band: an intro card (eyebrow + render-owned title + lead-in) followed
+// by its constituent analysis cards. The catalog (registries) declares what
+// exists; THIS is the single source of section ORDER (ADR 0002 §4). Empty bands
+// (all blocks absent — e.g. the AI-less DWH path) are dropped.
+function renderBand(
+  eyebrow: string,
+  title: string,
+  lead: string,
+  blocks: readonly string[],
+): string {
+  const body = blocks.filter((html) => html !== "").join("\n");
+  if (body === "") {
+    return "";
+  }
+  const intro = `<section class="report-band"><p class="dev-prism-eyebrow">${escapeHtml(eyebrow)}</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(lead)}</p></section>`;
+  return `${intro}\n${body}`;
 }
 
 function isUtcDayBoundary(value: string): boolean {
@@ -172,37 +176,42 @@ export function renderReportHtml(
   reportInput: ReportInput,
   results: readonly AnalysisResult[],
 ): string {
-  const summary = results.find((result) => result.id === "dev-prism-summary");
-  const summaryHtml = summary ? renderJsonSection(summary) : "";
-  const dora = results.find((result) => result.id === "dora-metrics");
-  const doraHtml = dora ? renderJsonSection(dora) : "";
-  const aiSections = orderResults(
-    results.filter((result) => result.format === "markdown"),
-    AI_SECTION_ORDER,
-  )
-    .map(renderMarkdownSection)
-    .filter((html) => html !== "")
-    .join("\n");
-  const aiInsightsHtml = aiSections
-    ? `<section class="dev-prism-ai-intro"><p class="dev-prism-eyebrow">AI Insights</p><h2>AIによる深掘り</h2><p>上の量的サマリーを起点に、PR本文・コメント・レビューまで読み込んで背景や論点を補足します。</p></section>\n${aiSections}`
-    : "";
-  const detailSections = orderResults(
-    results.filter(
-      (result) =>
-        result.format !== "markdown" &&
-        result.id !== "dev-prism-summary" &&
-        result.id !== "dora-metrics",
-    ),
-    DETAIL_SECTION_ORDER,
-  )
-    .map(renderJsonSection)
-    .filter((html) => html !== "")
-    .join("\n");
+  const byId = new Map(results.map((result) => [result.id, result]));
+  const compute = (id: string): string => {
+    const result = byId.get(id);
+    return result ? renderJsonSection(result) : "";
+  };
+  const ai = (id: string): string => {
+    const result = byId.get(id);
+    if (!result) return "";
+    return renderAiSection(result, AI_REGISTRY[id]?.title ?? id);
+  };
 
-  const deepDiveHtml = detailSections
-    ? `<section class="dev-prism-deep-dive"><p class="dev-prism-eyebrow">Deep Dive</p><h2>詳細メトリクス</h2><p>必要に応じて、PR Timeline・レビュー相関で背景を掘り下げます。</p></section>\n${detailSections}`
-    : "";
-  const sections = [doraHtml, summaryHtml, aiInsightsHtml, deepDiveHtml]
+  // Section order lives here (ADR 0001 §1, ADR 0002 §4): 数字 → 理由 → 会話.
+  const metricsBand = renderBand(
+    "Metrics",
+    "開発メトリクス",
+    "今週の流れを数値で掴み、その数字に効いたPRまで降りていきます。先頭の数値はそのまま上司への報告にコピーできます。",
+    [compute("dora-metrics"), compute("pr-timeline"), ai("flow-analyst")],
+  );
+  const summaryBand = renderBand(
+    "Summary",
+    "開発内容の要約",
+    "今週は何が動いたか、拾っておきたい貢献、来週に持ち越す確認事項を振り返ります。",
+    [
+      ai("project-progress"),
+      compute("dev-prism-summary"),
+      ai("follow-up-prs"),
+      ai("debated-prs"),
+    ],
+  );
+  const reviewBand = renderBand(
+    "Review",
+    "PRレビュー",
+    "レビューの偏りを見て、特定の人に負荷が寄っていないかを確認します。",
+    [compute("review-correlation"), ai("review-balance")],
+  );
+  const sections = [metricsBand, summaryBand, reviewBand]
     .filter((html) => html !== "")
     .join("\n");
 
