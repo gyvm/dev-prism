@@ -50,7 +50,6 @@ const AI_SECTION_ORDER = [
 ] as const;
 
 const DETAIL_SECTION_ORDER = [
-  "dora-metrics",
   "pr-timeline",
   "review-correlation",
 ] as const;
@@ -175,6 +174,8 @@ export function renderReportHtml(
 ): string {
   const summary = results.find((result) => result.id === "dev-prism-summary");
   const summaryHtml = summary ? renderJsonSection(summary) : "";
+  const dora = results.find((result) => result.id === "dora-metrics");
+  const doraHtml = dora ? renderJsonSection(dora) : "";
   const aiSections = orderResults(
     results.filter((result) => result.format === "markdown"),
     AI_SECTION_ORDER,
@@ -182,11 +183,15 @@ export function renderReportHtml(
     .map(renderMarkdownSection)
     .filter((html) => html !== "")
     .join("\n");
+  const aiInsightsHtml = aiSections
+    ? `<section class="dev-prism-ai-intro"><p class="dev-prism-eyebrow">AI Insights</p><h2>AIによる深掘り</h2><p>上の量的サマリーを起点に、PR本文・コメント・レビューまで読み込んで背景や論点を補足します。</p></section>\n${aiSections}`
+    : "";
   const detailSections = orderResults(
     results.filter(
       (result) =>
         result.format !== "markdown" &&
-        result.id !== "dev-prism-summary",
+        result.id !== "dev-prism-summary" &&
+        result.id !== "dora-metrics",
     ),
     DETAIL_SECTION_ORDER,
   )
@@ -195,9 +200,9 @@ export function renderReportHtml(
     .join("\n");
 
   const deepDiveHtml = detailSections
-    ? `<section class="dev-prism-deep-dive"><p class="dev-prism-eyebrow">Deep Dive</p><h2>詳細メトリクス</h2><p>必要に応じて、DORA・PR Timeline・レビュー相関で背景を掘り下げます。</p></section>\n${detailSections}`
+    ? `<section class="dev-prism-deep-dive"><p class="dev-prism-eyebrow">Deep Dive</p><h2>詳細メトリクス</h2><p>必要に応じて、PR Timeline・レビュー相関で背景を掘り下げます。</p></section>\n${detailSections}`
     : "";
-  const sections = [summaryHtml, aiSections, deepDiveHtml]
+  const sections = [doraHtml, summaryHtml, aiInsightsHtml, deepDiveHtml]
     .filter((html) => html !== "")
     .join("\n");
 

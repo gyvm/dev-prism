@@ -3,10 +3,8 @@ import type { Scope } from "../scope.js";
 import { scopeTimestamp } from "../scope.js";
 import { botFilter, inListFilter } from "../scope-sql.js";
 import type {
-  DevPrismMetric,
   DevPrismPrCandidate,
   DevPrismSummary,
-  DevPrismTrend,
 } from "./types.js";
 
 const MAX_CANDIDATES = 3;
@@ -100,10 +98,6 @@ function formatSignedHours(value: number | null): string {
   return `${sign}${formatHours(value)}`;
 }
 
-function formatSignedCount(value: number): string {
-  return value > 0 ? `+${value}件` : `${value}件`;
-}
-
 function previousScope(scope: Scope): Scope | null {
   if (scope.from === null || scope.to === null) return null;
   const durationMs = scope.to.getTime() - scope.from.getTime();
@@ -124,12 +118,7 @@ function activeWindowFilter(scope: Scope): string {
   return parts.length === 0 ? "" : ` AND (${parts.join(" OR ")})`;
 }
 
-function candidate(
-  pr: SummaryPr,
-  metric: string,
-  reason: string,
-  prompt: string,
-): DevPrismPrCandidate {
+function candidate(pr: SummaryPr, metric: string): DevPrismPrCandidate {
   return {
     repo: pr.repo,
     number: pr.number,
@@ -137,8 +126,6 @@ function candidate(
     url: pr.url,
     author: pr.author,
     metric,
-    reason,
-    prompt,
   };
 }
 
@@ -149,26 +136,6 @@ function topBy<T>(items: readonly T[], score: (item: T) => number | null): T[] {
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_CANDIDATES)
     .map((entry) => entry.item);
-}
-
-function metric(label: string, value: string, detail: string, trend: DevPrismTrend): DevPrismMetric {
-  return { label, value, detail, trend };
-}
-
-function trendForLeadTime(
-  leadTimeHours: number | null,
-  mergedPrCount: number,
-  deltaHours: number | null,
-): DevPrismTrend {
-  if (leadTimeHours === null || mergedPrCount === 0) return "unknown";
-  if (deltaHours !== null) {
-    if (deltaHours <= -1) return "improved";
-    if (deltaHours >= 1) return "worse";
-    return "flat";
-  }
-  if (leadTimeHours <= 24) return "improved";
-  if (leadTimeHours >= 72) return "worse";
-  return "flat";
 }
 
 function analystComment(
@@ -364,12 +331,6 @@ export async function queryDevPrismSummary(
         mergedPrs.length,
         activePrs.length,
       ),
-      metrics: [
-        metric("リードタイム", formatHours(leadTimeHours), `PR作成からマージまでの中央値 / 前回 ${formatHours(previousLeadTimeHours)} (${formatSignedHours(leadTimeDeltaHours)})`, trendForLeadTime(leadTimeHours, mergedPrs.length, leadTimeDeltaHours)),
-        metric("完了PR", `${mergedPrs.length}件`, `対象期間にマージされたPR / 前回 ${previousMergedPrs.length}件 (${formatSignedCount(mergedPrDelta)})`, mergedPrs.length === 0 ? "unknown" : "flat"),
-        metric("レビュー待ち", formatHours(averageReviewWaitHours), `初回レビューまでの平均 / 前回 ${formatHours(previousAverageReviewWaitHours)} (${formatSignedHours(reviewWaitDeltaHours)})`, averageReviewWaitHours === null ? "unknown" : reviewWaitDeltaHours !== null && reviewWaitDeltaHours >= 1 ? "worse" : "flat"),
-        metric("活動PR", `${activePrs.length}件`, "対象期間に作成・更新・レビュー・コメントがあったPR", activePrs.length === 0 ? "unknown" : "flat"),
-      ],
     },
     whatChanged: {
       longLeadTimePrs: topBy(
@@ -378,30 +339,22 @@ export async function queryDevPrismSummary(
           return lead !== null && lead >= LONG_LEAD_TIME_MIN_HOURS;
         }),
         leadTimeFor,
-      ).map((pr) =>
-        candidate(pr, formatHours(leadTimeFor(pr)), "PR作成からマージまでが長く、今週のリードタイムに影響している可能性があります。", "このPRは来週も同じ進め方になりそうですか？"),
-      ),
+      ).map((pr) => candidate(pr, formatHours(leadTimeFor(pr)))),
       longReviewWaitPrs: topBy(
         activePrs.filter((pr) => {
           const wait = reviewWaitFor(pr);
           return wait !== null && wait >= LONG_REVIEW_WAIT_MIN_HOURS;
         }),
         reviewWaitFor,
-      ).map((pr) =>
-        candidate(pr, formatHours(reviewWaitFor(pr)), "初回レビューまでの待ち時間が長く、流れを重くしている可能性があります。", "レビュー待ちが長かった理由は何でしたか？"),
-      ),
+      ).map((pr) => candidate(pr, formatHours(reviewWaitFor(pr)))),
       largePrs: topBy(
         activePrs.filter((pr) => pr.additions + pr.deletions >= LARGE_PR_MIN_LINES),
         (pr) => pr.additions + pr.deletions,
-      ).map((pr) =>
-        candidate(pr, `${pr.additions + pr.deletions}行`, "変更量が大きく、レビューやマージまでの時間に影響しやすいPRです。", "PRサイズを小さくできる余地はありましたか？"),
-      ),
+      ).map((pr) => candidate(pr, `${pr.additions + pr.deletions}行`)),
       debatedPrs: topBy(
         activePrs.filter((pr) => pr.conversationCount > 0),
         (pr) => pr.conversationCount,
-      ).map((pr) =>
-        candidate(pr, `${pr.conversationCount}件の会話`, "コメントやレビュー本文が多く、議論や方針確認が発生していた可能性があります。", "この議論はPR上で完結しましたか？"),
-      ),
+      ).map((pr) => candidate(pr, `${pr.conversationCount}件の会話`)),
     },
     rememberThisWeek: {
       quickWins: mergedPrs
@@ -411,22 +364,16 @@ export async function queryDevPrismSummary(
         })
         .sort((a, b) => (leadTimeFor(a) ?? 0) - (leadTimeFor(b) ?? 0))
         .slice(0, MAX_CANDIDATES)
-        .map((pr) =>
-          candidate(pr, formatHours(leadTimeFor(pr)), "短いリードタイムで完了しており、うまく流れた作業として共有しやすいPRです。", "今週うまく流れた作業は再現できますか？"),
-        ),
+        .map((pr) => candidate(pr, formatHours(leadTimeFor(pr)))),
       smallButUseful: mergedPrs
         .filter((pr) => pr.additions + pr.deletions <= SMALL_PR_MAX_LINES)
         .sort((a, b) => (a.additions + a.deletions) - (b.additions + b.deletions))
         .slice(0, MAX_CANDIDATES)
-        .map((pr) =>
-          candidate(pr, `${pr.additions + pr.deletions}行`, "変更量は小さいものの、チームの作業記憶に残しておきたい完了PRです。", "この作業は他のメンバーにも共有しておく価値がありますか？"),
-        ),
+        .map((pr) => candidate(pr, `${pr.additions + pr.deletions}行`)),
       collaborativePrs: topBy(
         activePrs.filter((pr) => pr.participantCount > 0),
         (pr) => pr.participantCount,
-      ).map((pr) =>
-        candidate(pr, `${pr.participantCount}人が参加`, "作者以外の複数人がレビューやコメントに関わっており、チームで認識を揃えたい動きです。", "関わった人の知見をチームに共有できますか？"),
-      ),
+      ).map((pr) => candidate(pr, `${pr.participantCount}人が参加`)),
     },
     needsFollowUp: {
       staleOpenPrs: activePrs
@@ -435,23 +382,19 @@ export async function queryDevPrismSummary(
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .slice(0, MAX_CANDIDATES)
         .map((pr) =>
-          candidate(pr, formatHours(diffHours(pr.createdAt, to.toISOString())), "オープンのまま期間をまたいでおり、来週の扱いを確認したいPRです。", "これは来週誰が見るとよさそうですか？"),
+          candidate(pr, formatHours(diffHours(pr.createdAt, to.toISOString()))),
         ),
       unresolvedReviewPrs: activePrs
         .filter((pr) => pr.unresolvedThreadCount > 0)
         .slice(0, MAX_CANDIDATES)
-        .map((pr) =>
-          candidate(pr, `${pr.unresolvedThreadCount}件未解決`, "未解決レビューがあります。対応済みか、持ち越しかを確認したいPRです。", "未解決スレッドは対応済みですか、それとも来週に持ち越しますか？"),
-        ),
+        .map((pr) => candidate(pr, `${pr.unresolvedThreadCount}件未解決`)),
       waitingAfterCommentPrs: activePrs
         .filter((pr) => pr.mergedAt === null && pr.closedAt === null)
         .map((pr) => ({ pr, idleHours: diffHours(pr.updatedAt, to.toISOString()) }))
         .filter((entry) => entry.idleHours >= WAITING_AFTER_COMMENT_HOURS)
         .sort((a, b) => b.idleHours - a.idleHours)
         .slice(0, MAX_CANDIDATES)
-        .map(({ pr, idleHours }) =>
-          candidate(pr, `${formatHours(idleHours)}停止`, "最後の更新後に動きが止まっており、確認漏れの可能性があります。", "次に動かす人は決まっていますか？"),
-        ),
+        .map(({ pr, idleHours }) => candidate(pr, `${formatHours(idleHours)}停止`)),
     },
   };
 }

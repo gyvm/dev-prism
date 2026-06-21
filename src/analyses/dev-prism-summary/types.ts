@@ -1,12 +1,3 @@
-export type DevPrismTrend = "improved" | "worse" | "flat" | "unknown";
-
-export type DevPrismMetric = Readonly<{
-  label: string;
-  value: string;
-  detail: string;
-  trend: DevPrismTrend;
-}>;
-
 export type DevPrismPrCandidate = Readonly<{
   repo: string;
   number: number;
@@ -14,8 +5,6 @@ export type DevPrismPrCandidate = Readonly<{
   url: string | null;
   author: string | null;
   metric: string;
-  reason: string;
-  prompt: string;
 }>;
 
 export type DevPrismSummary = Readonly<{
@@ -31,7 +20,6 @@ export type DevPrismSummary = Readonly<{
     reviewWaitDeltaHours: number | null;
     activePrCount: number;
     analystComment: string;
-    metrics: readonly DevPrismMetric[];
   }>;
   whatChanged: Readonly<{
     longLeadTimePrs: readonly DevPrismPrCandidate[];
