@@ -15,9 +15,10 @@ type Card = Readonly<{
 function cards(dora: DoraMetrics): readonly Card[] {
   return [
     {
-      label: "デプロイ頻度",
+      label: "マージ数",
       value: `${dora.deploymentFrequency}`,
-      description: "対象週にマージされたPR数。未マージPRは含めません。",
+      description:
+        "対象週にマージされたPR数。リリース構成は組織ごとに異なるため、デプロイ頻度の代理としてマージ数を表示します。未マージPRは含めません。",
       tone: "deploy",
     },
     {
@@ -34,14 +35,14 @@ function cards(dora: DoraMetrics): readonly Card[] {
           ? "N/A"
           : `${dora.changeFailureRatePercent.toFixed(1)}%`,
       description:
-        "hotfix / revert / incident ラベル付きでマージされたPR数 ÷ 週内マージPR数。障害を直接計測せず、ラベルで失敗修正を判定しています。",
+        "タイトルが Revert \"…\" で始まるPR（巻き戻し）の数 ÷ 週内マージPR数。ラベル運用に依存せず、Revertタイトルで失敗修正を判定しています。",
       tone: "failure-rate",
     },
     {
       label: "MTTR",
       value: formatHours(dora.mttrHours),
       description:
-        "hotfix / revert / incident ラベル付きでマージされたPRの、作成からマージまでの平均時間。該当PRがない場合は N/A です。",
+        "タイトルが Revert \"…\" で始まるPR（巻き戻し）の、作成からマージまでの平均時間。該当PRがない場合は N/A です。",
       tone: "mttr",
     },
   ];

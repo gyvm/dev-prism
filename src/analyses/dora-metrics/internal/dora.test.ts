@@ -15,15 +15,22 @@ const baseAggregate: AggregateMetrics = {
 };
 
 describe("isFailureFix", () => {
-  it("returns true for hotfix/revert/incident labels (case-insensitive)", () => {
-    expect(isFailureFix(makePr({ labels: [{ name: "hotfix" }] }))).toBe(true);
-    expect(isFailureFix(makePr({ labels: [{ name: "Revert" }] }))).toBe(true);
-    expect(isFailureFix(makePr({ labels: [{ name: "INCIDENT" }] }))).toBe(true);
+  it('returns true for the GitHub default revert title (`Revert "…"`)', () => {
+    expect(isFailureFix(makePr({ title: 'Revert "Add feature X"' }))).toBe(true);
+    expect(isFailureFix(makePr({ title: 'Revert "Revert \\"oops\\""' }))).toBe(
+      true,
+    );
   });
 
-  it("returns false for unrelated labels", () => {
-    expect(isFailureFix(makePr({ labels: [{ name: "feature" }] }))).toBe(false);
-    expect(isFailureFix(makePr({ labels: [] }))).toBe(false);
+  it("returns false for non-revert titles, regardless of labels", () => {
+    expect(isFailureFix(makePr({ title: "Add feature X" }))).toBe(false);
+    // labels no longer drive failure classification
+    expect(
+      isFailureFix(
+        makePr({ title: "Hotfix login", labels: [{ name: "hotfix" }] }),
+      ),
+    ).toBe(false);
+    expect(isFailureFix(makePr({ title: "reverting manually" }))).toBe(false);
   });
 });
 
@@ -48,45 +55,46 @@ describe("computeDora", () => {
     expect(result.deploymentFrequency).toBe(2);
   });
 
-  it("computes change failure rate from labels", () => {
+  it("computes change failure rate from revert-titled PRs", () => {
     const prs = [
-      makePr({ number: 1, mergedAt: "2026-03-02T00:00:00.000Z" }),
+      makePr({ number: 1, title: "Add A", mergedAt: "2026-03-02T00:00:00.000Z" }),
       makePr({
         number: 2,
+        title: 'Revert "Add A"',
         mergedAt: "2026-03-02T00:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
       makePr({
         number: 3,
+        title: 'Revert "Add B"',
         mergedAt: "2026-03-02T00:00:00.000Z",
-        labels: [{ name: "revert" }],
       }),
       makePr({
         number: 4,
+        title: "Add C",
         mergedAt: "2026-03-02T00:00:00.000Z",
-        labels: [{ name: "feature" }],
       }),
     ];
     const result = computeDora(prs, baseAggregate);
     expect(result.changeFailureRatePercent).toBe(50);
   });
 
-  it("computes MTTR as average lead time of failure-fix PRs", () => {
+  it("computes MTTR as average lead time of revert-titled PRs", () => {
     const prs = [
       makePr({
         number: 1,
+        title: 'Revert "Ship A"',
         createdAt: "2026-03-01T00:00:00.000Z",
         mergedAt: "2026-03-01T04:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
       makePr({
         number: 2,
+        title: 'Revert "Ship B"',
         createdAt: "2026-03-02T00:00:00.000Z",
         mergedAt: "2026-03-02T08:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
       makePr({
         number: 3,
+        title: "Ship C",
         createdAt: "2026-03-02T00:00:00.000Z",
         mergedAt: "2026-03-04T00:00:00.000Z",
       }),

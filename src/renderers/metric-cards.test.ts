@@ -16,17 +16,19 @@ describe("renderMetricCards", () => {
     expect(html).not.toContain("プロキシ");
     expect(html).toContain('tabindex="0"');
     expect(html).toContain('role="tooltip"');
+    expect(html).toContain('<span class="metric-label">マージ数</span>');
     expect(html).toContain(
-      "対象週にマージされたPR数。未マージPRは含めません。",
+      "デプロイ頻度の代理としてマージ数を表示します。未マージPRは含めません。",
     );
     expect(html).toContain(
       "PR作成からマージまでの時間の中央値。未マージPRは含めません。",
     );
+    expect(html).not.toContain("ラベル付き");
     expect(html).toContain(
-      "hotfix / revert / incident ラベル付きでマージされたPR数 ÷ 週内マージPR数。障害を直接計測せず、ラベルで失敗修正を判定しています。",
+      "で始まるPR（巻き戻し）の数 ÷ 週内マージPR数。ラベル運用に依存せず、Revertタイトルで失敗修正を判定しています。",
     );
     expect(html).toContain(
-      "hotfix / revert / incident ラベル付きでマージされたPRの、作成からマージまでの平均時間。該当PRがない場合は N/A です。",
+      "で始まるPR（巻き戻し）の、作成からマージまでの平均時間。該当PRがない場合は N/A です。",
     );
   });
 });

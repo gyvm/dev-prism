@@ -5,12 +5,11 @@ import { inListFilter, timeRangeFilter } from "../scope-sql.js";
 
 // SQL-native DORA. Output matches the `DoraMetrics` view-model the metric-cards
 // renderer consumes. Failure classification mirrors dora-metrics/internal: a
-// merged PR carrying a hotfix/revert/incident label is a failure fix.
+// merged PR whose title starts with `Revert "` (GitHub's default revert title)
+// is a failure fix — no label discipline required.
 //
 // Lead time is fractional hours via epoch_ms diff (the tz offset cancels in the
 // subtraction), matching the in-memory diffHours to the millisecond.
-
-const FAILURE_LABELS = ["hotfix", "revert", "incident"];
 
 type DoraRow = {
   deploys: bigint | number;
@@ -27,16 +26,14 @@ export function buildDoraSql(scope: Scope): string {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
   const mergedTime = timeRangeFilter("pr.merged_at", scope);
   const authorUsers = inListFilter("author.login", scope.users);
-  const failureList = FAILURE_LABELS.map((label) => `'${label}'`).join(", ");
 
   return `
     WITH merged AS (
       SELECT pr.pr_id AS pr_id,
              (epoch_ms(pr.merged_at) - epoch_ms(pr.created_at)) / 3600000.0 AS lead_hours,
-             EXISTS (
-               SELECT 1 FROM pr_labels l
-               WHERE l.pr_id = pr.pr_id AND lower(l.label) IN (${failureList})
-             ) AS is_failure
+             -- NULL title yields NULL here and is excluded by FILTER(WHERE is_failure),
+             -- matching the in-memory path (the collector guarantees a string title).
+             pr.title LIKE 'Revert "%' AS is_failure
       FROM pull_requests pr
       JOIN repos r ON r.repo_id = pr.repo_id
       LEFT JOIN actors author ON author.actor_id = pr.author_actor_id

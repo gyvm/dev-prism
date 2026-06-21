@@ -70,19 +70,19 @@ describe("dora-metrics compute (week-scoped)", () => {
 
   it("changeFailureRatePercent uses week-merged PRs as denominator", () => {
     const prs = [
-      makePr({ number: 1, createdAt: "2026-04-27T00:00:00.000Z", mergedAt: "2026-04-28T00:00:00.000Z" }),
+      makePr({ number: 1, title: "Add A", createdAt: "2026-04-27T00:00:00.000Z", mergedAt: "2026-04-28T00:00:00.000Z" }),
       makePr({
         number: 2,
+        title: 'Revert "Add A"',
         createdAt: "2026-04-27T00:00:00.000Z",
         mergedAt: "2026-04-29T00:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
-      // out-of-week hotfix should NOT inflate numerator
+      // out-of-week revert should NOT inflate numerator
       makePr({
         number: 9,
+        title: 'Revert "Old change"',
         createdAt: "2026-04-01T00:00:00.000Z",
         mergedAt: "2026-04-10T00:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
     ];
     const ctx = makeAnalysisContext({ prs, weekStart: WEEK_START, weekEnd: WEEK_END });
@@ -94,25 +94,25 @@ describe("dora-metrics compute (week-scoped)", () => {
     const prs = [
       makePr({
         number: 1,
+        title: 'Revert "Ship A"',
         createdAt: "2026-04-27T00:00:00.000Z",
         mergedAt: "2026-04-27T04:00:00.000Z", // 4h
-        labels: [{ name: "hotfix" }],
       }),
       makePr({
         number: 2,
+        title: 'Revert "Ship B"',
         createdAt: "2026-04-28T00:00:00.000Z",
         mergedAt: "2026-04-28T08:00:00.000Z", // 8h
-        labels: [{ name: "incident" }],
       }),
-      // pre-week incident should be ignored
+      // pre-week revert should be ignored
       makePr({
         number: 9,
+        title: 'Revert "Old"',
         createdAt: "2026-03-01T00:00:00.000Z",
         mergedAt: "2026-03-03T00:00:00.000Z",
-        labels: [{ name: "hotfix" }],
       }),
       // non-failure week-merged PR (should not affect MTTR)
-      makePr({ number: 3, createdAt: "2026-04-27T00:00:00.000Z", mergedAt: "2026-04-30T00:00:00.000Z" }),
+      makePr({ number: 3, title: "Ship C", createdAt: "2026-04-27T00:00:00.000Z", mergedAt: "2026-04-30T00:00:00.000Z" }),
     ];
     const ctx = makeAnalysisContext({ prs, weekStart: WEEK_START, weekEnd: WEEK_END });
     const result = compute(ctx) as DoraMetrics;

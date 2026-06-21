@@ -6,12 +6,14 @@ import type {
 import { diffHours } from "../../../shared/datetime.js";
 import { average } from "./aggregate.js";
 
-const FAILURE_LABELS = new Set(["hotfix", "revert", "incident"]);
+// GitHub's default revert PR title is `Revert "<original title>"`. We detect
+// rollbacks by this title prefix instead of relying on hotfix/revert/incident
+// labels, which most small teams never apply — so the failure metrics work with
+// zero label discipline. Mirrored in dora-metrics/query.ts (SQL) for parity.
+const REVERT_TITLE_PREFIX = /^Revert "/;
 
 export function isFailureFix(pr: NormalizedPullRequest): boolean {
-  return pr.labels.some((label) =>
-    FAILURE_LABELS.has(label.name.toLowerCase()),
-  );
+  return REVERT_TITLE_PREFIX.test(pr.title);
 }
 
 export function computeDora(
