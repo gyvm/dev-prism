@@ -137,6 +137,8 @@ describe("report rendering", () => {
     );
 
     expect(html).toContain("対象期間");
+    expect(html).toContain("Dev Prism");
+    expect(html).toContain("PRからチームの開発フローを映し出す週次振り返りレポート");
     expect(html).toContain("2026年4月27日(月) - 2026年5月3日(日)");
     expect(html).toContain("タイムゾーン");
     expect(html).toContain("Asia/Tokyo");

@@ -55,6 +55,8 @@ describe("buildFrozenReport", () => {
 
       expect(report.id).toBe(deriveReportId("Weekly", scope, "UTC"));
       expect(report.html).toContain("<!doctype html>");
+      expect(report.html).toContain("Dev Prism");
+      expect(report.html).toContain("今週の開発フロー");
       // The report body is self-contained: styles are inlined (no stylesheet
       // links). The ONLY external reference is the view-time sidebar overlay
       // (method Z), which 404s harmlessly offline so the body still renders.

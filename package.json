@@ -1,7 +1,7 @@
 {
   "name": "gh-insights",
   "version": "0.1.0",
-  "description": "Weekly GitHub PR insights — DORA, timelines, review correlation, AI summaries.",
+  "description": "Dev Prism — weekly PR flow reports for engineering reflection meetings.",
   "license": "MIT",
   "private": true,
   "type": "module",

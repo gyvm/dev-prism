@@ -1,0 +1,381 @@
+import type { AnalysisContext } from "../context.js";
+import type {
+  NormalizedPullRequest,
+  PrMetrics,
+} from "../../shared/types.js";
+import { formatRepoSlug } from "../../shared/types.js";
+import { diffHours } from "../../shared/datetime.js";
+import { hasPrActivityInWeek, isMergedInWeek } from "../../shared/week.js";
+import { median, average } from "../dora-metrics/internal/aggregate.js";
+import { calculatePrMetrics } from "../dora-metrics/internal/calculate.js";
+import type {
+  DevPrismMetric,
+  DevPrismPrCandidate,
+  DevPrismSummary,
+  DevPrismTrend,
+} from "./types.js";
+
+const MAX_CANDIDATES = 3;
+const LONG_LEAD_TIME_MIN_HOURS = 24;
+const LONG_REVIEW_WAIT_MIN_HOURS = 24;
+const LARGE_PR_MIN_LINES = 300;
+const QUICK_WIN_MAX_HOURS = 24;
+const QUICK_WIN_MAX_LINES = 300;
+const SMALL_PR_MAX_LINES = 120;
+const STALE_OPEN_HOURS = 7 * 24;
+const WAITING_AFTER_COMMENT_HOURS = 48;
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function formatHours(value: number | null): string {
+  if (value === null) return "N/A";
+  if (value < 1) return `${Math.round(value * 60)}分`;
+  return `${round1(value)}h`;
+}
+
+function formatPr(pr: NormalizedPullRequest): Pick<DevPrismPrCandidate, "repo" | "number" | "title" | "url" | "author"> {
+  return {
+    repo: formatRepoSlug(pr.repo),
+    number: pr.number,
+    title: pr.title,
+    url: pr.url ?? null,
+    author: pr.author,
+  };
+}
+
+function candidate(
+  pr: NormalizedPullRequest,
+  metric: string,
+  reason: string,
+  prompt: string,
+): DevPrismPrCandidate {
+  return {
+    ...formatPr(pr),
+    metric,
+    reason,
+    prompt,
+  };
+}
+
+function topBy<T>(items: readonly T[], score: (item: T) => number | null): T[] {
+  return [...items]
+    .map((item) => ({ item, score: score(item) }))
+    .filter((entry): entry is { item: T; score: number } => entry.score !== null && Number.isFinite(entry.score))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_CANDIDATES)
+    .map((entry) => entry.item);
+}
+
+function uniqueParticipants(pr: NormalizedPullRequest): Set<string> {
+  const users = new Set<string>();
+  for (const review of pr.reviews) {
+    if (review.author) users.add(review.author);
+  }
+  for (const comment of pr.comments) {
+    if (comment.author) users.add(comment.author);
+  }
+  for (const thread of pr.reviewThreads) {
+    for (const comment of thread.comments) {
+      if (comment.author) users.add(comment.author);
+    }
+  }
+  if (pr.author) users.delete(pr.author);
+  return users;
+}
+
+function conversationCount(pr: NormalizedPullRequest): number {
+  return (
+    pr.comments.length +
+    pr.reviews.filter((review) => review.bodyText?.trim()).length +
+    pr.reviewThreads.reduce((sum, thread) => sum + thread.comments.length, 0)
+  );
+}
+
+function latestInteractionAt(pr: NormalizedPullRequest): string | null {
+  const dates = [
+    pr.createdAt,
+    pr.updatedAt,
+    ...pr.comments.map((comment) => comment.updatedAt ?? comment.createdAt),
+    ...pr.reviews.map((review) => review.updatedAt ?? review.submittedAt).filter((v): v is string => v !== null),
+    ...pr.reviewThreads.flatMap((thread) =>
+      thread.comments.map((comment) => comment.updatedAt ?? comment.createdAt),
+    ),
+  ];
+  return dates.sort().at(-1) ?? null;
+}
+
+function firstReviewWaitHours(metric: PrMetrics, weekEnd: Date): number | null {
+  if (metric.timeToFirstReviewHours !== null) return metric.timeToFirstReviewHours;
+  if (metric.mergedAt !== null) return null;
+  return diffHours(metric.createdAt, weekEnd.toISOString());
+}
+
+function trendForLeadTime(leadTimeHours: number | null, mergedPrCount: number): DevPrismTrend {
+  if (leadTimeHours === null || mergedPrCount === 0) return "unknown";
+  if (leadTimeHours <= 24) return "improved";
+  if (leadTimeHours >= 72) return "worse";
+  return "flat";
+}
+
+function analystComment(
+  leadTimeHours: number | null,
+  reviewWaitHours: number | null,
+  mergedPrCount: number,
+  activePrCount: number,
+): string {
+  if (mergedPrCount === 0) {
+    return activePrCount === 0
+      ? "対象期間にPR活動がなく、チームの流れを判断できる材料はありません。"
+      : "対象期間にマージがないため、完了までの流れよりも未完了PRの滞留確認を優先するとよさそうです。";
+  }
+  const lead = formatHours(leadTimeHours);
+  const review = formatHours(reviewWaitHours);
+  if (leadTimeHours !== null && leadTimeHours >= 72) {
+    return `今週のリードタイム中央値は${lead}で重めです。レビュー待ち(${review})、大型PR、議論が多いPRが影響している可能性があります。`;
+  }
+  if (reviewWaitHours !== null && reviewWaitHours >= 24) {
+    return `今週のリードタイム中央値は${lead}です。レビュー待ち平均が${review}あるため、初回レビューまでの流れを確認するとよさそうです。`;
+  }
+  return `今週のリードタイム中央値は${lead}で、完了したPRは${mergedPrCount}件です。流れが良かったPRを拾い、再現できる進め方を確認するとよさそうです。`;
+}
+
+function metric(label: string, value: string, detail: string, trend: DevPrismTrend): DevPrismMetric {
+  return { label, value, detail, trend };
+}
+
+export function compute(ctx: AnalysisContext): DevPrismSummary {
+  const activePrs = ctx.rawPrs.filter((pr) =>
+    hasPrActivityInWeek(pr, ctx.weekStart, ctx.weekEnd),
+  );
+  const mergedPrs = ctx.rawPrs.filter((pr) =>
+    isMergedInWeek(pr, ctx.weekStart, ctx.weekEnd),
+  );
+  const metricsByKey = new Map<string, PrMetrics>(
+    activePrs.map((pr) => [`${formatRepoSlug(pr.repo)}#${pr.number}`, calculatePrMetrics(pr)]),
+  );
+  const mergedMetrics = mergedPrs
+    .map((pr) => metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr));
+  const leadTimes = mergedMetrics
+    .map((pr) => pr.leadTimeHours)
+    .filter((value): value is number => value !== null)
+    .sort((a, b) => a - b);
+  const reviewWaits = activePrs
+    .map((pr) => {
+      const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+      return firstReviewWaitHours(m, ctx.weekEnd);
+    })
+    .filter((value): value is number => value !== null);
+
+  const leadTimeHours = median(leadTimes);
+  const averageReviewWaitHours = average(reviewWaits);
+  const comment = analystComment(
+    leadTimeHours,
+    averageReviewWaitHours,
+    mergedPrs.length,
+    activePrs.length,
+  );
+
+  const longLeadTimePrs = topBy(mergedPrs.filter((pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    return m.leadTimeHours !== null && m.leadTimeHours >= LONG_LEAD_TIME_MIN_HOURS;
+  }), (pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    return m.leadTimeHours;
+  }).map((pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    return candidate(
+      pr,
+      formatHours(m.leadTimeHours),
+      "PR作成からマージまでが長く、今週のリードタイムに影響している可能性があります。",
+      "このPRは来週も同じ進め方になりそうですか？",
+    );
+  });
+
+  const longReviewWaitPrs = topBy(activePrs.filter((pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    const wait = firstReviewWaitHours(m, ctx.weekEnd);
+    return wait !== null && wait >= LONG_REVIEW_WAIT_MIN_HOURS;
+  }), (pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    return firstReviewWaitHours(m, ctx.weekEnd);
+  }).map((pr) => {
+    const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+    return candidate(
+      pr,
+      formatHours(firstReviewWaitHours(m, ctx.weekEnd)),
+      "初回レビューまでの待ち時間が長く、流れを重くしている可能性があります。",
+      "レビュー待ちが長かった理由は何でしたか？",
+    );
+  });
+
+  const largePrs = topBy(
+    activePrs.filter((pr) => pr.additions + pr.deletions >= LARGE_PR_MIN_LINES),
+    (pr) => pr.additions + pr.deletions,
+  ).map((pr) =>
+    candidate(
+      pr,
+      `${pr.additions + pr.deletions}行`,
+      "変更量が大きく、レビューやマージまでの時間に影響しやすいPRです。",
+      "PRサイズを小さくできる余地はありましたか？",
+    ),
+  );
+
+  const debatedPrs = topBy(
+    activePrs.filter((pr) => conversationCount(pr) > 0),
+    conversationCount,
+  ).map((pr) =>
+    candidate(
+      pr,
+      `${conversationCount(pr)}件の会話`,
+      "コメントやレビュー本文が多く、議論や方針確認が発生していた可能性があります。",
+      "この議論はPR上で完結しましたか？",
+    ),
+  );
+
+  const quickWins = mergedPrs
+    .filter((pr) => {
+      const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+      return (
+        m.leadTimeHours !== null &&
+        m.leadTimeHours <= QUICK_WIN_MAX_HOURS &&
+        m.totalLinesChanged <= QUICK_WIN_MAX_LINES
+      );
+    })
+    .sort((a, b) => {
+      const ma = metricsByKey.get(`${formatRepoSlug(a.repo)}#${a.number}`) ?? calculatePrMetrics(a);
+      const mb = metricsByKey.get(`${formatRepoSlug(b.repo)}#${b.number}`) ?? calculatePrMetrics(b);
+      return (ma.leadTimeHours ?? 0) - (mb.leadTimeHours ?? 0);
+    })
+    .slice(0, MAX_CANDIDATES)
+    .map((pr) => {
+      const m = metricsByKey.get(`${formatRepoSlug(pr.repo)}#${pr.number}`) ?? calculatePrMetrics(pr);
+      return candidate(
+        pr,
+        formatHours(m.leadTimeHours),
+        "短いリードタイムで完了しており、うまく流れた作業として共有しやすいPRです。",
+        "今週うまく流れた作業は再現できますか？",
+      );
+    });
+
+  const smallButUseful = mergedPrs
+    .filter((pr) => pr.additions + pr.deletions <= SMALL_PR_MAX_LINES)
+    .sort((a, b) => (a.additions + a.deletions) - (b.additions + b.deletions))
+    .slice(0, MAX_CANDIDATES)
+    .map((pr) =>
+      candidate(
+        pr,
+        `${pr.additions + pr.deletions}行`,
+        "変更量は小さいものの、チームの作業記憶に残しておきたい完了PRです。",
+        "この作業は他のメンバーにも共有しておく価値がありますか？",
+      ),
+    );
+
+  const collaborativePrs = topBy(
+    activePrs.filter((pr) => uniqueParticipants(pr).size > 0),
+    (pr) => uniqueParticipants(pr).size,
+  ).map((pr) =>
+    candidate(
+      pr,
+      `${uniqueParticipants(pr).size}人が参加`,
+      "作者以外の複数人がレビューやコメントに関わっており、チームで認識を揃えたい動きです。",
+      "関わった人の知見をチームに共有できますか？",
+    ),
+  );
+
+  const staleOpenPrs = activePrs
+    .filter((pr) => pr.mergedAt === null && pr.closedAt === null)
+    .filter((pr) => diffHours(pr.createdAt, ctx.weekEnd.toISOString()) >= STALE_OPEN_HOURS)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .slice(0, MAX_CANDIDATES)
+    .map((pr) =>
+      candidate(
+        pr,
+        formatHours(diffHours(pr.createdAt, ctx.weekEnd.toISOString())),
+        "オープンのまま期間をまたいでおり、来週の扱いを確認したいPRです。",
+        "これは来週誰が見るとよさそうですか？",
+      ),
+    );
+
+  const unresolvedReviewPrs = activePrs
+    .filter((pr) => pr.reviewThreads.some((thread) => thread.isResolved === false))
+    .slice(0, MAX_CANDIDATES)
+    .map((pr) =>
+      candidate(
+        pr,
+        `${pr.reviewThreads.filter((thread) => thread.isResolved === false).length}件未解決`,
+        "未解決レビューがあります。対応済みか、持ち越しかを確認したいPRです。",
+        "未解決スレッドは対応済みですか、それとも来週に持ち越しますか？",
+      ),
+    );
+
+  const waitingAfterCommentPrs = activePrs
+    .filter((pr) => pr.mergedAt === null && pr.closedAt === null)
+    .map((pr) => ({ pr, latest: latestInteractionAt(pr) }))
+    .filter((entry): entry is { pr: NormalizedPullRequest; latest: string } => entry.latest !== null)
+    .map((entry) => ({ ...entry, idleHours: diffHours(entry.latest, ctx.weekEnd.toISOString()) }))
+    .filter((entry) => entry.idleHours >= WAITING_AFTER_COMMENT_HOURS)
+    .sort((a, b) => b.idleHours - a.idleHours)
+    .slice(0, MAX_CANDIDATES)
+    .map(({ pr, idleHours }) =>
+      candidate(
+        pr,
+        `${formatHours(idleHours)}停止`,
+        "最後のコメントやレビュー後に動きが止まっており、確認漏れの可能性があります。",
+        "次に動かす人は決まっていますか？",
+      ),
+    );
+
+  return {
+    flowSnapshot: {
+      leadTimeHours,
+      mergedPrCount: mergedPrs.length,
+      averageReviewWaitHours,
+      activePrCount: activePrs.length,
+      analystComment: comment,
+      metrics: [
+        metric(
+          "リードタイム",
+          formatHours(leadTimeHours),
+          "PR作成からマージまでの中央値",
+          trendForLeadTime(leadTimeHours, mergedPrs.length),
+        ),
+        metric(
+          "完了PR",
+          `${mergedPrs.length}件`,
+          "対象期間にマージされたPR",
+          mergedPrs.length === 0 ? "unknown" : "flat",
+        ),
+        metric(
+          "レビュー待ち",
+          formatHours(averageReviewWaitHours),
+          "初回レビューまでの平均",
+          averageReviewWaitHours === null ? "unknown" : averageReviewWaitHours >= 24 ? "worse" : "flat",
+        ),
+        metric(
+          "活動PR",
+          `${activePrs.length}件`,
+          "対象期間に作成・更新・レビュー・コメントがあったPR",
+          activePrs.length === 0 ? "unknown" : "flat",
+        ),
+      ],
+    },
+    whatChanged: {
+      longLeadTimePrs,
+      longReviewWaitPrs,
+      largePrs,
+      debatedPrs,
+    },
+    rememberThisWeek: {
+      quickWins,
+      smallButUseful,
+      collaborativePrs,
+    },
+    needsFollowUp: {
+      staleOpenPrs,
+      unresolvedReviewPrs,
+      waitingAfterCommentPrs,
+    },
+  };
+}

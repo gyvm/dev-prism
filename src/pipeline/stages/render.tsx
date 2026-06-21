@@ -21,6 +21,9 @@ export type RenderResult = Readonly<{
 }>;
 
 function renderMarkdownSection(result: AnalysisResult): string {
+  if (result.status === "skipped") {
+    return "";
+  }
   if (result.status === "ok") {
     const markdown = typeof result.data === "string" ? result.data : "";
     return `<section class="ai-markdown">${markdownToHtml(markdown)}</section>`;
@@ -37,6 +40,28 @@ function renderJsonSection(result: AnalysisResult): string {
     return "";
   }
   return renderAnalysis(result.renderer, result.data);
+}
+
+const AI_SECTION_ORDER = [
+  "00_flow-analyst",
+  "01_project-progress",
+  "02_follow-up-prs",
+  "03_debated-prs",
+] as const;
+
+const DETAIL_SECTION_ORDER = [
+  "dora-metrics",
+  "pr-timeline",
+  "review-correlation",
+] as const;
+
+function orderResults(results: readonly AnalysisResult[], order: readonly string[]): AnalysisResult[] {
+  const rank = new Map(order.map((id, index) => [id, index]));
+  return [...results].sort((a, b) => {
+    const ar = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+    const br = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+    return ar - br || a.id.localeCompare(b.id);
+  });
 }
 
 function isUtcDayBoundary(value: string): boolean {
@@ -90,7 +115,11 @@ function ReportHeader({ reportInput }: { reportInput: ReportInput }) {
 
   return (
     <header>
-      <h1>GitHub PR 週次レポート</h1>
+      <p className="report-kicker">GitHub PR weekly reflection</p>
+      <h1>Dev Prism</h1>
+      <p className="report-subtitle">
+        PRからチームの開発フローを映し出す週次振り返りレポート
+      </p>
       <dl className="report-meta" aria-label="レポート情報">
         <div className="report-meta-item report-meta-period">
           <dt>対象期間</dt>
@@ -144,12 +173,31 @@ export function renderReportHtml(
   reportInput: ReportInput,
   results: readonly AnalysisResult[],
 ): string {
-  const sections = results
-    .map((result) =>
-      result.format === "markdown"
-        ? renderMarkdownSection(result)
-        : renderJsonSection(result),
-    )
+  const summary = results.find((result) => result.id === "dev-prism-summary");
+  const summaryHtml = summary ? renderJsonSection(summary) : "";
+  const aiSections = orderResults(
+    results.filter((result) => result.format === "markdown"),
+    AI_SECTION_ORDER,
+  )
+    .map(renderMarkdownSection)
+    .filter((html) => html !== "")
+    .join("\n");
+  const detailSections = orderResults(
+    results.filter(
+      (result) =>
+        result.format !== "markdown" &&
+        result.id !== "dev-prism-summary",
+    ),
+    DETAIL_SECTION_ORDER,
+  )
+    .map(renderJsonSection)
+    .filter((html) => html !== "")
+    .join("\n");
+
+  const deepDiveHtml = detailSections
+    ? `<section class="dev-prism-deep-dive"><p class="dev-prism-eyebrow">Deep Dive</p><h2>詳細メトリクス</h2><p>必要に応じて、DORA・PR Timeline・レビュー相関で背景を掘り下げます。</p></section>\n${detailSections}`
+    : "";
+  const sections = [summaryHtml, aiSections, deepDiveHtml]
     .filter((html) => html !== "")
     .join("\n");
 
@@ -158,7 +206,7 @@ export function renderReportHtml(
   );
   const document = renderToStaticMarkup(
     <ReportDocument
-      title={`GitHub PR 週次レポート - ${period.id}`}
+      title={`Dev Prism - ${period.id}`}
       bodyHtml={`${headerHtml}\n${sections}`}
     />,
   );
@@ -207,7 +255,7 @@ export async function buildIndexHtml(
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>GitHub PR 週次レポート一覧</title>
+  <title>Dev Prism レポート一覧</title>
   <style>
     body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #172026; }
     h1 { font-size: 24px; }
@@ -219,7 +267,7 @@ export async function buildIndexHtml(
   </style>
 </head>
 <body>
-  <h1>GitHub PR 週次レポート一覧</h1>
+  <h1>Dev Prism レポート一覧</h1>
   ${reports.length === 0 ? '<p class="empty">レポートはまだありません。</p>' : `<ul>\n${items}\n    </ul>`}
 </body>
 </html>

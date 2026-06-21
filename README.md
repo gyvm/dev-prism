@@ -1,7 +1,8 @@
-# pr-weekly-report
+# Dev Prism
 
-GitHub の Pull Request を集計し、定量メトリクス (DORA / レビュー相関 / PR タイムライン) と
-AI 分析を組み合わせた静的ダッシュボード (Explore + Reports ギャラリー) を生成します。
+GitHub の Pull Request を集計し、リードタイムを入口にチームの開発フローを映し出す
+週次振り返りレポートを生成します。定量メトリクス (DORA / レビュー相関 / PR タイムライン) と
+AI 分析を組み合わせ、週次MTGで変化理由・拾うべきPR・フォローアップ候補を確認できます。
 
 デモページ:
 https://gyvm.github.io/pr-weekly-report/demo/reports/2026-05-03.html

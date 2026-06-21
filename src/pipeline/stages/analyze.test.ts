@@ -73,8 +73,10 @@ describe("analyzeStage", () => {
     });
 
     const byId = Object.fromEntries(result.results.map((r) => [r.id, r]));
+    expect(byId["dev-prism-summary"]?.status).toBe("ok");
     expect(byId["dora-metrics"]?.status).toBe("ok");
     expect(byId["pr-timeline"]?.status).toBe("ok");
+    expect(byId["00_flow-analyst"]?.status).toBe("skipped");
     expect(byId["01_project-progress"]?.status).toBe("skipped");
     expect(byId["01_project-progress"]?.reason).toMatch(/skipped/i);
   });
@@ -96,6 +98,7 @@ describe("analyzeStage", () => {
     });
 
     expect(calls.map((c) => c.skillId).sort()).toEqual([
+      "00_flow-analyst",
       "01_project-progress",
       "02_follow-up-prs",
       "03_debated-prs",
@@ -117,9 +120,11 @@ describe("analyzeStage", () => {
     });
 
     expect(result.results.map((r) => r.id)).toEqual([
+      "dev-prism-summary",
       "dora-metrics",
       "pr-timeline",
       "review-correlation",
+      "00_flow-analyst",
       "01_project-progress",
       "02_follow-up-prs",
       "03_debated-prs",
@@ -130,7 +135,12 @@ describe("analyzeStage", () => {
 describe("discoverAiSkillIds", () => {
   it("returns all skill directories with a SKILL.md", async () => {
     const ids = await discoverAiSkillIds("skills");
-    expect(ids).toEqual(["01_project-progress", "02_follow-up-prs", "03_debated-prs"]);
+    expect(ids).toEqual([
+      "00_flow-analyst",
+      "01_project-progress",
+      "02_follow-up-prs",
+      "03_debated-prs",
+    ]);
   });
 
   it("returns empty list for missing root", async () => {
