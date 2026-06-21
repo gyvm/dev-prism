@@ -4,7 +4,7 @@ export const PAGE_STYLES = `:root { color-scheme: light; --bg-default:#f7f9fc; -
 * { box-sizing:border-box; }
 body { margin:0; font-family:"Avenir Next", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:var(--bg-default); color:var(--fg-default); line-height:1.5; }
 body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.58), rgba(255,255,255,0) 280px); }
-main { position:relative; max-width:1180px; margin:0 auto; padding:36px 20px 60px; }
+main { position:relative; width:100%; margin:0 auto; padding:36px clamp(20px, 4vw, 64px) 60px; }
 header { margin-bottom:24px; padding:0 2px; }
 h1 { margin:0; font-size:34px; font-weight:650; line-height:1.12; letter-spacing:0; overflow-wrap:anywhere; color:var(--fg-default); }
 h2 { margin:0; font-size:18px; line-height:1.25; letter-spacing:0; }
