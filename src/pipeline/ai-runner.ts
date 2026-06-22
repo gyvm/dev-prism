@@ -42,7 +42,15 @@ export async function validateAiModel(
     } finally {
       await client.stop();
     }
-  } catch {
+  } catch (error) {
+    // Enumeration failed (auth/network/SDK). Don't hard-fail the run on a
+    // transient listing error, but surface it: a silent return makes a
+    // misconfigured token look like "model is valid", and every analysis then
+    // fails opaquely at runtime instead of here.
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `[ai] could not verify config.ai.model "${options.model}" (skipping validation): ${message}\n`,
+    );
     return;
   }
   if (!models.some((m) => m.id === options.model)) {

@@ -69,6 +69,7 @@ export async function orchestrate(
       period,
       pullRequests: snapshot.pullRequests,
       rawPath,
+      errors: [],
     };
   } else {
     period = periodForDate(now, config.timezone);

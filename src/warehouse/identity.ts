@@ -42,6 +42,62 @@ export function prKey(pr: NormalizedPullRequest): string {
   return `${pr.repo.owner}/${pr.repo.name}#${pr.number}`;
 }
 
+type IdPart = string | number | boolean | null | undefined;
+
+/** Deterministic synthetic id from a fixed list of parts (null/undefined → ""). */
+export function fallbackId(prefix: string, parts: readonly IdPart[]): string {
+  return `${prefix}:${stableHash(parts.map((part) => part ?? "").join("|"))}`;
+}
+
+/** The real GitHub Node.id when present, else a deterministic fallback. */
+export function idOrFallback(
+  id: string | null | undefined,
+  prefix: string,
+  parts: readonly IdPart[],
+): string {
+  return typeof id === "string" && id.length > 0 ? id : fallbackId(prefix, parts);
+}
+
+/**
+ * Single source of truth for the ids below. Each is derived identically by the
+ * entity tables (`pr_reviews.review_id`, `pr_review_threads.thread_id`,
+ * `pr_review_comments.comment_id`) and by the `bodies.subject_id` written for
+ * the same row, so the incremental `bodies` purge in build.ts — which
+ * reconstructs the key from the entity table — matches the stored body row.
+ * When a row lacks a GitHub Node.id the two sides must still agree; deriving
+ * both from these helpers guarantees it. Mirrors `issueCommentFallbackId`,
+ * which already does this for issue comments.
+ */
+export function reviewKey(
+  sourceNodeId: string | null | undefined,
+  prId: string,
+  index: number,
+  author: string | null | undefined,
+  submittedAt: string | null | undefined,
+): string {
+  return idOrFallback(sourceNodeId, "review", [prId, index, author, submittedAt]);
+}
+
+export function reviewThreadKey(
+  sourceNodeId: string | null | undefined,
+  prId: string,
+  threadIndex: number,
+  path: string | null | undefined,
+  line: number | null | undefined,
+): string {
+  return idOrFallback(sourceNodeId, "review-thread", [prId, threadIndex, path, line]);
+}
+
+export function reviewCommentKey(
+  sourceNodeId: string | null | undefined,
+  prId: string,
+  threadId: string,
+  commentIndex: number,
+  createdAt: string | null | undefined,
+): string {
+  return idOrFallback(sourceNodeId, "review-comment", [prId, threadId, commentIndex, createdAt]);
+}
+
 /**
  * Deterministic fallback id for a PR issue comment that has no GitHub Node.id.
  * Shared by the activities event_id and the bodies subject_id so the

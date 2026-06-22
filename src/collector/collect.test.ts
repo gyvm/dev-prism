@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { collectNormalizedPullRequests } from "./collect.js";
+import { collectNormalizedPullRequests, hasCollectionFailures } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
 import { resolveToken } from "./auth.js";
 import { CollectorError, RateLimitError } from "../shared/errors.js";
@@ -909,5 +909,28 @@ describe("resolveToken", () => {
         vi.fn().mockRejectedValue(new Error("auth failed")),
       ),
     ).rejects.toThrow(/installation token/i);
+  });
+});
+
+describe("hasCollectionFailures", () => {
+  const ratePr = { scope: "primary" as const, atRepo: "a/b", resetAt: null, pendingRepos: ["a/b"] };
+
+  it("is false for a complete collection", () => {
+    expect(hasCollectionFailures({ pullRequests: [], errors: [] })).toBe(false);
+  });
+
+  it("is true when a repo errored", () => {
+    expect(
+      hasCollectionFailures({
+        pullRequests: [],
+        errors: [{ repository: "a/b", error: new Error("boom") }],
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when a rate limit stopped collection", () => {
+    expect(
+      hasCollectionFailures({ pullRequests: [], errors: [], rateLimited: ratePr }),
+    ).toBe(true);
   });
 });

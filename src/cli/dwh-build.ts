@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-import { collectNormalizedPullRequests } from "../collector/collect.js";
+import { collectNormalizedPullRequests, hasCollectionFailures } from "../collector/collect.js";
 import { buildDwhFromPullRequests } from "../warehouse/build.js";
 import {
   readRepoLowWatermarks,
@@ -148,6 +148,13 @@ async function main(): Promise<void> {
 
   if (collected.errors.length > 0) {
     process.stdout.write(`\n${collected.errors.length} repository(s) failed to collect.\n`);
+  }
+
+  // Partial data was written (and is safe to keep — the cursor resumes), but the
+  // run did not cover every repo, so fail loudly: a green CI check on an
+  // incomplete collection would hide the gap and suppress the needed re-run.
+  if (hasCollectionFailures(collected)) {
+    process.exitCode = 1;
   }
 }
 

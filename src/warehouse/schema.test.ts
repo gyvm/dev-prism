@@ -13,6 +13,15 @@ describe("DWH schema", () => {
     expect(DWH_SCHEMA_VERSION).toBe(1);
   });
 
+  it("only lists real columns in every logicalPrimaryKey", () => {
+    for (const table of dwhTables) {
+      const columns = new Set(table.columns.map((column) => column.name));
+      for (const key of table.logicalPrimaryKey) {
+        expect(columns, `${table.name}.logicalPrimaryKey references "${key}"`).toContain(key);
+      }
+    }
+  });
+
   it("contains the tables from the analytics platform design", () => {
     expect(dwhTables.map((table) => table.name)).toEqual([
       "activities",

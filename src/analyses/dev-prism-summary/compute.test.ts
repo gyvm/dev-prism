@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { makeAnalysisContext, makePr } from "../../test-fixtures.js";
-import { compute } from "./compute.js";
+import { analystComment, compute } from "./compute.js";
 
 describe("dev-prism-summary compute", () => {
   it("builds a weekly flow snapshot and PR candidates", () => {
@@ -71,5 +71,55 @@ describe("dev-prism-summary compute", () => {
     expect(summary.rememberThisWeek.quickWins[0]?.number).toBe(2);
     expect(summary.needsFollowUp.staleOpenPrs[0]?.number).toBe(3);
     expect(summary.needsFollowUp.unresolvedReviewPrs[0]?.number).toBe(3);
+  });
+
+  it("emits an empty summary (no analystComment crash) when there is no activity", () => {
+    const ctx = makeAnalysisContext({ prs: [] });
+    const summary = compute(ctx);
+    expect(summary.flowSnapshot.mergedPrCount).toBe(0);
+    expect(summary.flowSnapshot.activePrCount).toBe(0);
+    expect(summary.flowSnapshot.leadTimeHours).toBeNull();
+    expect(summary.flowSnapshot.analystComment).toContain("PR活動がなく");
+  });
+});
+
+describe("dev-prism-summary analystComment branches", () => {
+  it("no merges and no activity → no material to judge", () => {
+    expect(analystComment(null, null, null, 0, 0)).toContain("PR活動がなく");
+  });
+
+  it("no merges but open activity → prioritise stalled PRs", () => {
+    const text = analystComment(null, null, 30, 0, 4);
+    expect(text).toContain("マージがないため");
+  });
+
+  it("heavy lead time (≥72h) → flags it as heavy", () => {
+    expect(analystComment(80, 5, 10, 3, 5)).toContain("重め");
+  });
+
+  it("lead time exactly at the 72h boundary is heavy", () => {
+    expect(analystComment(72, null, 10, 1, 1)).toContain("重め");
+    expect(analystComment(71.9, null, 10, 1, 1)).not.toContain("重め");
+  });
+
+  it("acceptable lead but review wait ≥24h → flags review wait", () => {
+    const text = analystComment(20, null, 24, 3, 5);
+    expect(text).toContain("初回レビュー");
+    expect(text).not.toContain("重め");
+  });
+
+  it("review wait just under 24h falls through to the healthy default", () => {
+    const text = analystComment(20, null, 23.9, 3, 5);
+    expect(text).not.toContain("初回レビュー");
+    expect(text).toContain("流れが良かった");
+  });
+
+  it("healthy flow → highlights what worked", () => {
+    expect(analystComment(10, -2, 5, 4, 6)).toContain("流れが良かった");
+  });
+
+  it("renders the previous-period delta only when present", () => {
+    expect(analystComment(10, null, 5, 4, 6)).not.toContain("前回比");
+    expect(analystComment(10, -3, 5, 4, 6)).toContain("前回比");
   });
 });

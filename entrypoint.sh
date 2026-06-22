@@ -21,7 +21,7 @@ dwh_dir="${2:-data/dwh}"
 from="${3:-}"
 
 ws="${GITHUB_WORKSPACE:-$PWD}"
-cd "$ws"
+cd "$ws" || { echo "entrypoint: cannot cd into workspace '$ws'" >&2; exit 1; }
 
 args=(--config "$ws/$config" --dwh-dir "$ws/$dwh_dir")
 if [[ -n "$from" ]]; then

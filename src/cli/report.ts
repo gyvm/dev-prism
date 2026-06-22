@@ -110,6 +110,24 @@ async function main(): Promise<void> {
   process.stdout.write(
     `\nPeriod: ${result.period.id} | analyses: ${summaryText}\n`,
   );
+
+  // The report was rendered from a partial collection (rate limit and/or per-repo
+  // errors). Exit non-zero so the run is not mistaken for a complete success.
+  if (result.fetch.rateLimited || result.fetch.errors.length > 0) {
+    const reasons: string[] = [];
+    if (result.fetch.rateLimited) {
+      reasons.push(
+        `rate limit at ${result.fetch.rateLimited.atRepo} (${result.fetch.rateLimited.pendingRepos.length} repo(s) pending)`,
+      );
+    }
+    if (result.fetch.errors.length > 0) {
+      reasons.push(`${result.fetch.errors.length} repo(s) failed to collect`);
+    }
+    process.stderr.write(
+      `\nReport is partial: ${reasons.join("; ")}. Re-run to fill the gap.\n`,
+    );
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {

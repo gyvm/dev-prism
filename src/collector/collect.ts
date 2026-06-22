@@ -25,6 +25,16 @@ export type CollectionResult = {
   rateLimited?: RateLimitOutcome;
 };
 
+/**
+ * True when collection did not cover every repository — a rate limit stopped it
+ * early, or one or more repos errored. Callers should treat this as a failed run
+ * (non-zero exit) even though partial data was produced, so CI surfaces it and a
+ * re-run is triggered. The data itself is safe to persist (the DWH cursor resumes).
+ */
+export function hasCollectionFailures(result: CollectionResult): boolean {
+  return result.rateLimited !== undefined || result.errors.length > 0;
+}
+
 export async function collectNormalizedPullRequests(
   dependencies: CollectorDependencies = {},
 ): Promise<CollectionResult> {

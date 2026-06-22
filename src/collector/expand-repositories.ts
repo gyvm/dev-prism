@@ -52,6 +52,7 @@ async function fetchWildcardRepositories(
 ): Promise<RepositoryConfig[]> {
   const results: RepositoryConfig[] = [];
   const query = `user:${owner} archived:false`;
+  let warnedIncomplete = false;
 
   for (let page = 1; page <= MAX_PAGES; page++) {
     const url = new URL(resolveSearchEndpoint());
@@ -84,6 +85,17 @@ async function fetchWildcardRepositories(
     }
 
     const payload = (await response.json()) as SearchResponse;
+
+    // GitHub sets incomplete_results when the search backend timed out, so the
+    // page (and total_count) under-reports. Surface it once rather than
+    // silently expanding the wildcard to fewer repositories than exist.
+    if (payload.incomplete_results === true && !warnedIncomplete) {
+      warnedIncomplete = true;
+      console.warn(
+        `Wildcard "${owner}/*" search returned incomplete results (GitHub search timed out); some repositories may be missing. Re-run to retry.`,
+      );
+    }
+
     const items = payload.items ?? [];
     for (const item of items) {
       const name = item?.name?.trim();

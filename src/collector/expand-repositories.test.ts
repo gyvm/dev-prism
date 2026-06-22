@@ -193,4 +193,25 @@ describe("expandRepositorySpecs", () => {
       ),
     ).rejects.toThrow(/matched no repositories/i);
   });
+
+  it("warns once when GitHub returns incomplete_results", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      jsonResponse({
+        total_count: 1,
+        incomplete_results: true,
+        items: [{ name: "gh-insights", owner: { login: "acme-corp" } }],
+      }),
+    );
+
+    const result = await expandRepositorySpecs(
+      [{ kind: "wildcard", owner: "acme-corp" }],
+      { token: "t", fetchFn },
+    );
+
+    // Still returns what it could read, but surfaces the gap instead of hiding it.
+    expect(result).toEqual([{ owner: "acme-corp", name: "gh-insights" }]);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/incomplete results/i));
+  });
 });

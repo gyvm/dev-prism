@@ -15,7 +15,6 @@ import { buildWarehouseRows } from "./transform.js";
 export type BuildDwhOptions = Readonly<{
   dwhDir?: string;
   botPatterns?: readonly string[];
-  now?: Date;
 }>;
 
 export type BuildDwhResult = Readonly<{

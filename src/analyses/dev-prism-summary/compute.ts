@@ -118,7 +118,7 @@ function firstReviewWaitHours(metric: PrMetrics, weekEnd: Date): number | null {
   return diffHours(metric.createdAt, weekEnd.toISOString());
 }
 
-function analystComment(
+export function analystComment(
   leadTimeHours: number | null,
   leadTimeDeltaHours: number | null,
   reviewWaitHours: number | null,

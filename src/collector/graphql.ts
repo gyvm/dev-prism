@@ -552,8 +552,10 @@ type SearchSort = "updated-asc" | "updated-desc";
 // GitHub search rounds `updated:` qualifiers to day granularity (YYYY-MM-DD).
 // An explicit `sort:` is required for stable cursor pagination — the default
 // relevance order is not guaranteed stable across pages. Incremental fetches
-// sort newest-first (`updated-desc`) so a MAX_PAGES cutoff drops the oldest,
-// not the just-changed PRs; backfill sorts oldest-first (`updated-asc`).
+// sort newest-first (`updated-desc`) so the most recently changed PRs are
+// fetched first; a MAX_PAGES overflow then fails loudly (see
+// fetchRepositoryPullRequests) rather than silently dropping just-changed PRs.
+// Backfill sorts oldest-first (`updated-asc`).
 function buildSearchQuery(
   repository: RepositoryConfig,
   since: Date,
