@@ -40,6 +40,24 @@ describe("expandRepositorySpecs", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("targets GITHUB_API_URL when set (GitHub Enterprise Server)", async () => {
+    const original = process.env.GITHUB_API_URL;
+    process.env.GITHUB_API_URL = "https://ghe.example.com/api/v3";
+    try {
+      const fetchFn = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(jsonResponse(searchResult([{ owner: "acme-corp", name: "gh-insights" }])));
+
+      await expandRepositorySpecs([{ kind: "wildcard", owner: "acme-corp" }], { token: "t", fetchFn });
+
+      const parsed = new URL(String(fetchFn.mock.calls[0]![0]));
+      expect(parsed.origin + parsed.pathname).toBe("https://ghe.example.com/api/v3/search/repositories");
+    } finally {
+      if (original === undefined) delete process.env.GITHUB_API_URL;
+      else process.env.GITHUB_API_URL = original;
+    }
+  });
+
   it("expands a wildcard via GitHub Search API with archived:false", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValueOnce(
       jsonResponse(
@@ -174,5 +192,26 @@ describe("expandRepositorySpecs", () => {
         { token: "t", fetchFn },
       ),
     ).rejects.toThrow(/matched no repositories/i);
+  });
+
+  it("warns once when GitHub returns incomplete_results", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      jsonResponse({
+        total_count: 1,
+        incomplete_results: true,
+        items: [{ name: "gh-insights", owner: { login: "acme-corp" } }],
+      }),
+    );
+
+    const result = await expandRepositorySpecs(
+      [{ kind: "wildcard", owner: "acme-corp" }],
+      { token: "t", fetchFn },
+    );
+
+    // Still returns what it could read, but surfaces the gap instead of hiding it.
+    expect(result).toEqual([{ owner: "acme-corp", name: "gh-insights" }]);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/incomplete results/i));
   });
 });

@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 
 import type { NormalizedPullRequest } from "../shared/types.js";
-import { issueCommentFallbackId, requirePrId, stableHash } from "./identity.js";
+import {
+  issueCommentFallbackId,
+  requirePrId,
+  reviewCommentKey,
+  reviewKey,
+  reviewThreadKey,
+} from "./identity.js";
 import { isoToSqlTimestamp, type DwhRow } from "./rows.js";
 
 function bodyHash(text: string | null): string | null {
@@ -29,10 +35,6 @@ function addBody(
   });
 }
 
-function fallbackSubjectId(prefix: string, parts: readonly string[]): string {
-  return `${prefix}:${stableHash(parts.join("|"))}`;
-}
-
 export function buildBodyRows(pullRequests: readonly NormalizedPullRequest[]): readonly DwhRow[] {
   const rows: DwhRow[] = [];
 
@@ -41,7 +43,9 @@ export function buildBodyRows(pullRequests: readonly NormalizedPullRequest[]): r
     addBody(rows, prId, "pr_body", prId, pr.bodyText ?? null, pr.updatedAt);
 
     pr.reviews.forEach((review, index) => {
-      const reviewId = review.sourceNodeId ?? fallbackSubjectId("review", [prId, String(index), review.submittedAt ?? ""]);
+      // Same id derivation as entities.ts (pr_reviews.review_id) so the bodies
+      // purge can match this subject_id even when sourceNodeId is absent.
+      const reviewId = reviewKey(review.sourceNodeId, prId, index, review.author, review.submittedAt);
       addBody(rows, reviewId, "review_body", review.sourceNodeId ?? null, review.bodyText ?? null, review.updatedAt ?? review.submittedAt);
     });
 
@@ -52,10 +56,12 @@ export function buildBodyRows(pullRequests: readonly NormalizedPullRequest[]): r
       addBody(rows, commentId, "issue_comment", comment.sourceNodeId ?? null, comment.bodyText, comment.updatedAt ?? comment.createdAt);
     });
 
-    for (const thread of pr.reviewThreads) {
-      thread.comments.forEach((comment, index) => {
-        const commentId = comment.sourceNodeId ??
-          fallbackSubjectId("review-comment", [prId, String(index), comment.createdAt, comment.path ?? ""]);
+    pr.reviewThreads.forEach((thread, threadIndex) => {
+      // threadId and commentId mirror entities.ts (pr_review_threads.thread_id /
+      // pr_review_comments.comment_id) so the review_comment body purge matches.
+      const threadId = reviewThreadKey(thread.sourceNodeId, prId, threadIndex, thread.path, thread.line);
+      thread.comments.forEach((comment, commentIndex) => {
+        const commentId = reviewCommentKey(comment.sourceNodeId, prId, threadId, commentIndex, comment.createdAt);
         addBody(
           rows,
           commentId,
@@ -65,7 +71,7 @@ export function buildBodyRows(pullRequests: readonly NormalizedPullRequest[]): r
           comment.updatedAt ?? comment.createdAt,
         );
       });
-    }
+    });
   }
 
   return rows;

@@ -1,0 +1,97 @@
+# Cut a release: bump the version, push a vX.Y.Z tag, and move the floating
+# major tag (v0). Pushing the vX.Y.Z tag triggers publish-image.yml (GHCR).
+# Run from Actions > Release > Run workflow and pick the bump type.
+#
+# Versioning (v0 line): minor = features/breaking, patch = fixes (semver's v0
+# contract allows breaking changes in a minor). Consumers pin the floating
+# `@v0`, so a release reaches them on their next run with no edit.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (ignored for the very first release)"
+        type: choice
+        options: [patch, minor, major]
+        default: minor
+
+# Needs write to push the bump commit and tags.
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history + tags so we can read the latest tag and commit.
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        # inputs.bump is a constrained choice (patch/minor/major) — safe to read.
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)"
+          if [ -z "$latest" ]; then
+            # First release: publish package.json's current version as-is.
+            next="$(node -p "require('./package.json').version")"
+            echo "No prior release tag; first release at v$next"
+          else
+            cur="${latest#v}"
+            major="${cur%%.*}"; rest="${cur#*.}"
+            minor="${rest%%.*}"; patch="${rest##*.}"
+            case "$BUMP" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              patch) patch=$((patch + 1)) ;;
+              *) echo "Unknown bump: $BUMP" >&2; exit 1 ;;
+            esac
+            next="${major}.${minor}.${patch}"
+            echo "Bumping ${cur} -> ${next} (${BUMP})"
+          fi
+          if git rev-parse -q --verify "refs/tags/v${next}" >/dev/null; then
+            echo "Tag v${next} already exists; aborting." >&2
+            exit 1
+          fi
+          echo "version=${next}" >> "$GITHUB_OUTPUT"
+          echo "major=${next%%.*}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump, tag, and push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Sync package.json/package-lock to the release version.
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "release: v${VERSION}"
+          fi
+
+          # Immutable release tag + force-moved floating major tag, both on the
+          # (possibly just-created) commit. Push tags first so the release lands
+          # even if the branch push is blocked by protection.
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git tag -f -a "v${MAJOR}" -m "v${MAJOR} (floating: latest v${MAJOR}.x)"
+          git push origin "refs/tags/v${VERSION}"
+          git push -f origin "refs/tags/v${MAJOR}"
+
+          # Best-effort: advance the branch with the bump commit. If main is
+          # protected, the tags above still define the release; reconcile
+          # package.json via a normal PR later.
+          git push origin "HEAD:${BRANCH}" || \
+            echo "::warning::Could not push the bump commit to ${BRANCH} (branch protection?). Tags were pushed; the release is valid."

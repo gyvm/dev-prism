@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 
 import { resolveScope } from "../analyses/scope.js";
 import { ConfigError } from "../shared/errors.js";
+import { parseDateArg } from "../shared/date-arg.js";
 import { generateReports, type ReportTask } from "../report/frozen-report.js";
 import { loadReportsConfig, resolveReportScope } from "../report/reports-config.js";
 
@@ -21,12 +22,6 @@ export type DwhReportCliOptions = Readonly<{
   title?: string;
 }>;
 
-function parseDate(flag: string, value: string | undefined): Date {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new Error(`${flag} expects YYYY-MM-DD, got ${JSON.stringify(value)}`);
-  }
-  return new Date(`${value}T00:00:00.000Z`);
-}
 
 export function parseArgs(argv: readonly string[]): DwhReportCliOptions {
   const options: {
@@ -48,9 +43,9 @@ export function parseArgs(argv: readonly string[]): DwhReportCliOptions {
       case "--reports-dir": options.reportsDir = next(); break;
       case "--index": options.indexHtmlPath = next(); break;
       case "--reports-config": options.reportsConfigPath = next(); break;
-      case "--now": options.now = parseDate("--now", next()); break;
-      case "--from": options.from = parseDate("--from", next()); break;
-      case "--to": options.to = parseDate("--to", next()); break;
+      case "--now": options.now = parseDateArg("--now", next()); break;
+      case "--from": options.from = parseDateArg("--from", next()); break;
+      case "--to": options.to = parseDateArg("--to", next()); break;
       case "--repos": options.repos = next().split(",").map((s) => s.trim()).filter(Boolean); break;
       case "--users": options.users = next().split(",").map((s) => s.trim()).filter(Boolean); break;
       case "--grain": {

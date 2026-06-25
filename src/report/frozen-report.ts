@@ -20,8 +20,13 @@ import { withDwh } from "../warehouse/query.js";
 // given scope, reusing the existing renderReportHtml (renderers unchanged), and
 // maintain the append-only `index.json` list metadata.
 
-// Order matches the existing report layout: DORA, then timeline, then review.
-const REPORT_ANALYSES: readonly DwhAnalysisId[] = ["dora-metrics", "pr-timeline", "review-correlation"];
+// Dev Prism first, then the existing detailed analyses.
+const REPORT_ANALYSES: readonly DwhAnalysisId[] = [
+  "dev-prism-summary",
+  "dora-metrics",
+  "pr-timeline",
+  "review-correlation",
+];
 
 // Index schema, types, and view helpers live in the dependency-free
 // report-index.ts (so the Astro gallery can import them without the DWH stack);

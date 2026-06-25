@@ -3,13 +3,37 @@ import { expandRepositorySpecs } from "./expand-repositories.js";
 import { fetchRepositoryPullRequests } from "./graphql.js";
 import { normalizePullRequest } from "./normalize.js";
 import { loadRepoConfig } from "../shared/config.js";
+import { RateLimitError } from "../shared/errors.js";
 import { loadRuntimeConfig } from "../shared/runtime.js";
 import type { CollectorDependencies, NormalizedPullRequest } from "../shared/types.js";
+
+export type RateLimitOutcome = {
+  /** Whether GitHub's primary (hourly points) or secondary (abuse) limit fired. */
+  scope: "primary" | "secondary";
+  /** Repo being collected when the limit was hit (its data is not persisted). */
+  atRepo: string;
+  resetAt: Date | null;
+  /** Repos not collected because collection stopped (includes `atRepo`). */
+  pendingRepos: string[];
+};
 
 export type CollectionResult = {
   pullRequests: NormalizedPullRequest[];
   errors: Array<{ repository: string; error: Error }>;
+  // Set when collection stopped early because a shared GitHub rate limit was
+  // hit. Already-collected repos remain in `pullRequests`; the rest are pending.
+  rateLimited?: RateLimitOutcome;
 };
+
+/**
+ * True when collection did not cover every repository — a rate limit stopped it
+ * early, or one or more repos errored. Callers should treat this as a failed run
+ * (non-zero exit) even though partial data was produced, so CI surfaces it and a
+ * re-run is triggered. The data itself is safe to persist (the DWH cursor resumes).
+ */
+export function hasCollectionFailures(result: CollectionResult): boolean {
+  return result.rateLimited !== undefined || result.errors.length > 0;
+}
 
 export async function collectNormalizedPullRequests(
   dependencies: CollectorDependencies = {},
@@ -25,15 +49,22 @@ export async function collectNormalizedPullRequests(
 
   const result: CollectionResult = { pullRequests: [], errors: [] };
 
-  for (const repository of repositories) {
+  for (let index = 0; index < repositories.length; index += 1) {
+    const repository = repositories[index]!;
     const repoLabel = `${repository.owner}/${repository.name}`;
     try {
-      const cutoffDate =
-        dependencies.cutoffDateForRepo?.(repository) ?? runtimeConfig.cutoffDate;
+      const window = dependencies.collectionWindowForRepo
+        ? dependencies.collectionWindowForRepo(repository)
+        : { since: runtimeConfig.cutoffDate };
+      if (window === null) {
+        // Repo skipped (e.g. backfill floor already within covered history).
+        continue;
+      }
       const rawPullRequests = await fetchRepositoryPullRequests({
         repository,
         token,
-        cutoffDate,
+        cutoffDate: window.since,
+        ...(window.until ? { untilDate: window.until } : {}),
         ...(fetchFn ? { fetchFn } : {}),
       });
 
@@ -41,6 +72,17 @@ export async function collectNormalizedPullRequests(
         result.pullRequests.push(normalizePullRequest(repository, rawPullRequest));
       }
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        // A rate limit is account-wide, so the remaining repos would fail too.
+        // Stop and report; the DWH cursor lets a later re-run resume.
+        result.rateLimited = {
+          scope: error.scope,
+          atRepo: repoLabel,
+          resetAt: error.resetAt,
+          pendingRepos: repositories.slice(index).map((repo) => `${repo.owner}/${repo.name}`),
+        };
+        break;
+      }
       result.errors.push({
         repository: repoLabel,
         error: error instanceof Error ? error : new Error(String(error)),

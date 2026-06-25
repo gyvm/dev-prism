@@ -1,4 +1,5 @@
 export type RendererId =
+  | "dev-prism-summary"
   | "metric-cards"
   | "gantt-chart"
   | "bipartite-graph";

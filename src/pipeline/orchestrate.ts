@@ -9,7 +9,6 @@ import {
 } from "./stages/fetch.js";
 import {
   analyzeStage,
-  discoverAiSkillIds,
   type AnalyzeResult,
 } from "./stages/analyze.js";
 import {
@@ -34,7 +33,6 @@ export type OrchestrateOptions = Readonly<{
   analysisDir?: string;
   reportsDir?: string;
   indexHtmlPath?: string;
-  skillsRoot?: string;
   useRawPath?: string;
 }>;
 
@@ -71,6 +69,7 @@ export async function orchestrate(
       period,
       pullRequests: snapshot.pullRequests,
       rawPath,
+      errors: [],
     };
   } else {
     period = periodForDate(now, config.timezone);
@@ -85,26 +84,18 @@ export async function orchestrate(
 
   const env = options.env ?? process.env;
   const copilotToken = env.COPILOT_GITHUB_TOKEN?.trim();
-  const skillsRoot = options.skillsRoot ?? "skills";
   let aiRunner = options.aiRunner;
   if (!aiRunner && !options.skipAi) {
-    const aiSkillIds = await discoverAiSkillIds(skillsRoot);
-    if (aiSkillIds.length > 0) {
-      const skillDirectories = aiSkillIds.map((id) =>
-        resolve(skillsRoot, id),
-      );
-      if (config.ai.model) {
-        await validateAiModel({
-          model: config.ai.model,
-          ...(copilotToken ? { gitHubToken: copilotToken } : {}),
-        });
-      }
-      aiRunner = createCopilotSdkRunner({
-        skillDirectories,
-        ...(config.ai.model ? { model: config.ai.model } : {}),
+    if (config.ai.model) {
+      await validateAiModel({
+        model: config.ai.model,
         ...(copilotToken ? { gitHubToken: copilotToken } : {}),
       });
     }
+    aiRunner = createCopilotSdkRunner({
+      ...(config.ai.model ? { model: config.ai.model } : {}),
+      ...(copilotToken ? { gitHubToken: copilotToken } : {}),
+    });
   }
 
   const analyzeResult = await analyzeStage(
@@ -118,7 +109,6 @@ export async function orchestrate(
       ...(options.skipAi ? { skipAi: true } : {}),
       ...(aiRunner ? { aiRunner } : {}),
       ...(options.analysisDir ? { outputRoot: options.analysisDir } : {}),
-      skillsRoot,
     },
   );
 

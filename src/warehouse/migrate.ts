@@ -93,9 +93,13 @@ export async function migrateDwh(
   if (stored === target) {
     return { from: stored, to: stored, applied: [] };
   }
-  // No committed DWH yet (e.g. the first-ever build): nothing to migrate — the
-  // build creates it fresh at the current schema version.
-  if (!(await exists(root))) {
+  // No committed DWH yet: version 0 means no `_meta.json` — an absent dir, or an
+  // empty/placeholder one (e.g. a fresh `data/dwh/.gitkeep`). Nothing to
+  // migrate; the build creates the DWH fresh at the current schema version. A
+  // pre-framework, data-bearing DWH (parquet but no _meta.json) also lands here:
+  // the build adopts its parquet and stamps the current version, and a schema
+  // mismatch would fail loudly at read_parquet rather than corrupt silently.
+  if (stored === 0) {
     return { from: stored, to: stored, applied: [] };
   }
 

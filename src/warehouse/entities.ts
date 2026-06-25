@@ -1,6 +1,16 @@
 import type { BotLoginMatcher } from "../shared/bot.js";
 import type { NormalizedActor, NormalizedPullRequest } from "../shared/types.js";
-import { actorDisplayKey, actorId, prKey, requirePrId, requireRepoId, stableHash } from "./identity.js";
+import {
+  actorDisplayKey,
+  actorId,
+  idOrFallback,
+  prKey,
+  requirePrId,
+  requireRepoId,
+  reviewCommentKey,
+  reviewKey,
+  reviewThreadKey,
+} from "./identity.js";
 import { isoToSqlTimestamp, type DwhRow } from "./rows.js";
 
 export type EntityRows = Readonly<{
@@ -28,14 +38,6 @@ function firstTimestamp(values: readonly (string | null | undefined)[]): string 
     .filter((value): value is string => typeof value === "string" && !Number.isNaN(new Date(value).getTime()))
     .sort(compareIso);
   return sorted[0] ?? null;
-}
-
-function fallbackId(prefix: string, parts: readonly DwhRow[string][]): string {
-  return `${prefix}:${stableHash(parts.map((part) => part ?? "").join("|"))}`;
-}
-
-function idOrFallback(id: string | null | undefined, prefix: string, parts: readonly DwhRow[string][]): string {
-  return typeof id === "string" && id.length > 0 ? id : fallbackId(prefix, parts);
 }
 
 function addActor(
@@ -126,7 +128,7 @@ export function buildEntityRows(
     });
 
     pr.reviews.forEach((review, index) => {
-      const reviewId = idOrFallback(review.sourceNodeId, "review", [prId, index, review.author, review.submittedAt]);
+      const reviewId = reviewKey(review.sourceNodeId, prId, index, review.author, review.submittedAt);
       reviewRows.push({
         review_id: reviewId,
         source_node_id: reviewId,
@@ -164,7 +166,7 @@ export function buildEntityRows(
     }
 
     pr.reviewThreads.forEach((thread, threadIndex) => {
-      const threadId = idOrFallback(thread.sourceNodeId, "review-thread", [prId, threadIndex, thread.path, thread.line]);
+      const threadId = reviewThreadKey(thread.sourceNodeId, prId, threadIndex, thread.path, thread.line);
       reviewThreadRows.push({
         thread_id: threadId,
         source_node_id: threadId,
@@ -179,12 +181,7 @@ export function buildEntityRows(
       });
 
       thread.comments.forEach((comment, commentIndex) => {
-        const commentId = idOrFallback(comment.sourceNodeId, "review-comment", [
-          prId,
-          threadId,
-          commentIndex,
-          comment.createdAt,
-        ]);
+        const commentId = reviewCommentKey(comment.sourceNodeId, prId, threadId, commentIndex, comment.createdAt);
         reviewCommentRows.push({
           comment_id: commentId,
           source_node_id: commentId,

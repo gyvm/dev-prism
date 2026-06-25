@@ -424,4 +424,21 @@ describe("normalizePullRequest", () => {
     expect(normalized.commits.map((c) => c.oid)).toEqual(["C1"]);
     expect(normalized.files?.map((f) => f.path)).toEqual(["a.ts"]);
   });
+
+  it("preserves changedFiles === 0 (a real value, not a missing field)", () => {
+    const normalized = normalizePullRequest(
+      { owner: "openai", name: "codex" },
+      {
+        number: 1,
+        title: "Docs-only metadata bump",
+        author: { login: "alice" },
+        createdAt: "2026-04-01T00:00:00.000Z",
+        additions: 0,
+        deletions: 0,
+        changedFiles: 0,
+      },
+    );
+
+    expect(normalized.changedFiles).toBe(0);
+  });
 });

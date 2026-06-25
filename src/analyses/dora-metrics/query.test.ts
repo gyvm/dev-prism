@@ -26,13 +26,13 @@ const alice: NormalizedActor = {
 
 function pr(
   num: number,
-  opts: { created: string; merged: string | null; labels?: string[] },
+  opts: { created: string; merged: string | null; labels?: string[]; title?: string },
 ): NormalizedPullRequest {
   return makePr({
     repo: { owner: "openai", name: "codex", sourceNodeId: "R_1", visibility: "PRIVATE" },
     sourceNodeId: `PR_${num}`,
     number: num,
-    title: `PR ${num}`,
+    title: opts.title ?? `PR ${num}`,
     author: "alice",
     authorActor: alice,
     createdAt: opts.created,
@@ -58,8 +58,8 @@ describe("queryDora parity with computeDora", () => {
   it("matches the in-memory DORA view-model over the same merged window", async () => {
     const prs = [
       pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T12:00:00.000Z" }),
-      pr(2, { created: "2026-04-21T00:00:00.000Z", merged: "2026-04-22T06:00:00.000Z", labels: ["hotfix"] }),
-      pr(3, { created: "2026-04-22T00:00:00.000Z", merged: "2026-04-25T00:00:00.000Z", labels: ["Revert"] }),
+      pr(2, { created: "2026-04-21T00:00:00.000Z", merged: "2026-04-22T06:00:00.000Z", title: 'Revert "Add login"' }),
+      pr(3, { created: "2026-04-22T00:00:00.000Z", merged: "2026-04-25T00:00:00.000Z", title: 'Revert "Add cache"' }),
       pr(4, { created: "2026-04-23T00:00:00.000Z", merged: null }), // open, excluded
       pr(5, { created: "2026-04-01T00:00:00.000Z", merged: "2026-04-05T00:00:00.000Z" }), // merged before window
     ];

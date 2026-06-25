@@ -1,6 +1,7 @@
 import type { RendererId } from "../pipeline/types.js";
 import { renderAnalysis } from "../renderers/index.js";
 import type { DwhQueryRunner } from "../warehouse/query.js";
+import { queryDevPrismSummary } from "./dev-prism-summary/query.js";
 import { queryDora } from "./dora-metrics/query.js";
 import { queryPrTimeline } from "./pr-timeline/query.js";
 import { queryReviewCorrelation } from "./review-correlation/query.js";
@@ -10,7 +11,11 @@ import type { Scope } from "./scope.js";
 // existing renderer → HTML. The renderers are unchanged; they receive the same
 // view-models the in-memory compute produced, now sourced from the DWH.
 
-export type DwhAnalysisId = "dora-metrics" | "review-correlation" | "pr-timeline";
+export type DwhAnalysisId =
+  | "dev-prism-summary"
+  | "dora-metrics"
+  | "review-correlation"
+  | "pr-timeline";
 
 type DwhAnalysisEntry = Readonly<{
   query: (runner: DwhQueryRunner, scope: Scope) => Promise<unknown>;
@@ -18,6 +23,7 @@ type DwhAnalysisEntry = Readonly<{
 }>;
 
 export const DWH_ANALYSIS_REGISTRY: Readonly<Record<DwhAnalysisId, DwhAnalysisEntry>> = {
+  "dev-prism-summary": { query: queryDevPrismSummary, renderer: "dev-prism-summary" },
   "dora-metrics": { query: queryDora, renderer: "metric-cards" },
   "review-correlation": { query: queryReviewCorrelation, renderer: "bipartite-graph" },
   "pr-timeline": { query: queryPrTimeline, renderer: "gantt-chart" },

@@ -36,7 +36,12 @@ describe("renderDwhAnalysis", () => {
     const root = await mkdtemp(join(tmpdir(), "gh-insights-dwhreport-"));
     const dwhDir = join(root, "dwh");
     const scope = resolveScope({ from: new Date("2026-04-20T00:00:00.000Z"), to: new Date("2026-04-27T00:00:00.000Z") });
-    const ids: DwhAnalysisId[] = ["dora-metrics", "review-correlation", "pr-timeline"];
+    const ids: DwhAnalysisId[] = [
+      "dev-prism-summary",
+      "dora-metrics",
+      "review-correlation",
+      "pr-timeline",
+    ];
     try {
       await buildDwhFromPullRequests([fixture()], { dwhDir, botPatterns: [] });
       await withDwh(dwhDir, async (runner) => {

@@ -1,7 +1,7 @@
 {
   "name": "gh-insights",
   "version": "0.1.0",
-  "description": "Weekly GitHub PR insights — DORA, timelines, review correlation, AI summaries.",
+  "description": "Dev Prism — weekly PR flow reports for engineering reflection meetings.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "gen:prompts": "node scripts/gen-prompts.mjs",
     "test": "vitest run",
     "collect": "tsx src/cli/collect.ts",
     "dwh:build": "tsx src/cli/dwh-build.ts",
@@ -20,8 +21,8 @@
     "explore:data": "tsx src/cli/explore-data.ts",
     "build:nav": "esbuild src/web/shell/nav-entry.ts --bundle --format=esm --minify --outfile=src/web/public/nav.js",
     "web:dev": "npm run build:nav && astro dev --root src/web",
-    "web:build": "npm run build:nav && ASTRO_BASE=/pr-weekly-report astro build --root src/web",
-    "web:preview": "ASTRO_BASE=/pr-weekly-report astro preview --root src/web",
+    "web:build": "npm run build:nav && ASTRO_BASE=/dev-prism astro build --root src/web",
+    "web:preview": "ASTRO_BASE=/dev-prism astro preview --root src/web",
     "web:check": "astro check --root src/web",
     "demo": "tsx src/cli/report.ts --use-raw data/demo/2026-05-03.json --reports-dir docs/demo/reports --index docs/demo/index.html --analysis-dir docs/demo/analysis"
   },

@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -64,6 +64,19 @@ describe("migrateDwh", () => {
     const migrations: Migration[] = [{ version: 2, name: "002", up: async () => {} }];
     try {
       const result = await migrateDwh(join(root, "dwh"), { migrations, targetVersion: 2 });
+      expect(result).toEqual({ from: 0, to: 0, applied: [] });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("is a no-op when the DWH dir exists but is empty (placeholder/.gitkeep)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-mig-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      // A committed `data/dwh/.gitkeep` makes the dir exist with no _meta.json.
+      await mkdir(dwhDir, { recursive: true });
+      const result = await migrateDwh(dwhDir, { targetVersion: 1 });
       expect(result).toEqual({ from: 0, to: 0, applied: [] });
     } finally {
       await rm(root, { recursive: true, force: true });

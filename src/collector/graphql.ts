@@ -1,7 +1,12 @@
-import { CollectorError } from "../shared/errors.js";
+import { CollectorError, RateLimitError } from "../shared/errors.js";
 import type { RepositoryConfig } from "../shared/types.js";
 
-const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
+// GitHub.com by default; on GitHub Enterprise Server the Actions runner sets
+// GITHUB_GRAPHQL_URL (e.g. https://ghe.example.com/api/graphql). `||` (not `??`)
+// so an empty env var — a common Actions footgun — falls back rather than breaks.
+function resolveGraphqlEndpoint(): string {
+  return process.env.GITHUB_GRAPHQL_URL?.trim() || "https://api.github.com/graphql";
+}
 const MAX_PAGES = 100;
 // Runaway safety valve for child-connection pagination (per connection, per PR).
 // At 100 nodes/page this allows up to ~10k items before failing loudly.
@@ -159,7 +164,7 @@ type GraphQLSearchResponse = {
       pageInfo?: GraphQLPageInfo | null;
     } | null;
   };
-  errors?: Array<{ message?: string }>;
+  errors?: Array<{ message?: string; type?: string }>;
 };
 
 export type RepositoryPullRequestPage = {
@@ -542,9 +547,54 @@ function getReviewerIdentifier(actor: GraphQLActor | null | undefined): string |
   return actor?.login ?? actor?.slug ?? actor?.name ?? null;
 }
 
-function buildSearchQuery(repository: RepositoryConfig, cutoffDate: Date): string {
-  const since = cutoffDate.toISOString().slice(0, 10);
-  return `repo:${repository.owner}/${repository.name} is:pr updated:>=${since}`;
+type SearchSort = "updated-asc" | "updated-desc";
+
+// GitHub search rounds `updated:` qualifiers to day granularity (YYYY-MM-DD).
+// An explicit `sort:` is required for stable cursor pagination — the default
+// relevance order is not guaranteed stable across pages. Incremental fetches
+// sort newest-first (`updated-desc`) so the most recently changed PRs are
+// fetched first; a MAX_PAGES overflow then fails loudly (see
+// fetchRepositoryPullRequests) rather than silently dropping just-changed PRs.
+// Backfill sorts oldest-first (`updated-asc`).
+function buildSearchQuery(
+  repository: RepositoryConfig,
+  since: Date,
+  until: Date | undefined,
+  sort: SearchSort,
+): string {
+  const parts = [
+    `repo:${repository.owner}/${repository.name}`,
+    "is:pr",
+    `updated:>=${since.toISOString().slice(0, 10)}`,
+  ];
+  if (until) {
+    parts.push(`updated:<=${until.toISOString().slice(0, 10)}`);
+  }
+  parts.push(`sort:${sort}`);
+  return parts.join(" ");
+}
+
+// Resolves when a rate limit resets, from whichever header GitHub supplied.
+// `retry-after` is relative seconds; `x-ratelimit-reset` is an absolute epoch in
+// *seconds* (hence the ×1000). Returns null when neither header is present.
+function parseRateLimitReset(headers: Headers): Date | null {
+  const retryAfter = headers.get("retry-after");
+  if (retryAfter && /^\d+$/.test(retryAfter.trim())) {
+    return new Date(Date.now() + Number(retryAfter.trim()) * 1000);
+  }
+  const reset = headers.get("x-ratelimit-reset");
+  if (reset && /^\d+$/.test(reset.trim())) {
+    return new Date(Number(reset.trim()) * 1000);
+  }
+  return null;
+}
+
+// A non-2xx response is a *secondary* (abuse) rate limit only when GitHub says
+// so: 429 is unambiguous, and a 403 counts only when it carries `retry-after`.
+// A plain 403 (e.g. a bad/again-scoped token) must stay a generic error so it is
+// not mistaken for a transient limit and silently retried forever.
+function isSecondaryRateLimit(response: Response): boolean {
+  return response.status === 429 || (response.status === 403 && response.headers.has("retry-after"));
 }
 
 // Low-level POST + error handling shared by the search query and all follow-up
@@ -558,7 +608,7 @@ async function postGraphQL(options: {
 }): Promise<Record<string, unknown>> {
   let response: Response;
   try {
-    response = await options.fetchFn(GITHUB_GRAPHQL_ENDPOINT, {
+    response = await options.fetchFn(resolveGraphqlEndpoint(), {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -578,6 +628,12 @@ async function postGraphQL(options: {
   }
 
   if (!response.ok) {
+    if (isSecondaryRateLimit(response)) {
+      throw new RateLimitError(
+        `GitHub secondary rate limit hit while fetching ${options.repoLabel} (HTTP ${response.status})`,
+        { scope: "secondary", resetAt: parseRateLimitReset(response.headers) },
+      );
+    }
     throw new CollectorError(
       `GraphQL request failed for ${options.repoLabel}: ${response.status} ${response.statusText}`,
     );
@@ -600,6 +656,14 @@ async function postGraphQL(options: {
   }
 
   if (rawPayload.errors?.length) {
+    // Primary rate limit: HTTP 200 with a RATE_LIMITED error. Take priority over
+    // any other errors in the array so it is never misreported as a generic one.
+    if (rawPayload.errors.some((error) => error.type === "RATE_LIMITED")) {
+      throw new RateLimitError(
+        `GitHub primary rate limit hit while fetching ${options.repoLabel}`,
+        { scope: "primary", resetAt: parseRateLimitReset(response.headers) },
+      );
+    }
     throw new CollectorError(
       `GraphQL error for ${options.repoLabel}: ${rawPayload.errors
         .map((error) => error.message ?? "Unknown error")
@@ -794,10 +858,13 @@ export async function fetchRepositoryPullRequests(options: {
   repository: RepositoryConfig;
   token: string;
   cutoffDate: Date;
+  untilDate?: Date;
   fetchFn?: typeof fetch;
 }): Promise<GraphQLPullRequestNode[]> {
   const repoLabel = `${options.repository.owner}/${options.repository.name}`;
-  const q = buildSearchQuery(options.repository, options.cutoffDate);
+  // Backfill (bounded window) fills oldest-first; incremental fills newest-first.
+  const sort: SearchSort = options.untilDate ? "updated-asc" : "updated-desc";
+  const q = buildSearchQuery(options.repository, options.cutoffDate, options.untilDate, sort);
   const fetchFn = options.fetchFn ?? fetch;
 
   const allNodes: GraphQLPullRequestNode[] = [];

@@ -3,7 +3,8 @@ import { CopilotClient, approveAll } from "@github/copilot-sdk";
 import { ConfigError } from "../shared/errors.js";
 
 export type AiRunnerInput = Readonly<{
-  skillId: string;
+  id: string;
+  prompt: string;
   payload: unknown;
 }>;
 
@@ -14,7 +15,6 @@ export type CopilotSdkRunnerOptions = Readonly<{
   timeoutMs?: number;
   maxRetries?: number;
   gitHubToken?: string;
-  skillDirectories: readonly string[];
 }>;
 
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -42,7 +42,15 @@ export async function validateAiModel(
     } finally {
       await client.stop();
     }
-  } catch {
+  } catch (error) {
+    // Enumeration failed (auth/network/SDK). Don't hard-fail the run on a
+    // transient listing error, but surface it: a silent return makes a
+    // misconfigured token look like "model is valid", and every analysis then
+    // fails opaquely at runtime instead of here.
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `[ai] could not verify config.ai.model "${options.model}" (skipping validation): ${message}\n`,
+    );
     return;
   }
   if (!models.some((m) => m.id === options.model)) {
@@ -56,10 +64,10 @@ export async function validateAiModel(
 export function createCopilotSdkRunner(
   options: CopilotSdkRunnerOptions,
 ): AiRunner {
-  return async ({ skillId, payload }) => {
+  return async ({ id, prompt: promptBody, payload }) => {
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-    const prompt = `Use the "${skillId}" skill to produce the requested Markdown section.\n\nInput JSON:\n${JSON.stringify(payload, null, 2)}\n`;
+    const prompt = `${promptBody}\n\n## 入力JSON\n\n${JSON.stringify(payload, null, 2)}\n`;
 
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -85,7 +93,6 @@ export function createCopilotSdkRunner(
         try {
           const session = await client.createSession({
             ...(options.model ? { model: options.model } : {}),
-            skillDirectories: [...options.skillDirectories],
             onPermissionRequest: approveAll,
           });
           session.on("assistant.usage", (event) => {
@@ -117,7 +124,7 @@ export function createCopilotSdkRunner(
           try {
             if (usageTotals.turns > 0) {
               process.stderr.write(
-                `[ai] skill=${skillId} model=${usageTotals.model} ` +
+                `[ai] analysis=${id} model=${usageTotals.model} ` +
                   `input=${usageTotals.input} output=${usageTotals.output} ` +
                   `reasoning=${usageTotals.reasoning} ` +
                   `cacheRead=${usageTotals.cacheRead} cacheWrite=${usageTotals.cacheWrite} ` +

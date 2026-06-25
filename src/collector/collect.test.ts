@@ -4,9 +4,14 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { collectNormalizedPullRequests } from "./collect.js";
+import { collectNormalizedPullRequests, hasCollectionFailures } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
 import { resolveToken } from "./auth.js";
+import { CollectorError, RateLimitError } from "../shared/errors.js";
+
+function responseWith(status: number, headers: Record<string, string>, body = ""): Response {
+  return new Response(body, { status, headers });
+}
 
 async function writeConfig(repositories: Array<{ owner: string; name: string }>): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "gh-insights-collect-"));
@@ -67,6 +72,79 @@ describe("fetchRepositoryPullRequestPage", () => {
         fetchFn,
       }),
     ).rejects.toThrow(/403/);
+  });
+
+  it("targets GITHUB_GRAPHQL_URL when set (GitHub Enterprise Server)", async () => {
+    const original = process.env.GITHUB_GRAPHQL_URL;
+    process.env.GITHUB_GRAPHQL_URL = "https://ghe.example.com/api/graphql";
+    try {
+      const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+        createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })),
+      );
+      await fetchRepositoryPullRequestPage({
+        q: "repo:openai/codex is:pr",
+        repoLabel: "openai/codex",
+        token: "token",
+        after: null,
+        fetchFn,
+      });
+      expect(String(fetchFn.mock.calls[0]![0])).toBe("https://ghe.example.com/api/graphql");
+    } finally {
+      if (original === undefined) delete process.env.GITHUB_GRAPHQL_URL;
+      else process.env.GITHUB_GRAPHQL_URL = original;
+    }
+  });
+
+  it("throws RateLimitError on a 403 carrying retry-after (secondary limit)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, { "retry-after": "60" }));
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect((error as RateLimitError).scope).toBe("secondary");
+    expect((error as RateLimitError).resetAt!.getTime()).toBeGreaterThan(Date.now() + 55_000);
+  });
+
+  it("keeps a plain 403 (no retry-after) as a generic CollectorError", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, {}, "Forbidden"));
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(CollectorError);
+    expect(error).not.toBeInstanceOf(RateLimitError);
+  });
+
+  it("throws RateLimitError on a 200 RATE_LIMITED payload (primary limit)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ errors: [{ type: "RATE_LIMITED", message: "rate limited" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json", "x-ratelimit-reset": "1800000000" },
+      }),
+    );
+
+    const error = await fetchRepositoryPullRequestPage({
+      q: "repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc",
+      repoLabel: "openai/codex",
+      token: "token",
+      after: null,
+      fetchFn,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect((error as RateLimitError).scope).toBe("primary");
+    expect((error as RateLimitError).resetAt!.getTime()).toBe(1_800_000_000_000);
   });
 
   it("throws on malformed JSON response", async () => {
@@ -163,13 +241,32 @@ describe("fetchRepositoryPullRequests", () => {
 
     const firstCall = fetchFn.mock.calls[0]!;
     const body = JSON.parse(String((firstCall[1] as RequestInit).body));
-    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01");
+    expect(body.variables.q).toBe("repo:openai/codex is:pr updated:>=2026-01-01 sort:updated-desc");
     expect(body.variables.after).toBeNull();
     expect(body.query).toContain("fragment ActorFields on Actor");
     expect(body.query).toContain("repository {");
     expect(body.query).toContain("updatedAt");
     expect(body.query).toContain("changedFiles");
     expect(body.query).toContain("... on Node");
+  });
+
+  it("bounds the query and sorts ascending when an untilDate is given (backfill)", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })),
+    );
+
+    await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "token",
+      cutoffDate: new Date("2025-06-01T00:00:00.000Z"),
+      untilDate: new Date("2026-03-10T08:00:00.000Z"),
+      fetchFn,
+    });
+
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.variables.q).toBe(
+      "repo:openai/codex is:pr updated:>=2025-06-01 updated:<=2026-03-10 sort:updated-asc",
+    );
   });
 
   it("filters out non-PullRequest nodes defensively", async () => {
@@ -629,6 +726,100 @@ describe("collectNormalizedPullRequests", () => {
     ]);
   });
 
+  it("skips repositories whose collection window resolves to null", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" },
+      { owner: "openai", name: "evals" },
+    ]);
+
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(
+      createJsonResponse(
+        searchPayload(
+          [
+            {
+              number: 2,
+              title: "Evals PR",
+              author: { login: "bob" },
+              createdAt: "2026-03-30T00:00:00.000Z",
+              additions: 1,
+              deletions: 0,
+            },
+          ],
+          { hasNextPage: false, endCursor: null },
+        ),
+      ),
+    );
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+      collectionWindowForRepo: (repository) =>
+        repository.name === "codex" ? null : { since: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    // codex skipped (no fetch, no error); only evals collected.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(result.errors).toHaveLength(0);
+    expect(result.pullRequests.map((pr) => `${pr.repo.owner}/${pr.repo.name}`)).toEqual([
+      "openai/evals",
+    ]);
+  });
+
+  it("stops collecting and records rateLimited when a shared rate limit is hit", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" },
+      { owner: "openai", name: "evals" },
+    ]);
+
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(responseWith(403, { "retry-after": "30" }));
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+    });
+
+    // First repo hit the limit → stop before the second repo is attempted.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(result.pullRequests).toHaveLength(0);
+    expect(result.errors).toHaveLength(0);
+    expect(result.rateLimited?.scope).toBe("secondary");
+    expect(result.rateLimited?.atRepo).toBe("openai/codex");
+    expect(result.rateLimited?.pendingRepos).toEqual(["openai/codex", "openai/evals"]);
+  });
+
+  it("keeps skip, error, and rate-limit branches exclusive in one run", async () => {
+    const configPath = await writeConfig([
+      { owner: "openai", name: "codex" }, // skipped via null window
+      { owner: "openai", name: "evals" }, // errors, then continues
+      { owner: "openai", name: "gpt" }, // rate-limited, stops the run
+    ]);
+
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }))
+      .mockResolvedValueOnce(responseWith(403, { "retry-after": "30" }));
+
+    const result = await collectNormalizedPullRequests({
+      configPath,
+      fetchFn,
+      env: { GITHUB_TOKEN: "ghp_test123" },
+      now: new Date("2026-04-01T00:00:00.000Z"),
+      collectionWindowForRepo: (repository) =>
+        repository.name === "codex" ? null : { since: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    // codex skipped (no fetch), evals errored (continue), gpt rate-limited (break).
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result.pullRequests).toHaveLength(0);
+    expect(result.errors.map((entry) => entry.repository)).toEqual(["openai/evals"]);
+    expect(result.rateLimited?.atRepo).toBe("openai/gpt");
+    expect(result.rateLimited?.pendingRepos).toEqual(["openai/gpt"]);
+  });
+
   it("isolates per-repository errors and continues collection", async () => {
     const configPath = await writeConfig([
       { owner: "openai", name: "codex" },
@@ -718,5 +909,28 @@ describe("resolveToken", () => {
         vi.fn().mockRejectedValue(new Error("auth failed")),
       ),
     ).rejects.toThrow(/installation token/i);
+  });
+});
+
+describe("hasCollectionFailures", () => {
+  const ratePr = { scope: "primary" as const, atRepo: "a/b", resetAt: null, pendingRepos: ["a/b"] };
+
+  it("is false for a complete collection", () => {
+    expect(hasCollectionFailures({ pullRequests: [], errors: [] })).toBe(false);
+  });
+
+  it("is true when a repo errored", () => {
+    expect(
+      hasCollectionFailures({
+        pullRequests: [],
+        errors: [{ repository: "a/b", error: new Error("boom") }],
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when a rate limit stopped collection", () => {
+    expect(
+      hasCollectionFailures({ pullRequests: [], errors: [], rateLimited: ratePr }),
+    ).toBe(true);
   });
 });

@@ -1,0 +1,41 @@
+name: 'PR Insights — Collect & Build DWH'
+description: >-
+  Collect GitHub pull requests into a committed DuckDB warehouse (incremental,
+  with on-demand history backfill). Run inside a consumer repo that holds the
+  config and the accumulating data/dwh.
+author: 'dev-prism'
+branding:
+  icon: 'git-pull-request'
+  color: 'purple'
+
+inputs:
+  config:
+    description: 'Path to config.toml, relative to the repo root.'
+    required: false
+    default: 'config.toml'
+  dwh-dir:
+    description: 'Directory for the committed DWH parquet files.'
+    required: false
+    default: 'data/dwh'
+  from:
+    description: >-
+      Backfill history down to this date (YYYY-MM-DD), fetching only the
+      uncovered older slice per repo. Omit for a normal incremental run.
+    required: false
+    default: ''
+
+# NOTE: Docker container actions do not receive GITHUB_TOKEN automatically.
+# The consumer step MUST pass a token via `env:` (GITHUB_TOKEN or the
+# GITHUB_APP_* trio). See the README for a complete consumer workflow.
+runs:
+  using: 'docker'
+  # Built on the runner each run. Once a release exists (publish-image.yml
+  # pushes the image to GHCR on each vX.Y.Z tag), switch to the prebuilt image
+  # for much faster consumer runs — consumers reference the action at @v0, which
+  # matches the floating :0 image tag:
+  #   image: 'docker://ghcr.io/your-org/dev-prism:0'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.config }}
+    - ${{ inputs.dwh-dir }}
+    - ${{ inputs.from }}

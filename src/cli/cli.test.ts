@@ -78,4 +78,18 @@ describe("dwh-build parseArgs", () => {
   it("throws when --dwh-dir has no value", () => {
     expect(() => parseDwhBuildArgs(["--dwh-dir"])).toThrow(/--dwh-dir requires/);
   });
+
+  it("parses --from into a UTC midnight Date", () => {
+    expect(parseDwhBuildArgs(["--from", "2026-01-15"])).toEqual({
+      from: new Date("2026-01-15T00:00:00.000Z"),
+    });
+  });
+
+  it("rejects a malformed --from", () => {
+    expect(() => parseDwhBuildArgs(["--from", "2026/01/15"])).toThrow(/--from expects YYYY-MM-DD/);
+  });
+
+  it("rejects a calendar-invalid --from instead of rolling it over", () => {
+    expect(() => parseDwhBuildArgs(["--from", "2026-02-30"])).toThrow(/not a valid calendar date/);
+  });
 });

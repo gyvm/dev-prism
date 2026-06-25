@@ -1,4 +1,4 @@
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import type { BotsConfig, LimitsConfig } from "../../shared/config.js";
@@ -13,6 +13,7 @@ import type { AiRunner } from "../ai-runner.js";
 
 import type { AnalysisContext } from "../../analyses/context.js";
 import { COMPUTE_REGISTRY, type ComputeEntry } from "../../analyses/registry.js";
+import { AI_REGISTRY } from "../../analyses/ai/registry.js";
 
 export type AnalyzeOptions = Readonly<{
   outputRoot?: string;
@@ -21,7 +22,6 @@ export type AnalyzeOptions = Readonly<{
   now: Date;
   skipAi?: boolean;
   aiRunner?: AiRunner;
-  skillsRoot?: string;
   bots?: BotsConfig;
 }>;
 
@@ -31,35 +31,6 @@ export type AnalyzeResult = Readonly<{
   reportInput: ReportInput;
   outputDir: string;
 }>;
-
-export async function discoverAiSkillIds(
-  skillsRoot: string,
-): Promise<string[]> {
-  let entries: { name: string; isDirectory(): boolean }[];
-  try {
-    entries = await readdir(skillsRoot, { withFileTypes: true });
-  } catch (error) {
-    console.warn(
-      `[analyze] skillsRoot "${skillsRoot}" not readable; AI skills will be skipped (${(error as Error).message})`,
-    );
-    return [];
-  }
-  const found: string[] = [];
-  await Promise.all(
-    entries
-      .filter((entry) => entry.isDirectory())
-      .map(async (entry) => {
-        const skillMd = join(skillsRoot, entry.name, "SKILL.md");
-        try {
-          const info = await stat(skillMd);
-          if (info.isFile()) found.push(entry.name);
-        } catch {
-          /* directories without SKILL.md are silently ignored */
-        }
-      }),
-  );
-  return found.sort();
-}
 
 function makeContext(
   prs: readonly NormalizedPullRequest[],
@@ -89,6 +60,7 @@ function stripCodeFence(output: string): string {
 
 async function runAiAnalysis(
   desc: AnalysisDescriptor,
+  prompt: string,
   reportInput: ReportInput,
   runner: AiRunner,
 ): Promise<AnalysisResult> {
@@ -101,7 +73,7 @@ async function runAiAnalysis(
     prs: reportInput.prs,
   };
   try {
-    const output = await runner({ skillId: desc.id, payload });
+    const output = await runner({ id: desc.id, prompt, payload });
     const markdown = stripCodeFence(output);
     if (!markdown) {
       throw new Error("AI returned empty output");
@@ -126,14 +98,7 @@ export async function analyzeStage(
     limits: options.limits,
   });
 
-  const skillsRoot = options.skillsRoot ?? "skills";
-  const aiSkillIds = await discoverAiSkillIds(skillsRoot);
-  if (aiSkillIds.length === 0 && !options.skipAi && options.aiRunner) {
-    console.warn(
-      `[analyze] no AI skills discovered under "${skillsRoot}"; only compute analyses will run`,
-    );
-  }
-  const ids = [...Object.keys(COMPUTE_REGISTRY), ...aiSkillIds];
+  const ids = [...Object.keys(COMPUTE_REGISTRY), ...Object.keys(AI_REGISTRY)];
 
   const isBotLogin = createBotLoginMatcher(options.bots?.patterns ?? []);
 
@@ -155,7 +120,11 @@ export async function analyzeStage(
     if (options.skipAi || !options.aiRunner) {
       return skipped(desc, "AI generation skipped");
     }
-    return runAiAnalysis(desc, reportInput, options.aiRunner);
+    const aiEntry = AI_REGISTRY[id];
+    if (!aiEntry) {
+      return skipped(desc, `no prompt registered for "${id}"`);
+    }
+    return runAiAnalysis(desc, aiEntry.prompt, reportInput, options.aiRunner);
   });
 
   const results = await Promise.all(tasks);

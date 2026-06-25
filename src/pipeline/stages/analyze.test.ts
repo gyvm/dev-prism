@@ -5,10 +5,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { DEFAULT_LIMITS } from "../../shared/config.js";
-import {
-  analyzeStage,
-  discoverAiSkillIds,
-} from "./analyze.js";
+import { analyzeStage } from "./analyze.js";
+import { AI_REGISTRY } from "../../analyses/ai/registry.js";
 import type { Period } from "../period.js";
 import type { AiRunner } from "../ai-runner.js";
 import type { NormalizedPullRequest } from "../../shared/types.js";
@@ -62,29 +60,30 @@ describe("analyzeStage", () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it("runs compute analyses and skips AI skills when skipAi is true", async () => {
+  it("runs compute analyses and skips AI analyses when skipAi is true", async () => {
     const result = await analyzeStage(period, [buildPr()], {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,
       skipAi: true,
-      skillsRoot: "skills",
     });
 
     const byId = Object.fromEntries(result.results.map((r) => [r.id, r]));
+    expect(byId["dev-prism-summary"]?.status).toBe("ok");
     expect(byId["dora-metrics"]?.status).toBe("ok");
     expect(byId["pr-timeline"]?.status).toBe("ok");
-    expect(byId["01_project-progress"]?.status).toBe("skipped");
-    expect(byId["01_project-progress"]?.reason).toMatch(/skipped/i);
+    expect(byId["flow-analyst"]?.status).toBe("skipped");
+    expect(byId["project-progress"]?.status).toBe("skipped");
+    expect(byId["project-progress"]?.reason).toMatch(/skipped/i);
   });
 
-  it("invokes AI runner with skillId and full payload, output is markdown", async () => {
-    const calls: { skillId: string; prCount: number }[] = [];
-    const runner: AiRunner = async ({ skillId, payload }) => {
+  it("invokes the AI runner with the registered prompt and full payload", async () => {
+    const calls: { id: string; prCount: number; promptHead: string }[] = [];
+    const runner: AiRunner = async ({ id, prompt, payload }) => {
       const p = payload as { prs: readonly unknown[] };
-      calls.push({ skillId, prCount: p.prs.length });
-      return `## ${skillId}\n\nstubbed output`;
+      calls.push({ id, prCount: p.prs.length, promptHead: prompt.slice(0, 24) });
+      return `## ${id}\n\nstubbed output`;
     };
     const result = await analyzeStage(period, [buildPr()], {
       limits: DEFAULT_LIMITS,
@@ -92,49 +91,36 @@ describe("analyzeStage", () => {
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,
       aiRunner: runner,
-      skillsRoot: "skills",
     });
 
-    expect(calls.map((c) => c.skillId).sort()).toEqual([
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
-    ]);
-    const ai = result.results.find((r) => r.id === "01_project-progress");
+    expect(calls.map((c) => c.id).sort()).toEqual(
+      [...Object.keys(AI_REGISTRY)].sort(),
+    );
+    // the runner receives the embedded prompt body, not a "use skill" indirection
+    const flow = calls.find((c) => c.id === "flow-analyst");
+    expect(flow?.promptHead).toBe(AI_REGISTRY["flow-analyst"]!.prompt.slice(0, 24));
+
+    const ai = result.results.find((r) => r.id === "project-progress");
     expect(ai?.status).toBe("ok");
     expect(ai?.format).toBe("markdown");
-    expect(ai?.data).toMatch(/^## 01_project-progress/);
+    expect(ai?.data).toMatch(/^## project-progress/);
   });
 
-  it("orders compute analyses then AI skills by directory prefix", async () => {
+  it("orders compute analyses (registry order) before AI analyses (registry order)", async () => {
     const result = await analyzeStage(period, [buildPr()], {
       limits: DEFAULT_LIMITS,
       timezone: "UTC",
       now: new Date("2026-05-03T12:00:00Z"),
       outputRoot: tmpDir,
       skipAi: true,
-      skillsRoot: "skills",
     });
 
     expect(result.results.map((r) => r.id)).toEqual([
+      "dev-prism-summary",
       "dora-metrics",
       "pr-timeline",
       "review-correlation",
-      "01_project-progress",
-      "02_follow-up-prs",
-      "03_debated-prs",
+      ...Object.keys(AI_REGISTRY),
     ]);
-  });
-});
-
-describe("discoverAiSkillIds", () => {
-  it("returns all skill directories with a SKILL.md", async () => {
-    const ids = await discoverAiSkillIds("skills");
-    expect(ids).toEqual(["01_project-progress", "02_follow-up-prs", "03_debated-prs"]);
-  });
-
-  it("returns empty list for missing root", async () => {
-    const ids = await discoverAiSkillIds("/tmp/does/not/exist/anywhere");
-    expect(ids).toEqual([]);
   });
 });
