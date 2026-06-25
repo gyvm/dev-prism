@@ -1,5 +1,5 @@
 # PR dashboard for a consumer repo. Replace __OWNER__/__REPO__ with the engine
-# repo you reference (e.g. your-org/pr-weekly-report). See README for setup.
+# repo you reference (e.g. your-org/dev-prism). See README for setup.
 name: PR Dashboard
 
 on:

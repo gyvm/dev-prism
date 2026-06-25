@@ -3,7 +3,7 @@ description: >-
   Build the static dashboard (Explore + Reports gallery) into dist/ from a
   committed DWH. Pairs with the data-collection action; run it after the DWH is
   refreshed, then deploy dist/ to GitHub Pages / Cloudflare / any static host.
-author: 'pr-weekly-report'
+author: 'dev-prism'
 branding:
   icon: 'bar-chart-2'
   color: 'purple'

@@ -3,7 +3,7 @@ description: >-
   Collect GitHub pull requests into a committed DuckDB warehouse (incremental,
   with on-demand history backfill). Run inside a consumer repo that holds the
   config and the accumulating data/dwh.
-author: 'pr-weekly-report'
+author: 'dev-prism'
 branding:
   icon: 'git-pull-request'
   color: 'purple'
@@ -33,7 +33,7 @@ runs:
   # pushes the image via .github/workflows/release.yml), switch to the prebuilt
   # image for much faster consumer runs — consumers reference the action at @v1,
   # which matches the :1 image tag:
-  #   image: 'docker://ghcr.io/your-org/pr-weekly-report:1'
+  #   image: 'docker://ghcr.io/your-org/dev-prism:1'
   image: 'Dockerfile'
   args:
     - ${{ inputs.config }}

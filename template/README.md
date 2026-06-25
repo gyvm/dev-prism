@@ -1,6 +1,6 @@
 # PR Dashboard (consumer repo)
 
-A thin repo that references the **pr-weekly-report** engine to collect GitHub
+A thin repo that references the **dev-prism** engine to collect GitHub
 pull-request data and publish an Explore + Reports dashboard. You hold only the
 config and the accumulating data; the engine is referenced by version.
 
@@ -11,11 +11,11 @@ config and the accumulating data; the engine is referenced by version.
 
 2. **Replace the engine reference.** In `.github/workflows/dashboard.yml`,
    replace `__OWNER__/__REPO__` with the engine repo you use, e.g.
-   `your-org/pr-weekly-report` (both occurrences — the data action and the
+   `your-org/dev-prism` (both occurrences — the data action and the
    `/site` action):
 
    ```bash
-   sed -i 's#__OWNER__/__REPO__#your-org/pr-weekly-report#g' .github/workflows/dashboard.yml
+   sed -i 's#__OWNER__/__REPO__#your-org/dev-prism#g' .github/workflows/dashboard.yml
    # macOS (BSD sed) needs an empty backup arg: sed -i '' 's#...#...#g' ...
    ```
 

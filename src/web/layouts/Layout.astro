@@ -9,7 +9,7 @@ interface Props {
 
 const { title = "PR Analytics", active = null } = Astro.props;
 // BASE_URL mirrors the configured base and is NOT guaranteed to end in "/"
-// (e.g. "/pr-weekly-report" with no trailing slash). Normalize so Reports and
+// (e.g. "/dev-prism" with no trailing slash). Normalize so Reports and
 // Explore are clean child paths of the base (the base root itself redirects to
 // Explore — see pages/index.astro).
 // Trailing slashes are required: a bare `/explore` collides with the sibling
