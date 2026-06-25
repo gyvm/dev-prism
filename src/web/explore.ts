@@ -41,3 +41,23 @@ export async function buildExploreHtml(runner: DwhQueryRunner, scope: Scope): Pr
     renderGanttChart(timeline),
   ].join("\n");
 }
+
+/**
+ * Distinct repo keys and actor logins from the DWH, for the filter multiselects.
+ * Returns empty arrays when the relevant tables are absent/empty (the WASM
+ * runner exposes missing parquet as empty tables), so the UI shows no options
+ * rather than erroring.
+ */
+export async function queryFilterOptions(
+  runner: DwhQueryRunner,
+): Promise<{ repos: string[]; users: string[] }> {
+  const [repos, users] = await Promise.all([
+    runner.all<{ repo_key: string }>(
+      "SELECT DISTINCT repo_key FROM repos WHERE repo_key IS NOT NULL ORDER BY repo_key",
+    ),
+    runner.all<{ login: string }>(
+      "SELECT DISTINCT login FROM actors WHERE login IS NOT NULL ORDER BY login",
+    ),
+  ]);
+  return { repos: repos.map((row) => row.repo_key), users: users.map((row) => row.login) };
+}

@@ -1,0 +1,27 @@
+---
+// The site root redirects to Explore. GitHub Pages is purely static (no HTTP
+// 3xx), so this is a client-side `<meta http-equiv="refresh">` page — the
+// static-site approach Astro recommends over `Astro.redirect()` (which targets
+// SSR). The target is built from BASE_URL so it stays correct under both the
+// dev base ("/") and the production project-page base ("/pr-weekly-report").
+// Trailing slash is required: in dev a bare `/explore` collides with the
+// sibling module src/web/explore.ts (Vite serves it as JS), while `/explore/`
+// resolves to the page. The slash is also the canonical directory-format URL in
+// preview/production, so it works everywhere.
+const raw = import.meta.env.BASE_URL;
+const base = raw.endsWith("/") ? raw : `${raw}/`;
+const target = `${base}explore/`;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>Explore へ移動中…</title>
+  </head>
+  <body>
+    <p>移動しない場合は <a href={target}>Explore</a> を開いてください。</p>
+  </body>
+</html>

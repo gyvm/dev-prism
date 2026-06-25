@@ -119,8 +119,12 @@ npm run explore:dev
 - レンダラのインライン script（gantt ツールチップ / bipartite ホバー）は注入後に再実行して有効化。
 - 本番ビルド: `npm run explore:build`（`dist/explore/`）。
 
-**残り（将来）**: 件数推移チャート（レンダラ未実装）、Astro 化（2 モード統合・SSG 一覧）、Parquet の HTTP range 配信、
-WASM 自前ホスト（オフライン）。
+**Astro 化（完了）**: フロントは Astro 6 + React islands に移行済み（共有サイドバーで 2 モード統合、
+Reports 一覧を index.json から SSG、Explore は `client:only` React 島）。詳細と as-built は
+`docs/astro-migration-plan.md` を参照。
+
+**残り（将来）**: 件数推移チャート（レンダラ未実装）、Parquet の HTTP range 配信、
+WASM 自前ホスト（オフライン）。本番 CI を DWH/Astro パイプラインへ切替（weekly.yml は現状まだ旧 orchestrate）。
 
 ## リスクと対策
 

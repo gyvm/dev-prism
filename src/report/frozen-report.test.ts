@@ -55,11 +55,12 @@ describe("buildFrozenReport", () => {
 
       expect(report.id).toBe(deriveReportId("Weekly", scope, "UTC"));
       expect(report.html).toContain("<!doctype html>");
-      // No external references — single-file shareable.
-      expect(report.html).not.toMatch(/<(link|script)[^>]+(href|src)=/i);
-      // Footer carries the scope into Explore (an <a> link, not a resource ref).
-      expect(report.html).toContain('Explore で深掘り');
-      expect(report.html).toContain('href="/explore?from=');
+      // The report body is self-contained: styles are inlined (no stylesheet
+      // links). The ONLY external reference is the view-time sidebar overlay
+      // (method Z), which 404s harmlessly offline so the body still renders.
+      expect(report.html).not.toMatch(/<link[^>]+href=/i);
+      expect(report.html).toContain('<script type="module" src="../nav.js">');
+      expect(report.html.match(/<script[^>]+src=/gi) ?? []).toHaveLength(1);
       expect(report.indexEntry.kpi.deploymentFrequency).toBe(1);
       expect(report.indexEntry.kpi.prMerged).toBe(1);
       // The index entry must satisfy the published schema.
