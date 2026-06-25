@@ -36,9 +36,9 @@ The dashboard appears at `https://<owner>.github.io/<repo>/`.
 
 ## How it works
 
-- The **data action** (`__OWNER__/__REPO__@v1`) collects PRs and refreshes
+- The **data action** (`__OWNER__/__REPO__@v0`) collects PRs and refreshes
   `data/dwh/` (committed parquet — the source of truth, accumulated over time).
-- The **site action** (`__OWNER__/__REPO__/site@v1`) builds the static
+- The **site action** (`__OWNER__/__REPO__/site@v0`) builds the static
   dashboard into `dist/` from that DWH.
 - The workflow deploys `dist/` to GitHub Pages. For a custom domain or
   Cloudflare Pages, set the site action's `base` to `/` and point your host at

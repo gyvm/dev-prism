@@ -1,55 +1,97 @@
-# Publishes the collect-&-build Docker action image to GHCR on each version tag,
-# so consumers can pull a prebuilt image instead of rebuilding it every run.
-# After the first v1 release, flip action.yml's image to
-#   docker://ghcr.io/<owner>/<repo>:1
-name: Release image
+# Cut a release: bump the version, push a vX.Y.Z tag, and move the floating
+# major tag (v0). Pushing the vX.Y.Z tag triggers publish-image.yml (GHCR).
+# Run from Actions > Release > Run workflow and pick the bump type.
+#
+# Versioning (v0 line): minor = features/breaking, patch = fixes (semver's v0
+# contract allows breaking changes in a minor). Consumers pin the floating
+# `@v0`, so a release reaches them on their next run with no edit.
+name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (ignored for the very first release)"
+        type: choice
+        options: [patch, minor, major]
+        default: minor
 
+# Needs write to push the bump commit and tags.
 permissions:
-  contents: read
-  packages: write
+  contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      # QEMU emulates arm64 so a single runner can build both arches; npm then
-      # resolves the per-arch duckdb prebuilt inside each platform's build.
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # Full history + tags so we can read the latest tag and commit.
+          fetch-depth: 0
 
-      - id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+      - name: Compute next version
+        id: version
+        # inputs.bump is a constrained choice (patch/minor/major) — safe to read.
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)"
+          if [ -z "$latest" ]; then
+            # First release: publish package.json's current version as-is.
+            next="$(node -p "require('./package.json').version")"
+            echo "No prior release tag; first release at v$next"
+          else
+            cur="${latest#v}"
+            major="${cur%%.*}"; rest="${cur#*.}"
+            minor="${rest%%.*}"; patch="${rest##*.}"
+            case "$BUMP" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              patch) patch=$((patch + 1)) ;;
+              *) echo "Unknown bump: $BUMP" >&2; exit 1 ;;
+            esac
+            next="${major}.${minor}.${patch}"
+            echo "Bumping ${cur} -> ${next} (${BUMP})"
+          fi
+          if git rev-parse -q --verify "refs/tags/v${next}" >/dev/null; then
+            echo "Tag v${next} already exists; aborting." >&2
+            exit 1
+          fi
+          echo "version=${next}" >> "$GITHUB_OUTPUT"
+          echo "major=${next%%.*}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
+      - name: Bump, tag, and push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Sync package.json/package-lock to the release version.
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "release: v${VERSION}"
+          fi
+
+          # Immutable release tag + force-moved floating major tag, both on the
+          # (possibly just-created) commit. Push tags first so the release lands
+          # even if the branch push is blocked by protection.
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git tag -f -a "v${MAJOR}" -m "v${MAJOR} (floating: latest v${MAJOR}.x)"
+          git push origin "refs/tags/v${VERSION}"
+          git push -f origin "refs/tags/v${MAJOR}"
+
+          # Best-effort: advance the branch with the bump commit. If main is
+          # protected, the tags above still define the release; reconcile
+          # package.json via a normal PR later.
+          git push origin "HEAD:${BRANCH}" || \
+            echo "::warning::Could not push the bump commit to ${BRANCH} (branch protection?). Tags were pushed; the release is valid."

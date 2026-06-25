@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v6
 
       # 1. Collect PRs and refresh the committed DWH (incremental; --from backfills).
-      - uses: __OWNER__/__REPO__@v1
+      - uses: __OWNER__/__REPO__@v0
         with:
           config: config.toml
           from: ${{ github.event.inputs.from }}
@@ -54,7 +54,7 @@ jobs:
 
       # 3. Build the static dashboard into dist/. base must be "/<repo>/" for a
       #    Pages project page; use "/" for a custom domain or Cloudflare.
-      - uses: __OWNER__/__REPO__/site@v1
+      - uses: __OWNER__/__REPO__/site@v0
         with:
           base: /${{ github.event.repository.name }}/
 
