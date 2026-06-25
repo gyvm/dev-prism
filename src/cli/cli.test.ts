@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseArgs } from "./collect.js";
+import { parseArgs as parseDwhBuildArgs } from "./dwh-build.js";
 import { parseArgs as parseReportArgs } from "./report.js";
 
 describe("parseArgs", () => {
@@ -59,5 +60,22 @@ describe("report parseArgs", () => {
     expect(() => parseReportArgs(["--week", "2026-13-01"])).toThrow(
       /could not parse/,
     );
+  });
+});
+
+describe("dwh-build parseArgs", () => {
+  it("parses config and dwh-dir", () => {
+    expect(parseDwhBuildArgs(["--config", "config.test.toml", "--dwh-dir", "tmp/dwh"])).toEqual({
+      configPath: "config.test.toml",
+      dwhDir: "tmp/dwh",
+    });
+  });
+
+  it("returns defaults with no arguments", () => {
+    expect(parseDwhBuildArgs([])).toEqual({});
+  });
+
+  it("throws when --dwh-dir has no value", () => {
+    expect(() => parseDwhBuildArgs(["--dwh-dir"])).toThrow(/--dwh-dir requires/);
   });
 });

@@ -29,6 +29,7 @@ function buildPr(): NormalizedPullRequest {
     url: "https://example.com/pr/1",
     author: "alice",
     createdAt: "2026-04-28T10:00:00Z",
+    updatedAt: "2026-04-29T10:00:00Z",
     mergedAt: "2026-04-29T10:00:00Z",
     closedAt: null,
     additions: 10,
