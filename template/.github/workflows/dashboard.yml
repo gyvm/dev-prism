@@ -37,11 +37,9 @@ jobs:
           config: config.toml
           base: /${{ github.event.repository.name }}/
           from: ${{ github.event.inputs.from }}
-        env:
-          # Read-only PAT with access to the target repos. Passed via env so the
-          # action's collector can read it (GitHub forbids a `GITHUB_TOKEN` secret,
-          # so map your own secret into the GITHUB_TOKEN env here).
-          GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
+          # Read-only PAT with access to the target repos. Passed as an input (not
+          # env): a composite action does not inherit env set on its `uses:` step.
+          github-token: ${{ secrets.GH_INSIGHTS_TOKEN }}
 
       # 2. Persist the DWH so the next run resumes incrementally.
       - name: Commit DWH
