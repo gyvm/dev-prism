@@ -37,7 +37,7 @@ jobs:
         env:
           # Read-only PAT with access to the target repos. NOT auto-injected into
           # container actions — must be passed here.
-          GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEV_PRISM_GH_TOKEN }}
 
       # 2. Persist the DWH so the next run resumes incrementally.
       - name: Commit DWH
