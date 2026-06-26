@@ -39,7 +39,7 @@ jobs:
           from: ${{ github.event.inputs.from }}
           # Read-only PAT with access to the target repos. Passed as an input (not
           # env): a composite action does not inherit env set on its `uses:` step.
-          github-token: ${{ secrets.GH_INSIGHTS_TOKEN }}
+          github-token: ${{ secrets.DEV_PRISM_GH_TOKEN }}
 
       # 2. Persist the DWH so the next run resumes incrementally.
       - name: Commit DWH

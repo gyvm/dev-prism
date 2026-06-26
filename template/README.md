@@ -23,7 +23,7 @@ config and the accumulating data; the engine is referenced by version.
    (`["your-org/*"]` for everything under an owner).
 
 4. **Add a secret.** Settings → Secrets and variables → Actions →
-   `GH_INSIGHTS_TOKEN` = a read-only PAT with access to the target repos.
+   `DEV_PRISM_GH_TOKEN` = a read-only PAT with access to the target repos.
    (The workflow passes it to the action's `github-token` input.)
 
 5. **Enable Pages.** Settings → Pages → Source = **GitHub Actions**.
