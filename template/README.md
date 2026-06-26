@@ -24,8 +24,7 @@ config and the accumulating data; the engine is referenced by version.
 
 4. **Add a secret.** Settings → Secrets and variables → Actions →
    `GH_INSIGHTS_TOKEN` = a read-only PAT with access to the target repos.
-   (GitHub forbids a secret literally named `GITHUB_TOKEN`; the workflow maps
-   `GH_INSIGHTS_TOKEN` into the `GITHUB_TOKEN` env the engine reads.)
+   (The workflow passes it to the action's `github-token` input.)
 
 5. **Enable Pages.** Settings → Pages → Source = **GitHub Actions**.
 

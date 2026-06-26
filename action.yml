@@ -43,6 +43,16 @@ inputs:
     description: 'Path to reports.toml; when set, frozen reports populate the gallery.'
     required: false
     default: ''
+  github-token:
+    description: >-
+      Read-only PAT with access to the target repos, used by the collector
+      (reads as GITHUB_TOKEN). Pass it here via `with:` — env set on the calling
+      `uses:` step is NOT propagated into a composite action's run steps. For
+      GitHub App auth, set GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY /
+      GITHUB_APP_INSTALLATION_ID as job- or workflow-level env instead (those
+      ARE shared with composite steps).
+    required: false
+    default: ''
 
 # Composite (not Docker): a single action runs both the collector and the site
 # build on the runner, sharing one `npm ci`. Because this action.yml lives at the
@@ -50,8 +60,9 @@ inputs:
 # engine — so npm, src/web and the repo-root dist/ all resolve from there.
 #
 # Auth: the collector reads GITHUB_TOKEN (or the GITHUB_APP_* trio) from the
-# environment. Composite run steps inherit the env set on the caller's `uses:`
-# step, so the consumer passes the token via `env:` there (see README).
+# environment. Step-level `env:` on a `uses:` step does NOT reach a composite's
+# inner steps, so the PAT comes in as the `github-token` input (exported below);
+# the GITHUB_APP_* trio works via job/workflow env (the shared env store).
 #
 # Note: this runs in the caller's job and sets its Node version to 24. Run it as
 # the last build step before deploy if your job has other Node-version needs.
@@ -62,9 +73,12 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: '24'
-        cache: 'npm'
-        # Cache against the engine's lockfile, not the consumer repo's.
-        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+        # No `cache: npm`: setup-node's cache globs the lockfile relative to
+        # GITHUB_WORKSPACE (the consumer repo), but the engine's package-lock.json
+        # lives under the action checkout in _actions/ — outside the workspace —
+        # so the glob resolves nothing and setup-node fails the step with
+        # "Some specified paths were not resolved, unable to cache dependencies."
+        # The npm ci below runs fine uncached.
 
     # Full install (NOT --omit=dev): the site build needs astro, esbuild, react
     # and tailwind, all devDependencies. Assumes a linux-x64/arm64 glibc runner
@@ -88,8 +102,19 @@ runs:
         CONFIG: ${{ inputs.config }}
         DWH_DIR: ${{ inputs.dwh-dir }}
         FROM: ${{ inputs.from }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         echo "::group::Collect PRs → DWH"
+        # The `github-token` input is the reliable channel for the PAT (step-level
+        # env on the caller's `uses:` step does not reach here). Export it when
+        # given; otherwise leave any inherited GITHUB_TOKEN / GITHUB_APP_* env.
+        if [ -n "$INPUT_GITHUB_TOKEN" ]; then
+          export GITHUB_TOKEN="$INPUT_GITHUB_TOKEN"
+        fi
+        if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GITHUB_APP_ID:-}" ]; then
+          echo "::error title=dev-prism::No auth: pass the github-token input, or set the GITHUB_APP_* trio as job/workflow env."
+          exit 1
+        fi
         echo "▶ config=$GITHUB_WORKSPACE/$CONFIG  dwh-dir=$GITHUB_WORKSPACE/$DWH_DIR${FROM:+  from=$FROM}"
         args=(--config "$GITHUB_WORKSPACE/$CONFIG" --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR")
         if [ -n "$FROM" ]; then
