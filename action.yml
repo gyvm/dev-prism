@@ -1,8 +1,9 @@
-name: 'PR Insights — Collect & Build DWH'
+name: 'PR Insights — Collect & Build Dashboard'
 description: >-
-  Collect GitHub pull requests into a committed DuckDB warehouse (incremental,
-  with on-demand history backfill). Run inside a consumer repo that holds the
-  config and the accumulating data/dwh.
+  In one step: collect GitHub pull requests into a committed DuckDB warehouse
+  (incremental, with on-demand history backfill) AND build the static Explore +
+  Reports dashboard into dist/. Run inside a consumer repo that holds the config
+  and the accumulating data/dwh; commit the DWH and deploy dist/ afterwards.
 author: 'dev-prism'
 branding:
   icon: 'git-pull-request'
@@ -23,19 +24,143 @@ inputs:
       uncovered older slice per repo. Omit for a normal incremental run.
     required: false
     default: ''
+  base:
+    description: >-
+      Astro base path for the built site. "/" for a custom domain or Cloudflare
+      Pages; "/<repo>/" for a GitHub Pages project page (otherwise every asset
+      404s).
+    required: false
+    default: '/'
+  site:
+    description: 'Absolute site URL for canonical/OG links (optional).'
+    required: false
+    default: ''
+  output-dir:
+    description: 'Where to write the built site in the consumer workspace.'
+    required: false
+    default: 'dist'
+  reports-config:
+    description: 'Path to reports.toml; when set, frozen reports populate the gallery.'
+    required: false
+    default: ''
 
-# NOTE: Docker container actions do not receive GITHUB_TOKEN automatically.
-# The consumer step MUST pass a token via `env:` (GITHUB_TOKEN or the
-# GITHUB_APP_* trio). See the README for a complete consumer workflow.
+# Composite (not Docker): a single action runs both the collector and the site
+# build on the runner, sharing one `npm ci`. Because this action.yml lives at the
+# engine repo ROOT, ${{ github.action_path }} resolves to the whole checked-out
+# engine — so npm, src/web and the repo-root dist/ all resolve from there.
+#
+# Auth: the collector reads GITHUB_TOKEN (or the GITHUB_APP_* trio) from the
+# environment. Composite run steps inherit the env set on the caller's `uses:`
+# step, so the consumer passes the token via `env:` there (see README).
+#
+# Note: this runs in the caller's job and sets its Node version to 24. Run it as
+# the last build step before deploy if your job has other Node-version needs.
 runs:
-  using: 'docker'
-  # Built on the runner each run. Once a release exists (publish-image.yml
-  # pushes the image to GHCR on each vX.Y.Z tag), switch to the prebuilt image
-  # for much faster consumer runs — consumers reference the action at @v0, which
-  # matches the floating :0 image tag:
-  #   image: 'docker://ghcr.io/your-org/dev-prism:0'
-  image: 'Dockerfile'
-  args:
-    - ${{ inputs.config }}
-    - ${{ inputs.dwh-dir }}
-    - ${{ inputs.from }}
+  using: 'composite'
+  steps:
+    - name: Set up Node 24
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        cache: 'npm'
+        # Cache against the engine's lockfile, not the consumer repo's.
+        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+
+    # Full install (NOT --omit=dev): the site build needs astro, esbuild, react
+    # and tailwind, all devDependencies. Assumes a linux-x64/arm64 glibc runner
+    # (matches the duckdb prebuilt; GitHub-hosted ubuntu qualifies).
+    - name: Install engine dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        echo "::group::npm ci (engine toolchain: duckdb, astro, tailwind, react)"
+        npm ci
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::Engine dependencies installed."
+
+    # 1. Collect PRs and refresh the committed DWH (incremental; --from backfills).
+    #    Inputs flow in via env (never interpolated into the script body) so a
+    #    crafted value — e.g. a workflow_dispatch `from` — cannot inject shell.
+    - name: Collect PRs and refresh DWH
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        CONFIG: ${{ inputs.config }}
+        DWH_DIR: ${{ inputs.dwh-dir }}
+        FROM: ${{ inputs.from }}
+      run: |
+        echo "::group::Collect PRs → DWH"
+        echo "▶ config=$GITHUB_WORKSPACE/$CONFIG  dwh-dir=$GITHUB_WORKSPACE/$DWH_DIR${FROM:+  from=$FROM}"
+        args=(--config "$GITHUB_WORKSPACE/$CONFIG" --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR")
+        if [ -n "$FROM" ]; then
+          echo "▶ Backfill mode: collecting history down to $FROM"
+          args+=(--from "$FROM")
+        else
+          echo "▶ Incremental mode: collecting since the committed DWH cursor"
+        fi
+        npx tsx src/cli/dwh-build.ts "${args[@]}"
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::DWH refreshed at $DWH_DIR."
+
+    # 2. Copy the consumer's committed parquet into the site's public dir.
+    - name: Stage DWH data for the site
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        DWH_DIR: ${{ inputs.dwh-dir }}
+      run: |
+        echo "::group::Stage Explore data (parquet → site public dir)"
+        npm run explore:data -- --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR"
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::Explore data staged."
+
+    # 3. Optional: render frozen reports so the gallery is populated.
+    - name: Render frozen reports
+      if: ${{ inputs.reports-config != '' }}
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        REPORTS_CONFIG: ${{ inputs.reports-config }}
+        DWH_DIR: ${{ inputs.dwh-dir }}
+      run: |
+        echo "::group::Render reports from $REPORTS_CONFIG"
+        npm run report:dwh -- \
+          --reports-config "$GITHUB_WORKSPACE/$REPORTS_CONFIG" \
+          --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR" \
+          --reports-dir dist/reports
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::Frozen reports rendered."
+
+    # 4. Build the Astro site directly (the web:build npm script hardcodes a base,
+    #    so we invoke astro with the caller's base/site instead). outDir is the
+    #    repo-root dist/ (see src/web/astro.config.mjs).
+    - name: Build dashboard site
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        ASTRO_BASE: ${{ inputs.base }}
+        ASTRO_SITE: ${{ inputs.site }}
+      run: |
+        echo "::group::Build navigation bundle (esbuild)"
+        npm run build:nav
+        echo "::endgroup::"
+        echo "::group::Astro build (base=${ASTRO_BASE})"
+        ./node_modules/.bin/astro build --root src/web
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::Dashboard built into dist/."
+
+    # 5. Hand the built site back to the consumer workspace (dist/. copies the
+    #    contents, avoiding a dist/dist nesting).
+    - name: Export dist to workspace
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        out="$GITHUB_WORKSPACE/$OUTPUT_DIR"
+        echo "::group::Copy dist → $out"
+        mkdir -p "$out"
+        cp -r dist/. "$out/"
+        echo "▶ $(find "$out" -type f | wc -l | tr -d ' ') files written to $OUTPUT_DIR/"
+        echo "::endgroup::"
+        echo "::notice title=dev-prism::Site exported to $OUTPUT_DIR/ — ready to deploy."

@@ -29,14 +29,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # 1. Collect PRs and refresh the committed DWH (incremental; --from backfills).
+      # 1. One step: collect PRs, refresh the committed DWH, and build the static
+      #    dashboard into dist/. base must be "/<repo>/" for a Pages project page;
+      #    use "/" for a custom domain or Cloudflare.
       - uses: __OWNER__/__REPO__@v0
         with:
           config: config.toml
+          base: /${{ github.event.repository.name }}/
           from: ${{ github.event.inputs.from }}
         env:
-          # Read-only PAT with access to the target repos. NOT auto-injected into
-          # container actions — must be passed here.
+          # Read-only PAT with access to the target repos. Passed via env so the
+          # action's collector can read it (GitHub forbids a `GITHUB_TOKEN` secret,
+          # so map your own secret into the GITHUB_TOKEN env here).
           GITHUB_TOKEN: ${{ secrets.GH_INSIGHTS_TOKEN }}
 
       # 2. Persist the DWH so the next run resumes incrementally.
@@ -52,13 +56,7 @@ jobs:
             git push
           fi
 
-      # 3. Build the static dashboard into dist/. base must be "/<repo>/" for a
-      #    Pages project page; use "/" for a custom domain or Cloudflare.
-      - uses: __OWNER__/__REPO__/site@v0
-        with:
-          base: /${{ github.event.repository.name }}/
-
-      # 4. Deploy dist/ to GitHub Pages.
+      # 3. Deploy dist/ to GitHub Pages.
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v4
         with:
