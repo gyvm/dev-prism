@@ -1,6 +1,6 @@
 {
   "name": "gh-insights",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Dev Prism — weekly PR flow reports for engineering reflection meetings.",
   "license": "MIT",
   "private": true,
