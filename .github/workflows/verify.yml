@@ -41,7 +41,12 @@ jobs:
           for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
             if [ -f "$f" ]; then echo "✓ $f"; else echo "✗ missing $f"; fail=1; fi
           done
-          n=$(ls verify-dist/data/*.parquet 2>/dev/null | wc -l | tr -d ' ')
+          # nullglob so the glob expands to nothing (not a literal) when empty;
+          # array-count instead of `ls | wc -l` so this survives a future
+          # `shell: bash` that would add pipefail and abort the assignment.
+          shopt -s nullglob
+          parquet=(verify-dist/data/*.parquet)
+          n=${#parquet[@]}
           if [ "$n" -gt 0 ]; then echo "✓ $n parquet file(s) in verify-dist/data"; else echo "✗ no parquet in verify-dist/data"; fail=1; fi
           # base path must be rewritten into the built HTML
           if grep -q "/dev-prism/" verify-dist/index.html; then echo "✓ base path applied"; else echo "✗ base path not applied"; fail=1; fi

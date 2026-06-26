@@ -87,6 +87,7 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
+        set -euo pipefail
         echo "::group::npm ci (engine toolchain: duckdb, astro, tailwind, react)"
         npm ci
         echo "::endgroup::"
@@ -104,15 +105,25 @@ runs:
         FROM: ${{ inputs.from }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
+        set -euo pipefail
         echo "::group::Collect PRs → DWH"
         # The `github-token` input is the reliable channel for the PAT (step-level
-        # env on the caller's `uses:` step does not reach here). Export it when
-        # given; otherwise leave any inherited GITHUB_TOKEN / GITHUB_APP_* env.
-        if [ -n "$INPUT_GITHUB_TOKEN" ]; then
-          export GITHUB_TOKEN="$INPUT_GITHUB_TOKEN"
+        # env on the caller's `uses:` step does not reach here). Trim it (a stray
+        # space / trailing newline pasted into the Secrets UI must NOT count as a
+        # token), then export when non-empty; otherwise leave any inherited
+        # GITHUB_TOKEN / GITHUB_APP_* env.
+        token="$(printf '%s' "${INPUT_GITHUB_TOKEN:-}" | tr -d '[:space:]')"
+        if [ -n "$token" ]; then
+          export GITHUB_TOKEN="$token"
         fi
-        if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GITHUB_APP_ID:-}" ]; then
-          echo "::error title=dev-prism::No auth: pass the github-token input, or set the GITHUB_APP_* trio as job/workflow env."
+        # App auth needs all three vars; a partial trio fails obscurely later, so
+        # only treat it as "configured" when complete.
+        have_app=0
+        if [ -n "${GITHUB_APP_ID:-}" ] && [ -n "${GITHUB_APP_PRIVATE_KEY:-}" ] && [ -n "${GITHUB_APP_INSTALLATION_ID:-}" ]; then
+          have_app=1
+        fi
+        if [ -z "${GITHUB_TOKEN:-}" ] && [ "$have_app" -eq 0 ]; then
+          echo "::error title=dev-prism::No usable auth: pass a non-empty github-token input, or set ALL of GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_APP_INSTALLATION_ID as job/workflow env."
           exit 1
         fi
         echo "▶ config=$GITHUB_WORKSPACE/$CONFIG  dwh-dir=$GITHUB_WORKSPACE/$DWH_DIR${FROM:+  from=$FROM}"
@@ -123,7 +134,7 @@ runs:
         else
           echo "▶ Incremental mode: collecting since the committed DWH cursor"
         fi
-        npx tsx src/cli/dwh-build.ts "${args[@]}"
+        npm run dwh:build -- "${args[@]}"
         echo "::endgroup::"
         echo "::notice title=dev-prism::DWH refreshed at $DWH_DIR."
 
@@ -134,6 +145,7 @@ runs:
       env:
         DWH_DIR: ${{ inputs.dwh-dir }}
       run: |
+        set -euo pipefail
         echo "::group::Stage Explore data (parquet → site public dir)"
         npm run explore:data -- --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR"
         echo "::endgroup::"
@@ -148,6 +160,7 @@ runs:
         REPORTS_CONFIG: ${{ inputs.reports-config }}
         DWH_DIR: ${{ inputs.dwh-dir }}
       run: |
+        set -euo pipefail
         echo "::group::Render reports from $REPORTS_CONFIG"
         npm run report:dwh -- \
           --reports-config "$GITHUB_WORKSPACE/$REPORTS_CONFIG" \
@@ -166,6 +179,7 @@ runs:
         ASTRO_BASE: ${{ inputs.base }}
         ASTRO_SITE: ${{ inputs.site }}
       run: |
+        set -euo pipefail
         echo "::group::Build navigation bundle (esbuild)"
         npm run build:nav
         echo "::endgroup::"
@@ -182,10 +196,26 @@ runs:
       env:
         OUTPUT_DIR: ${{ inputs.output-dir }}
       run: |
+        set -euo pipefail
         out="$GITHUB_WORKSPACE/$OUTPUT_DIR"
         echo "::group::Copy dist → $out"
         mkdir -p "$out"
-        cp -r dist/. "$out/"
-        echo "▶ $(find "$out" -type f | wc -l | tr -d ' ') files written to $OUTPUT_DIR/"
+        # Guard the local-action edge case (`uses: ./` with default output-dir):
+        # then `out` IS the dist/ we just built, and `cp dist/. dist/` would nest.
+        if [ "$out" -ef "$PWD/dist" ]; then
+          echo "▶ output-dir already points at the built dist/ — nothing to copy"
+        else
+          cp -r dist/. "$out/"
+        fi
+        files=$(find "$out" -type f | wc -l | tr -d ' ')
+        echo "▶ $files files written to $OUTPUT_DIR/"
         echo "::endgroup::"
-        echo "::notice title=dev-prism::Site exported to $OUTPUT_DIR/ — ready to deploy."
+        # The collector exits 0 on rate-limit (writes whatever it got), so an empty
+        # DWH yields a built-but-dataless site. Refuse to report success when no
+        # parquet reached the site — otherwise a consumer deploys an empty dashboard.
+        parquet=$(find "$out/data" -type f -name '*.parquet' 2>/dev/null | wc -l | tr -d ' ' || true)
+        if [ "$parquet" -eq 0 ]; then
+          echo "::error title=dev-prism::No parquet in $OUTPUT_DIR/data — collection returned no data (rate limit? empty repo set?). Refusing to report success on an empty dashboard."
+          exit 1
+        fi
+        echo "::notice title=dev-prism::Site exported to $OUTPUT_DIR/ ($parquet parquet file(s)) — ready to deploy."
