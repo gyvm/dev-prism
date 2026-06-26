@@ -62,9 +62,12 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: '24'
-        cache: 'npm'
-        # Cache against the engine's lockfile, not the consumer repo's.
-        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+        # No `cache: npm`: setup-node's cache globs the lockfile relative to
+        # GITHUB_WORKSPACE (the consumer repo), but the engine's package-lock.json
+        # lives under the action checkout in _actions/ — outside the workspace —
+        # so the glob resolves nothing and setup-node fails the step with
+        # "Some specified paths were not resolved, unable to cache dependencies."
+        # The npm ci below runs fine uncached.
 
     # Full install (NOT --omit=dev): the site build needs astro, esbuild, react
     # and tailwind, all devDependencies. Assumes a linux-x64/arm64 glibc runner
