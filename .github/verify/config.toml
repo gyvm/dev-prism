@@ -1,0 +1,16 @@
+# Config used only by .github/workflows/verify.yml to exercise the action
+# end-to-end against this repo's own PRs (readable with the default GITHUB_TOKEN).
+[general]
+timezone = "UTC"
+
+[repositories]
+include = ["gyvm/dev-prism"]
+
+# Keep the verification run small and fast.
+[limits]
+maxPrs                = 20
+maxCommentsPerPr      = 20
+maxReviewThreadsPerPr = 20
+maxFilesPerPr         = 40
+maxCommitsPerPr       = 20
+maxBodyLength         = 2000

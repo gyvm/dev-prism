@@ -1,0 +1,58 @@
+# End-to-end check for the composite action, run on every PR. Uses `uses: ./`
+# so it exercises THIS PR's action.yml — collect → DWH → site build — against
+# this repo's own PRs. A green run here means a consumer that calls the action
+# will work too, without retagging v0 or touching the consumer repo.
+name: Verify action
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Run the local action exactly as a consumer would. Throwaway dwh-dir /
+      # output-dir (relative to the workspace; never committed). The default
+      # GITHUB_TOKEN can read this repo's own pull requests.
+      - name: Run the action (collect + build)
+        uses: ./
+        with:
+          config: .github/verify/config.toml
+          base: /dev-prism/
+          dwh-dir: verify-dwh
+          output-dir: verify-dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert build output
+        run: |
+          echo "::group::Verify dist/ contents"
+          fail=0
+          for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
+            if [ -f "$f" ]; then echo "✓ $f"; else echo "✗ missing $f"; fail=1; fi
+          done
+          # nullglob so the glob expands to nothing (not a literal) when empty;
+          # array-count instead of `ls | wc -l` so this survives a future
+          # `shell: bash` that would add pipefail and abort the assignment.
+          shopt -s nullglob
+          parquet=(verify-dist/data/*.parquet)
+          n=${#parquet[@]}
+          if [ "$n" -gt 0 ]; then echo "✓ $n parquet file(s) in verify-dist/data"; else echo "✗ no parquet in verify-dist/data"; fail=1; fi
+          # base path must be rewritten into every built page, not just the
+          # landing page — a regression that drops it on explore/ or reports/ is
+          # exactly the asset-404 mode the `base` input exists to prevent.
+          for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
+            if grep -q "/dev-prism/" "$f"; then echo "✓ base path applied in $f"; else echo "✗ base path not applied in $f"; fail=1; fi
+          done
+          echo "::endgroup::"
+          exit $fail
