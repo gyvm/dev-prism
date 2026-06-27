@@ -210,12 +210,15 @@ runs:
         files=$(find "$out" -type f | wc -l | tr -d ' ')
         echo "▶ $files files written to $OUTPUT_DIR/"
         echo "::endgroup::"
-        # The collector exits 0 on rate-limit (writes whatever it got), so an empty
-        # DWH yields a built-but-dataless site. Refuse to report success when no
-        # parquet reached the site — otherwise a consumer deploys an empty dashboard.
+        # A collection failure (rate limit or per-repo error) already exits 1 in
+        # step 1 and aborts the action under `set -e` — it never reaches here. This
+        # guard catches the other empty case: a *successful* collect over an empty
+        # repo set (or repos with no PRs in range) writes no parquet, yielding a
+        # built-but-dataless site. Refuse to report success then — otherwise a
+        # consumer deploys an empty dashboard.
         parquet=$(find "$out/data" -type f -name '*.parquet' 2>/dev/null | wc -l | tr -d ' ' || true)
         if [ "$parquet" -eq 0 ]; then
-          echo "::error title=dev-prism::No parquet in $OUTPUT_DIR/data — collection returned no data (rate limit? empty repo set?). Refusing to report success on an empty dashboard."
+          echo "::error title=dev-prism::No parquet in $OUTPUT_DIR/data — collection succeeded but returned no data (empty repo set? no PRs in range?). Refusing to report success on an empty dashboard."
           exit 1
         fi
         echo "::notice title=dev-prism::Site exported to $OUTPUT_DIR/ ($parquet parquet file(s)) — ready to deploy."

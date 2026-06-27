@@ -39,7 +39,7 @@ describe("parseDateArg", () => {
   });
 
   it("normalizes a partial-fullwidth digit run", () => {
-    // Only the year is fullwidth — a realistic paste artifact.
+    // Only the first digit is fullwidth (２) — a realistic paste artifact.
     expect(parseDateArg("--from", "２026-01-01").toISOString()).toBe("2026-01-01T00:00:00.000Z");
   });
 

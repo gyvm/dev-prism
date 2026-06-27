@@ -48,7 +48,11 @@ jobs:
           parquet=(verify-dist/data/*.parquet)
           n=${#parquet[@]}
           if [ "$n" -gt 0 ]; then echo "✓ $n parquet file(s) in verify-dist/data"; else echo "✗ no parquet in verify-dist/data"; fail=1; fi
-          # base path must be rewritten into the built HTML
-          if grep -q "/dev-prism/" verify-dist/index.html; then echo "✓ base path applied"; else echo "✗ base path not applied"; fail=1; fi
+          # base path must be rewritten into every built page, not just the
+          # landing page — a regression that drops it on explore/ or reports/ is
+          # exactly the asset-404 mode the `base` input exists to prevent.
+          for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
+            if grep -q "/dev-prism/" "$f"; then echo "✓ base path applied in $f"; else echo "✗ base path not applied in $f"; fail=1; fi
+          done
           echo "::endgroup::"
           exit $fail
