@@ -1,4 +1,6 @@
 ---
+import { getJsDelivrBundles } from "@duckdb/duckdb-wasm";
+
 import Layout from "../layouts/Layout.astro";
 import Explore from "../islands/Explore";
 import { PAGE_STYLES } from "../../renderers/page-styles.js";
@@ -7,9 +9,25 @@ import { PAGE_STYLES } from "../../renderers/page-styles.js";
 // queries the parquet DWH live, and renders with the same renderers as the
 // frozen reports (parity). PAGE_STYLES is the report stylesheet so the rendered
 // metric cards / gantt / bipartite output looks identical to Reports.
+
+// Preload the DuckDB-WASM module so the multi-MB download starts during HTML
+// parse instead of after the island's JS executes. getJsDelivrBundles() runs
+// here at build time and derives the URL from the installed package version,
+// so it always matches what selectBundle() resolves at runtime. The runtime
+// picks eh vs mvp by feature detection; eh is what every current browser gets,
+// the mvp fallback simply doesn't benefit from the hint.
+// The wasm is consumed by the DuckDB worker, which can't read the document's
+// preload cache — Chrome therefore logs "preloaded but not used". That warning
+// is benign: the worker's fetch coalesces with the in-flight download via the
+// HTTP cache, so the module still crosses the network exactly once (verified
+// cold-cache via CDP: one request, ~7.1MB on wire).
+const wasmModuleUrl = getJsDelivrBundles().eh.mainModule;
 ---
 
 <Layout title="Explore — PR Analytics" active="explore">
+  <Fragment slot="head">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href={wasmModuleUrl} />
+  </Fragment>
   <style is:global set:html={PAGE_STYLES}></style>
   {/* is:global is REQUIRED: <Explore client:only="react"> renders the whole
       island in the browser, so Astro-scoped selectors (cid-attributed) never
