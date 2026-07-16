@@ -262,6 +262,23 @@ export function getDwhTable(tableName: string): DwhTableDefinition {
   return table;
 }
 
+// Tables required by the current Explore dashboard. This is deliberately an
+// explicit allowlist rather than a kind-based filter: adding a new browser
+// analysis must consciously decide whether its source data is safe and useful
+// to publish in the static site.
+const exploreDwhTableNames = [
+  "activities",
+  "pull_requests",
+  "pr_reviews",
+  "pr_review_threads",
+  "pr_review_comments",
+  "pr_commits",
+  "actors",
+  "repos",
+] as const;
+
+export const exploreDwhTables: readonly DwhTableDefinition[] = exploreDwhTableNames.map(getDwhTable);
+
 export function renderCreateTableSql(table: DwhTableDefinition): string {
   assertIdentifier(table.name);
   for (const columnDefinition of table.columns) {

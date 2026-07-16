@@ -153,7 +153,7 @@ DWH ベースのフルスタック (Explore + ギャラリー) をローカル�
 ```bash
 rm -rf dist
 GITHUB_TOKEN="$(gh auth token)" npx tsx src/cli/dwh-build.ts --config config.toml --dwh-dir /tmp/dwh
-npm run explore:data -- --dwh-dir /tmp/dwh                                  # parquet → dist/data
+npm run explore:data -- --dwh-dir /tmp/dwh                                  # Explore 用 parquet 8表 → dist/data
 npm run report:dwh -- --dwh-dir /tmp/dwh --reports-dir dist/reports --from 2026-04-01 --to 2026-05-18
 npm run web:build                                                           # 一覧 SSG + Explore 島 + nav.js → dist/
 ```
@@ -325,8 +325,9 @@ compose 単体に cron は無いため、ホスト cron 等で収集 + ビルド
 - **base の固定**: `npm run web:build` は base を `/dev-prism` にハードコードしているため、
   セルフホスト (root 配信) では `ASTRO_BASE=/` を渡して `astro build` を直接叩く (上記 compose の通り)。
   サブパス配信なら `ASTRO_BASE=/subpath/` を合わせる
-- **parquet の配信**: Explore はブラウザから `/<base>data/*.parquet` を読む。`explore:data` が
-  `dist/data/` に置くので、`dist/` ごと配信していれば追加設定は不要
+- **parquet の配信**: Explore はブラウザから `/<base>data/*.parquet` を読む。`explore:data` は
+  画面で使う 8 テーブルだけを `dist/data/` に置く。完全 DWH の `bodies.parquet`（PR 本文・
+  コメント本文を含む）は AI／バッチ処理向けに `data/dwh/` に残し、静的サイトには配信しない
 - **GHES**: `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` を `collect` の `environment` に明示する
   (Actions と違い自動注入されない)
 - **レート制限 / 再開**: 収集はレート制限時に取得済み分を書いたうえで exit 1 で終了する (取りこぼしを
@@ -373,7 +374,7 @@ compute 分析は常に既定パラメータで実行されます。
 | `npm run report` | fetch → analyze → render の全体パイプライン (orchestrate 系) |
 | `npm run dwh:build -- [--config <path>] [--dwh-dir <dir>] [--from YYYY-MM-DD]` | PR を収集して DWH (parquet) を増分構築。`--from` で過去分を backfill |
 | `npm run report:dwh -- [--reports-config <path>] [--from <d> --to <d>] [--dwh-dir <dir>] [--reports-dir <dir>]` | DWH から frozen reports + `index.json` を生成 |
-| `npm run explore:data -- --dwh-dir <dir>` | DWH の parquet を `src/web/public/data` (→ `dist/data`) へ配置 |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
 | `npm run demo` | 同梱サンプル raw データ (`data/demo/`) でレポート生成 |
 
 ### 増分収集と backfill (`dwh:build`)
@@ -433,8 +434,9 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
 
 - **Reports ギャラリー** (`/`): `report:dwh` が出力する `dist/reports/index.json` から **ビルド時に SSG**。
   各カードは凍結レポート (`/reports/<id>.html`) へリンク。
-- **Explore** (`/explore`): `client:only` の React 島。ブラウザ内 **DuckDB-WASM** が `dist/data/*.parquet`
-  を直接クエリし、レポートと**同一のレンダラ・SQL**で DORA / レビュー相関 / PR タイムラインをライブ集計。
+- **Explore** (`/explore`): `client:only` の React 島。ブラウザ内 **DuckDB-WASM** が画面用に絞った
+  `dist/data/*.parquet` を直接クエリし、レポートと**同一のレンダラ・SQL**で DORA / レビュー相関 /
+  PR タイムラインをライブ集計。本文テキストは配信しない。
   期間プリセット (今週/過去1ヶ月/3ヶ月/1年) + カレンダー、repo/user の multiselect で絞り込み。
 - **サイドバー**: アプリ面 (一覧/Explore) は Astro が SSR。凍結レポートには閲覧時に `nav.js` が
   オーバーレイ描画する (本文は自己完結のまま・常に最新ナビ)。
@@ -445,7 +447,7 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
 |---|---|
 | `npm run web:dev` | Astro 開発サーバ (base `/`、`http://localhost:4321/`) |
 | `npm run web:build` | `nav.js` ビルド + `astro build` (本番 base `/dev-prism`)。**base は固定**なので、別 base で焼くときは `ASTRO_BASE=... astro build --root src/web` を直接叩く |
-| `npm run explore:data -- --dwh-dir <dir>` | DWH の parquet を `src/web/public/data` へ配置 |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
 | `npm run report:dwh -- --dwh-dir <dir> --reports-dir dist/reports --from <d> --to <d>` | 凍結レポート + `index.json` を生成 (`--index` は付けない: 一覧 HTML は Astro が生成) |
 
 > **描画の更新 (デザイン変更)** は `report:dwh` を再実行すれば凍結レポートを現行レンダラで再生成できます

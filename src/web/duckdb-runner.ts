@@ -1,7 +1,12 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 
 import type { DwhQueryRunner } from "../warehouse/runner.js";
-import { dwhTables, type DwhTableDefinition, renderCreateTableSql } from "../warehouse/schema.js";
+import {
+  dwhTables,
+  exploreDwhTables,
+  type DwhTableDefinition,
+  renderCreateTableSql,
+} from "../warehouse/schema.js";
 
 // DuckDB-WASM implementation of the DwhQueryRunner contract. It mirrors the
 // native openDwh setup (warehouse/query.ts): every DWH table is exposed by its
@@ -50,9 +55,9 @@ export async function fetchTableBuffer(
   throw new Error(`Failed to load ${fileName}: HTTP ${response.status} ${response.statusText}`);
 }
 
-/** Fetches every DWH table's Parquet concurrently (order preserved in the result). */
+/** Fetches every Explore table's Parquet concurrently (order preserved in the result). */
 export function fetchAllTableBuffers(dataBase: string): Promise<TableBufferResult[]> {
-  return Promise.all(dwhTables.map((table) => fetchTableBuffer(dataBase, table)));
+  return Promise.all(exploreDwhTables.map((table) => fetchTableBuffer(dataBase, table)));
 }
 
 function rowsFromArrow<T extends Record<string, unknown>>(table: {
@@ -68,8 +73,10 @@ function rowsFromArrow<T extends Record<string, unknown>>(table: {
 }
 
 /**
- * Boots DuckDB-WASM, registers each DWH table's Parquet (served from
- * `${dataBase}/<table>.parquet`) as a view, and returns a query runner.
+ * Boots DuckDB-WASM and registers each Explore table's Parquet (served from
+ * `${dataBase}/<table>.parquet`) as a view. Other DWH tables are represented
+ * by empty schemas: browser code keeps the prior missing-table contract while
+ * source text remains out of the static deployment.
  *
  * The default base is resolved against the site root (`import.meta.env.BASE_URL`),
  * not the current page, so it works regardless of which route Explore is served
@@ -95,14 +102,16 @@ export async function createWasmRunner(dataBase = defaultDataBase()): Promise<Wa
   ]);
   const connection = await db.connect();
 
-  for (const result of results) {
-    if (result.kind === "buffer") {
+  const resultByTable = new Map(results.map((result) => [result.table.name, result]));
+  for (const table of dwhTables) {
+    const result = resultByTable.get(table.name);
+    if (result?.kind === "buffer") {
       await db.registerFileBuffer(result.fileName, result.bytes);
       await connection.query(
         `CREATE VIEW ${result.table.name} AS SELECT * FROM read_parquet('${result.fileName}')`,
       );
     } else {
-      await connection.query(renderCreateTableSql(result.table));
+      await connection.query(renderCreateTableSql(table));
     }
   }
 

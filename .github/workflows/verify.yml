@@ -45,9 +45,31 @@ jobs:
           # array-count instead of `ls | wc -l` so this survives a future
           # `shell: bash` that would add pipefail and abort the assignment.
           shopt -s nullglob
+          expected_parquet=(
+            activities pull_requests pr_reviews pr_review_threads
+            pr_review_comments pr_commits actors repos
+          )
+          for table in "${expected_parquet[@]}"; do
+            if [ -f "verify-dist/data/$table.parquet" ]; then
+              echo "✓ Explore parquet: $table"
+            else
+              echo "✗ missing Explore parquet: $table"
+              fail=1
+            fi
+          done
           parquet=(verify-dist/data/*.parquet)
-          n=${#parquet[@]}
-          if [ "$n" -gt 0 ]; then echo "✓ $n parquet file(s) in verify-dist/data"; else echo "✗ no parquet in verify-dist/data"; fail=1; fi
+          if [ "${#parquet[@]}" -eq "${#expected_parquet[@]}" ]; then
+            echo "✓ only Explore parquet files are published"
+          else
+            echo "✗ unexpected parquet file(s) in verify-dist/data"
+            fail=1
+          fi
+          if [ -e verify-dist/data/bodies.parquet ]; then
+            echo "✗ bodies.parquet must not be published"
+            fail=1
+          else
+            echo "✓ bodies.parquet is not published"
+          fi
           # base path must be rewritten into every built page, not just the
           # landing page — a regression that drops it on explore/ or reports/ is
           # exactly the asset-404 mode the `base` input exists to prevent.

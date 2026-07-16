@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fetchAllTableBuffers, fetchTableBuffer } from "./duckdb-runner.js";
-import { dwhTables } from "../warehouse/schema.js";
+import { dwhTables, exploreDwhTables } from "../warehouse/schema.js";
 
 const actors = dwhTables.find((t) => t.name === "actors")!;
 
@@ -57,10 +57,14 @@ describe("fetchAllTableBuffers", () => {
 
     const resultsPromise = fetchAllTableBuffers("/base/data");
     // With the old sequential loop only the first fetch would be in flight here.
-    expect(fetchMock).toHaveBeenCalledTimes(dwhTables.length);
+    expect(fetchMock).toHaveBeenCalledTimes(exploreDwhTables.length);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(
+      exploreDwhTables.map((table) => `/base/data/${table.name}.parquet`),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith("/base/data/bodies.parquet");
 
     for (const release of pending) release();
     const results = await resultsPromise;
-    expect(results.map((r) => r.table.name)).toEqual(dwhTables.map((t) => t.name));
+    expect(results.map((r) => r.table.name)).toEqual(exploreDwhTables.map((t) => t.name));
   });
 });
