@@ -186,7 +186,7 @@ npm run web:build                                                           # �
    # Linux (GNU sed) は空バックアップ引数不要: sed -i 's#...#...#g' ...
    ```
 3. `config.toml` の `[repositories].include` を対象リポジトリに設定
-4. **Settings > Secrets and variables > Actions** で `GH_INSIGHTS_TOKEN` を追加
+4. **Settings > Secrets and variables > Actions** で `DEV_PRISM_GH_TOKEN` を追加
    (read-only PAT。ワークフローはこれを Action の `github-token` 入力に渡します)
 5. **Settings > Pages > Source** を **GitHub Actions** に
 6. **Actions > PR Dashboard > Run workflow** で初回実行 (初回は `from` で過去分を backfill 可)
