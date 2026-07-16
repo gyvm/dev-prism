@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DWH_SCHEMA_VERSION,
   dwhTables,
+  exploreDwhTables,
   getDwhTable,
   renderCreateTableSql,
   renderSchemaSql,
@@ -38,6 +39,20 @@ describe("DWH schema", () => {
       "repos",
       "bodies",
     ]);
+  });
+
+  it("explicitly limits static Explore data to the tables its analyses use", () => {
+    expect(exploreDwhTables.map((table) => table.name)).toEqual([
+      "activities",
+      "pull_requests",
+      "pr_reviews",
+      "pr_review_threads",
+      "pr_review_comments",
+      "pr_commits",
+      "actors",
+      "repos",
+    ]);
+    expect(exploreDwhTables.map((table) => table.name)).not.toContain("bodies");
   });
 
   it("keeps logical primary key columns in each table definition", () => {

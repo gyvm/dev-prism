@@ -1,12 +1,12 @@
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { copyExploreData, DEFAULT_DWH_DIR, DEFAULT_OUT_DIR } from "../web/explore-data.js";
 
-// Copies a DWH's Parquet files into the Explore public dir so the dev server /
-// build serves them for DuckDB-WASM to fetch (registerFileBuffer).
+// Copies the Explore-specific DWH subset into the public dir so the dev server /
+// build serves it for DuckDB-WASM to fetch (registerFileBuffer). The complete
+// DWH, including bodies.parquet, remains in the source directory for AI/batch use.
 // Usage: npm run explore:data -- [--dwh-dir data/dwh] [--out src/web/public/data]
 
 function parseArgs(argv: readonly string[]): { dwhDir: string; outDir: string } {
-  const options = { dwhDir: "data/dwh", outDir: "src/web/public/data" };
+  const options = { dwhDir: DEFAULT_DWH_DIR, outDir: DEFAULT_OUT_DIR };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--dwh-dir") options.dwhDir = argv[++i] ?? options.dwhDir;
@@ -18,21 +18,8 @@ function parseArgs(argv: readonly string[]): { dwhDir: string; outDir: string } 
 
 async function main(): Promise<void> {
   const { dwhDir, outDir } = parseArgs(process.argv.slice(2));
-  const src = resolve(dwhDir);
-  const dest = resolve(outDir);
-
-  const entries = await readdir(src);
-  const parquet = entries.filter((name) => name.endsWith(".parquet"));
-  if (parquet.length === 0) {
-    throw new Error(`No .parquet files found in ${src} — build the DWH first (npm run dwh:build).`);
-  }
-
-  await rm(dest, { recursive: true, force: true });
-  await mkdir(dest, { recursive: true });
-  for (const name of parquet) {
-    await cp(join(src, name), join(dest, name));
-  }
-  process.stdout.write(`Copied ${parquet.length} parquet file(s) to ${dest}\n`);
+  const files = await copyExploreData({ dwhDir, outDir });
+  process.stdout.write(`Copied ${files.length} Explore parquet file(s) to ${outDir}\n`);
 }
 
 main().catch((error) => {

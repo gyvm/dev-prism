@@ -1,5 +1,5 @@
 // @ts-check
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve, sep } from "node:path";
 
 import { defineConfig } from "astro/config";
@@ -31,6 +31,18 @@ const serveFrozenReports = {
   },
 };
 
+// Astro preserves outDir so it does not delete CLI-generated reports. Its
+// publicDir copy is additive, though, which would leave a removed Parquet (for
+// example bodies.parquet) behind after a subsequent build. Clear only the
+// generated Explore data directory; reports remain untouched.
+const clearExploreData = {
+  name: "clear-explore-data",
+  apply: "build",
+  buildStart() {
+    rmSync(resolve(process.cwd(), "dist/data"), { recursive: true, force: true });
+  },
+};
+
 // Astro shell for the gh-insights front-end (Reports gallery + Explore island).
 // The npm scripts invoke `astro --root src/web`, which sets the project root to
 // src/web; the srcDir/publicDir/outDir paths below are resolved relative to it.
@@ -58,7 +70,7 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     // Dev-only static serving of the CLI-baked frozen reports (see above).
-    plugins: [serveFrozenReports],
+    plugins: [serveFrozenReports, clearExploreData],
     // Tailwind v4 + daisyUI run via @tailwindcss/postcss (postcss.config.mjs),
     // NOT @tailwindcss/vite: the Vite plugin is incompatible with Astro 6's
     // rolldown-vite (passes aliasOnly:true → "Missing field tsconfigPaths").

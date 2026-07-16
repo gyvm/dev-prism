@@ -549,7 +549,8 @@ src/warehouse/
   取り込み後に破棄)。
 - 出力 = source of truth:**永続 DWH** `data/dwh/*.parquet`(テーブルごと。`activities`
   は `occurred_at` の月でパーティション = `activities/year=YYYY/month=MM/*.parquet`)。
-  配信時は `dist/data/` へコピー。
+  配信時は Explore が参照するテーブルだけを `dist/data/` へコピーし、本文テキストを含む
+  完全 DWH は AI／バッチ処理用に保持する。
 - **増分 upsert**:収集器が PR を `updatedAt` カーソルで増分取得 → 各 PR の child connection
   (reviews / reviewRequests / timelineItems / comments / reviewThreads / commits / files)を
   `pageInfo` で完走 → 該当 `pr_id` の行を typed fact 全体で差し替えて書き戻す(PR 単位で冪等)。
@@ -963,9 +964,10 @@ private repo の情報が含まれ得るため、**既定は要認証(保護ホ�
 - **public 公開は明示時のみ**:扱うデータが公開 repo のみ等、**意図的に公開してよい場合に限り**
   GitHub Pages 等の公開ホストを選ぶ(オプトイン)。
 - いずれも `dist/` は純静的なので、保護はホスト側のアクセス制御で行う(コアは関与しない)。
-- **フィルタはセキュリティ境界ではない**:Explore は DWH 全体(`data/*.parquet`)をブラウザへ
-  配って集計するため、ページを開ける利用者は `scope.repos[]` / `scope.users[]` に関係なく
-  **全データを SQL でクエリ可能**。フィルタは表示の絞り込みに過ぎない。アクセス制御は
+- **フィルタはセキュリティ境界ではない**:Explore は画面用に公開した構造化データ
+  (`data/*.parquet`)をブラウザへ配って集計するため、ページを開ける利用者は
+  `scope.repos[]` / `scope.users[]` に関係なく **公開済みの全データを SQL でクエリ可能**。
+  PR 本文・コメント本文はこの配信対象から除外するが、アクセス制御は
   **ホスト側の all-or-nothing 境界**(=ページを開ける人は全部見える)であり、行レベル/repo 別の
   可視性制御は静的モデルでは作れない。チーム別に見せ分けが要るなら **DWH 自体を分割**して
   別経路で配るしかない。frozen Reports(`<id>.html`)は scope 分だけ焼き込むので、この点は

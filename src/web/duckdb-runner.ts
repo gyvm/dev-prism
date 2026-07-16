@@ -1,7 +1,13 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 
+import { siteBase } from "./base-path.js";
 import type { DwhQueryRunner } from "../warehouse/runner.js";
-import { dwhTables, renderCreateTableSql } from "../warehouse/schema.js";
+import {
+  dwhTables,
+  exploreDwhTables,
+  type DwhTableDefinition,
+  renderCreateTableSql,
+} from "../warehouse/schema.js";
 
 // DuckDB-WASM implementation of the DwhQueryRunner contract. It mirrors the
 // native openDwh setup (warehouse/query.ts): every DWH table is exposed by its
@@ -27,6 +33,46 @@ async function instantiate(): Promise<{ db: duckdb.AsyncDuckDB; worker: Worker }
   return { db, worker };
 }
 
+type TableBufferResult = Readonly<
+  | { table: DwhTableDefinition; kind: "buffer"; fileName: string; bytes: Uint8Array }
+  | { table: DwhTableDefinition; kind: "missing" }
+>;
+
+/** Fetches one table's Parquet; 404 means the table is legitimately absent. */
+export async function fetchTableBuffer(
+  dataBase: string,
+  table: DwhTableDefinition,
+  signal?: AbortSignal,
+): Promise<TableBufferResult> {
+  const fileName = `${table.name}.parquet`;
+  const response = await fetch(`${dataBase}/${fileName}`, { signal });
+  if (response.ok) {
+    return { table, kind: "buffer", fileName, bytes: new Uint8Array(await response.arrayBuffer()) };
+  }
+  if (response.status === 404) {
+    // Table legitimately absent from this DWH → expose it empty (matches openDwh).
+    return { table, kind: "missing" };
+  }
+  // A real transport/server error must not masquerade as "no data".
+  throw new Error(`Failed to load ${fileName}: HTTP ${response.status} ${response.statusText}`);
+}
+
+/** Fetches every Explore table's Parquet concurrently (order preserved in the result). */
+export async function fetchAllTableBuffers(dataBase: string): Promise<TableBufferResult[]> {
+  // Any one failure discards the whole load, so cancel the siblings still in
+  // flight rather than let multi-MB downloads run to completion for a result
+  // nobody will read.
+  const controller = new AbortController();
+  try {
+    return await Promise.all(
+      exploreDwhTables.map((table) => fetchTableBuffer(dataBase, table, controller.signal)),
+    );
+  } catch (error) {
+    controller.abort();
+    throw error;
+  }
+}
+
 function rowsFromArrow<T extends Record<string, unknown>>(table: {
   schema: { fields: ReadonlyArray<{ name: string }> };
   toArray(): ReadonlyArray<Record<string, unknown>>;
@@ -40,37 +86,42 @@ function rowsFromArrow<T extends Record<string, unknown>>(table: {
 }
 
 /**
- * Boots DuckDB-WASM, registers each DWH table's Parquet (served from
- * `${dataBase}/<table>.parquet`) as a view, and returns a query runner.
+ * Boots DuckDB-WASM and registers each Explore table's Parquet (served from
+ * `${dataBase}/<table>.parquet`) as a view. Other DWH tables are represented
+ * by empty schemas: browser code keeps the prior missing-table contract while
+ * source text remains out of the static deployment.
  *
  * The default base is resolved against the site root (`import.meta.env.BASE_URL`),
  * not the current page, so it works regardless of which route Explore is served
  * from (e.g. `/explore/` under Astro) and respects the GitHub Pages project base
  * path (`/<repo>/`). Parquet is emitted at `<base>/data/*` by the build's
- * publicDir copy. At base `/` this is identical to the previous page-relative
- * `data/` path, so existing behavior is unchanged.
+ * publicDir copy.
  */
-export async function createWasmRunner(
-  dataBase = `${import.meta.env.BASE_URL}data`,
-): Promise<WasmRunner> {
-  const { db, worker } = await instantiate();
+function defaultDataBase(): string {
+  return `${siteBase()}data`;
+}
+
+export async function createWasmRunner(dataBase = defaultDataBase()): Promise<WasmRunner> {
+  // The WASM boot (multi-MB download + compile) and the Parquet fetches are
+  // independent, so they run concurrently; serializing them was the dominant
+  // cost of the old implementation. Per-table semantics are unchanged — only
+  // which failure surfaces first differs when several tables fail at once.
+  const [{ db, worker }, results] = await Promise.all([
+    instantiate(),
+    fetchAllTableBuffers(dataBase),
+  ]);
   const connection = await db.connect();
 
+  const resultByTable = new Map(results.map((result) => [result.table.name, result]));
   for (const table of dwhTables) {
-    const fileName = `${table.name}.parquet`;
-    const response = await fetch(`${dataBase}/${fileName}`);
-    if (response.ok) {
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      await db.registerFileBuffer(fileName, bytes);
+    const result = resultByTable.get(table.name);
+    if (result?.kind === "buffer") {
+      await db.registerFileBuffer(result.fileName, result.bytes);
       await connection.query(
-        `CREATE VIEW ${table.name} AS SELECT * FROM read_parquet('${fileName}')`,
+        `CREATE VIEW ${result.table.name} AS SELECT * FROM read_parquet('${result.fileName}')`,
       );
-    } else if (response.status === 404) {
-      // Table legitimately absent from this DWH → expose it empty (matches openDwh).
-      await connection.query(renderCreateTableSql(table));
     } else {
-      // A real transport/server error must not masquerade as "no data".
-      throw new Error(`Failed to load ${fileName}: HTTP ${response.status} ${response.statusText}`);
+      await connection.query(renderCreateTableSql(table));
     }
   }
 
