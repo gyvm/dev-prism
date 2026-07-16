@@ -1,4 +1,4 @@
-import { copyExploreData } from "../web/explore-data.js";
+import { copyExploreData, DEFAULT_DWH_DIR, DEFAULT_OUT_DIR } from "../web/explore-data.js";
 
 // Copies the Explore-specific DWH subset into the public dir so the dev server /
 // build serves it for DuckDB-WASM to fetch (registerFileBuffer). The complete
@@ -6,7 +6,7 @@ import { copyExploreData } from "../web/explore-data.js";
 // Usage: npm run explore:data -- [--dwh-dir data/dwh] [--out src/web/public/data]
 
 function parseArgs(argv: readonly string[]): { dwhDir: string; outDir: string } {
-  const options = { dwhDir: "data/dwh", outDir: "src/web/public/data" };
+  const options = { dwhDir: DEFAULT_DWH_DIR, outDir: DEFAULT_OUT_DIR };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--dwh-dir") options.dwhDir = argv[++i] ?? options.dwhDir;

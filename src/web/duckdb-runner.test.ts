@@ -67,4 +67,21 @@ describe("fetchAllTableBuffers", () => {
     const results = await resultsPromise;
     expect(results.map((r) => r.table.name)).toEqual(exploreDwhTables.map((t) => t.name));
   });
+
+  it("aborts the still-pending fetches once one of them fails", async () => {
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal);
+      if (url.endsWith("/actors.parquet")) {
+        return new Response(null, { status: 500, statusText: "Internal Server Error" });
+      }
+      return new Promise<Response>(() => {}); // never settles: still in flight when actors fails
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchAllTableBuffers("/base/data")).rejects.toThrow("HTTP 500");
+
+    expect(signals).toHaveLength(exploreDwhTables.length);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
 });

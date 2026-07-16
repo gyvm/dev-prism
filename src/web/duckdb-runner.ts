@@ -1,5 +1,6 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 
+import { siteBase } from "./base-path.js";
 import type { DwhQueryRunner } from "../warehouse/runner.js";
 import {
   dwhTables,
@@ -41,9 +42,10 @@ type TableBufferResult = Readonly<
 export async function fetchTableBuffer(
   dataBase: string,
   table: DwhTableDefinition,
+  signal?: AbortSignal,
 ): Promise<TableBufferResult> {
   const fileName = `${table.name}.parquet`;
-  const response = await fetch(`${dataBase}/${fileName}`);
+  const response = await fetch(`${dataBase}/${fileName}`, { signal });
   if (response.ok) {
     return { table, kind: "buffer", fileName, bytes: new Uint8Array(await response.arrayBuffer()) };
   }
@@ -56,8 +58,19 @@ export async function fetchTableBuffer(
 }
 
 /** Fetches every Explore table's Parquet concurrently (order preserved in the result). */
-export function fetchAllTableBuffers(dataBase: string): Promise<TableBufferResult[]> {
-  return Promise.all(exploreDwhTables.map((table) => fetchTableBuffer(dataBase, table)));
+export async function fetchAllTableBuffers(dataBase: string): Promise<TableBufferResult[]> {
+  // Any one failure discards the whole load, so cancel the siblings still in
+  // flight rather than let multi-MB downloads run to completion for a result
+  // nobody will read.
+  const controller = new AbortController();
+  try {
+    return await Promise.all(
+      exploreDwhTables.map((table) => fetchTableBuffer(dataBase, table, controller.signal)),
+    );
+  } catch (error) {
+    controller.abort();
+    throw error;
+  }
 }
 
 function rowsFromArrow<T extends Record<string, unknown>>(table: {
@@ -82,13 +95,10 @@ function rowsFromArrow<T extends Record<string, unknown>>(table: {
  * not the current page, so it works regardless of which route Explore is served
  * from (e.g. `/explore/` under Astro) and respects the GitHub Pages project base
  * path (`/<repo>/`). Parquet is emitted at `<base>/data/*` by the build's
- * publicDir copy. BASE_URL is not guaranteed to end in "/" (e.g. "/dev-prism"
- * under web:build/preview), so normalize like Layout.astro does — without it
- * the data path degenerates to "<base>data" and every table 404s to empty.
+ * publicDir copy.
  */
 function defaultDataBase(): string {
-  const raw = import.meta.env.BASE_URL;
-  return `${raw.endsWith("/") ? raw : `${raw}/`}data`;
+  return `${siteBase()}data`;
 }
 
 export async function createWasmRunner(dataBase = defaultDataBase()): Promise<WasmRunner> {
