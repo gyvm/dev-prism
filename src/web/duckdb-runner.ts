@@ -113,10 +113,17 @@ export async function createWasmRunner(dataBase = defaultDataBase()): Promise<Wa
   const connection = await db.connect();
 
   const resultByTable = new Map(results.map((result) => [result.table.name, result]));
+  // Register every Parquet buffer concurrently: each is a local WASM-FS write
+  // with no network and no cross-table ordering, so serializing them only wasted
+  // worker round-trips. The DDL below still runs in schema order because it goes
+  // through the single connection, which DuckDB serializes regardless.
+  const buffers = results.filter(
+    (result): result is Extract<TableBufferResult, { kind: "buffer" }> => result.kind === "buffer",
+  );
+  await Promise.all(buffers.map((result) => db.registerFileBuffer(result.fileName, result.bytes)));
   for (const table of dwhTables) {
     const result = resultByTable.get(table.name);
     if (result?.kind === "buffer") {
-      await db.registerFileBuffer(result.fileName, result.bytes);
       await connection.query(
         `CREATE VIEW ${result.table.name} AS SELECT * FROM read_parquet('${result.fileName}')`,
       );
