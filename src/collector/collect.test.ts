@@ -74,6 +74,25 @@ describe("fetchRepositoryPullRequestPage", () => {
     ).rejects.toThrow(/403/);
   });
 
+  it("retries a transient 502 response", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(responseWith(502, {}, "Bad Gateway"))
+      .mockResolvedValueOnce(createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })));
+
+    await expect(
+      fetchRepositoryPullRequestPage({
+        q: "repo:openai/codex is:pr created:>=2026-01-01",
+        repoLabel: "openai/codex",
+        token: "token",
+        after: null,
+        fetchFn,
+      }),
+    ).resolves.toMatchObject({ nodes: [], pageInfo: { hasNextPage: false } });
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it("targets GITHUB_GRAPHQL_URL when set (GitHub Enterprise Server)", async () => {
     const original = process.env.GITHUB_GRAPHQL_URL;
     process.env.GITHUB_GRAPHQL_URL = "https://ghe.example.com/api/graphql";
@@ -164,6 +183,25 @@ describe("fetchRepositoryPullRequestPage", () => {
         fetchFn,
       }),
     ).rejects.toThrow(/not valid JSON/i);
+  });
+
+  it("retries a malformed JSON response", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("<html>error</html>", { status: 200 }))
+      .mockResolvedValueOnce(createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })));
+
+    await expect(
+      fetchRepositoryPullRequestPage({
+        q: "repo:openai/codex is:pr created:>=2026-01-01",
+        repoLabel: "openai/codex",
+        token: "token",
+        after: null,
+        fetchFn,
+      }),
+    ).resolves.toMatchObject({ nodes: [], pageInfo: { hasNextPage: false } });
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
   it("throws on malformed response structure", async () => {
@@ -800,7 +838,7 @@ describe("collectNormalizedPullRequests", () => {
 
     const fetchFn = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }))
+      .mockResolvedValueOnce(new Response("Bad Request", { status: 400 }))
       .mockResolvedValueOnce(responseWith(403, { "retry-after": "30" }));
 
     const result = await collectNormalizedPullRequests({
@@ -828,7 +866,7 @@ describe("collectNormalizedPullRequests", () => {
 
     const fetchFn = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response("Internal Server Error", { status: 500, statusText: "Internal Server Error" }))
+      .mockResolvedValueOnce(new Response("Bad Request", { status: 400, statusText: "Bad Request" }))
       .mockResolvedValueOnce(
         createJsonResponse(
           searchPayload(

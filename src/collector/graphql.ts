@@ -11,6 +11,8 @@ const MAX_PAGES = 100;
 // Runaway safety valve for child-connection pagination (per connection, per PR).
 // At 100 nodes/page this allows up to ~10k items before failing loudly.
 const MAX_CHILD_PAGES = 100;
+const MAX_TRANSIENT_ATTEMPTS = 3;
+const INITIAL_RETRY_DELAY_MS = 250;
 
 // Page sizes per connection. Shared between the main search query and the
 // node(id:) follow-up queries so both request the same window.
@@ -597,9 +599,55 @@ function isSecondaryRateLimit(response: Response): boolean {
   return response.status === 429 || (response.status === 403 && response.headers.has("retry-after"));
 }
 
+function isTransientHttpStatus(status: number): boolean {
+  return status === 408 || status >= 500;
+}
+
+function retryDelayMs(attempt: number): number {
+  return INITIAL_RETRY_DELAY_MS * 2 ** (attempt - 1);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class TransientGraphQLError extends CollectorError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "TransientGraphQLError";
+  }
+}
+
 // Low-level POST + error handling shared by the search query and all follow-up
 // node(id:) queries. Returns the GraphQL `data` payload (errors are thrown).
 async function postGraphQL(options: {
+  query: string;
+  variables: Record<string, unknown>;
+  repoLabel: string;
+  token: string;
+  fetchFn: typeof fetch;
+}): Promise<Record<string, unknown>> {
+  for (let attempt = 1; attempt <= MAX_TRANSIENT_ATTEMPTS; attempt += 1) {
+    try {
+      return await postGraphQLOnce(options);
+    } catch (error) {
+      if (!(error instanceof TransientGraphQLError) || attempt === MAX_TRANSIENT_ATTEMPTS) {
+        throw error;
+      }
+
+      const delay = retryDelayMs(attempt);
+      process.stderr.write(
+        `[retry] ${options.repoLabel}: ${error.message}; retrying in ${delay}ms ` +
+          `(attempt ${attempt + 1}/${MAX_TRANSIENT_ATTEMPTS})\n`,
+      );
+      await wait(delay);
+    }
+  }
+
+  throw new CollectorError(`GraphQL retries exhausted for ${options.repoLabel}`);
+}
+
+async function postGraphQLOnce(options: {
   query: string;
   variables: Record<string, unknown>;
   repoLabel: string;
@@ -621,7 +669,7 @@ async function postGraphQL(options: {
       }),
     });
   } catch (error) {
-    throw new CollectorError(
+    throw new TransientGraphQLError(
       `Network error while fetching pull requests for ${options.repoLabel}`,
       { cause: error },
     );
@@ -634,6 +682,11 @@ async function postGraphQL(options: {
         { scope: "secondary", resetAt: parseRateLimitReset(response.headers) },
       );
     }
+    if (isTransientHttpStatus(response.status)) {
+      throw new TransientGraphQLError(
+        `GraphQL request failed for ${options.repoLabel}: ${response.status} ${response.statusText}`,
+      );
+    }
     throw new CollectorError(
       `GraphQL request failed for ${options.repoLabel}: ${response.status} ${response.statusText}`,
     );
@@ -643,14 +696,14 @@ async function postGraphQL(options: {
   try {
     rawPayload = await response.json();
   } catch (error) {
-    throw new CollectorError(
+    throw new TransientGraphQLError(
       `Failed to parse GraphQL response for ${options.repoLabel}: response was not valid JSON`,
       { cause: error },
     );
   }
 
   if (!isGraphQLResponse(rawPayload)) {
-    throw new CollectorError(
+    throw new TransientGraphQLError(
       `GraphQL response for ${options.repoLabel} was not an object`,
     );
   }
