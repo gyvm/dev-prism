@@ -16,9 +16,11 @@ on:
         options: [patch, minor, major]
         default: minor
 
-# Needs write to push the bump commit and tags.
+# Needs contents:write to push tags and the bump branch, pull-requests:write to
+# open and merge the bump PR (main only accepts changes via PR — see below).
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: release
@@ -65,11 +67,12 @@ jobs:
           echo "version=${next}" >> "$GITHUB_OUTPUT"
           echo "major=${next%%.*}" >> "$GITHUB_OUTPUT"
 
-      - name: Bump, tag, and push
+      - name: Bump, tag, and land the bump via PR
         env:
           VERSION: ${{ steps.version.outputs.version }}
           MAJOR: ${{ steps.version.outputs.major }}
           BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -78,20 +81,52 @@ jobs:
           # Sync package.json/package-lock to the release version.
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           git add package.json package-lock.json
+          bumped=false
           if ! git diff --cached --quiet; then
             git commit -m "release: v${VERSION}"
+            bumped=true
           fi
 
           # Immutable release tag + force-moved floating major tag, both on the
           # (possibly just-created) commit. Push tags first so the release lands
-          # even if the branch push is blocked by protection.
+          # even if the branch reconciliation below fails.
           git tag -a "v${VERSION}" -m "v${VERSION}"
           git tag -f -a "v${MAJOR}" -m "v${MAJOR} (floating: latest v${MAJOR}.x)"
           git push origin "refs/tags/v${VERSION}"
           git push -f origin "refs/tags/v${MAJOR}"
 
-          # Best-effort: advance the branch with the bump commit. If main is
-          # protected, the tags above still define the release; reconcile
-          # package.json via a normal PR later.
-          git push origin "HEAD:${BRANCH}" || \
-            echo "::warning::Could not push the bump commit to ${BRANCH} (branch protection?). Tags were pushed; the release is valid."
+          # Advance the default branch with the bump commit. main only accepts
+          # changes through a pull request (repository ruleset), so land the bump
+          # via an auto-merged PR instead of a direct push. With 0 required
+          # approvals and no required checks, GITHUB_TOKEN can merge it itself —
+          # merging satisfies the "require a pull request" rule, so no bypass
+          # actor is needed. If anything below fails, the tags above still
+          # define the release.
+          if [ "$bumped" != true ]; then
+            echo "No version change to land on ${BRANCH}."
+            exit 0
+          fi
+
+          head="release/v${VERSION}"
+          # A non-default branch is outside the ruleset, so this push is allowed.
+          git push -f origin "HEAD:refs/heads/${head}"
+
+          gh pr create --base "${BRANCH}" --head "${head}" \
+            --title "release: v${VERSION}" \
+            --body "Automated version bump for v${VERSION}." || true
+
+          # Merge commit keeps the tagged commit's SHA on ${BRANCH} (squash is
+          # disabled for this repo). Mergeability is computed asynchronously, so
+          # retry briefly before giving up.
+          merged=false
+          for attempt in 1 2 3 4 5; do
+            if gh pr merge "${head}" --merge --delete-branch; then
+              merged=true
+              break
+            fi
+            echo "Bump PR not mergeable yet (attempt ${attempt}); retrying..."
+            sleep 5
+          done
+          if [ "$merged" != true ]; then
+            echo "::warning::Could not merge the bump PR (${head}) into ${BRANCH}. Tags were pushed; the release is valid. Merge ${head} manually to sync package.json."
+          fi
