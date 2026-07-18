@@ -1,6 +1,19 @@
-// Shared report/Explore CSS. Deps-free leaf so the browser (Explore) bundle can
-// import it without pulling in render.ts (which imports node:fs/path).
-export const PAGE_STYLES = `:root { color-scheme: light; --bg-default:#f7f9fc; --bg-muted:#eef3f8; --panel:#ffffff; --panel-subtle:#f5f8fb; --fg-default:#202733; --fg-muted:#586574; --fg-subtle:#728091; --border-default:#d6dee8; --border-muted:#e2e8f0; --accent-cyan:#0891b2; --accent-blue:#2563eb; --success:#1f8f5f; --attention:#b7791f; --danger:#c2413a; --timeline-rail:#eef3f8; --timeline-grid:rgba(88,101,116,.13); --tooltip-border:rgba(214,222,232,.95); --tooltip-bg:rgba(255,255,255,.98); --shadow:0 1px 2px rgba(32,39,51,.04), 0 8px 24px rgba(32,39,51,.06); --role-human:var(--accent-blue); --role-human-fill:rgba(37,99,235,.10); --role-human-line:rgba(37,99,235,.20); --role-bot:var(--attention); --role-bot-fill:rgba(183,121,31,.12); --role-bot-line:rgba(183,121,31,.24); }
+import { renderRootCss } from "../ui/tokens.js";
+
+// CSS for the frozen report, still shared with Explore.
+//
+// Explore's React charts deliberately reuse these class names (.timeline-row,
+// .bg-node, .metric-card) so both paths render the same visual language, so it
+// injects this whole sheet. Splitting out the genuinely shared rules is
+// deferred: `section`, `h2`, `.section-head` and `.empty` are used by charts
+// and report chrome alike, so the boundary needs its own change with a visual
+// diff on both paths. See docs/explore-views-plan.md.
+//
+// Deps-free leaf, transitively too — tokens.ts pulls in nothing — so it stays
+// importable from the browser bundle without dragging in render.tsx, which
+// imports node:fs/path. The :root block comes from src/ui/tokens.ts, the single
+// palette source.
+export const PAGE_STYLES = `${renderRootCss()}
 * { box-sizing:border-box; }
 body { margin:0; font-family:"Avenir Next", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background:var(--bg-default); color:var(--fg-default); line-height:1.5; }
 body::before { content:""; position:fixed; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(255,255,255,.58), rgba(255,255,255,0) 280px); }

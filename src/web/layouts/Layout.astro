@@ -1,4 +1,6 @@
 ---
+import { ClientRouter } from "astro:transitions";
+
 import "../../ui/theme.css";
 import { siteBase } from "../base-path.ts";
 import { sidebarHtml, SIDEBAR_STYLES, type SidebarActive } from "../shell/sidebar.ts";
@@ -25,6 +27,11 @@ const links = { reportsHref: `${base}reports/`, exploreHref: `${base}explore/`, 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    {/* Client-side navigation, so moving between Explore views swaps the body
+        without tearing down the JS realm. That is what lets the module-scope
+        DuckDB runner (duckdb-runner.ts) outlive the island remount and skip the
+        multi-second WASM boot. See docs/explore-views-plan.md D3. */}
+    <ClientRouter />
     <slot name="head" />
     <style is:global set:html={SIDEBAR_STYLES}></style>
   </head>

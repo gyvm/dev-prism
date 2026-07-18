@@ -144,3 +144,32 @@ export async function createWasmRunner(dataBase = defaultDataBase()): Promise<Wa
     },
   };
 }
+
+// Module-scope singleton so the multi-second WASM boot survives navigation.
+// Astro's <ClientRouter /> swaps the document body without tearing down the JS
+// realm ("bundled module scripts are only ever executed once ... window is
+// preserved"), so this module — and therefore the runner — outlives the island
+// remount that each navigation triggers. A full reload still re-boots, which is
+// accepted. Deliberately never closed: the runner is owned by the page session,
+// not by any component.
+let cached: Promise<WasmRunner> | null = null;
+
+/**
+ * The shared runner, booting it on first use.
+ *
+ * A rejected promise is evicted so a transient boot failure (offline, CDN
+ * hiccup) does not poison every later caller: `cached ??= createWasmRunner()`
+ * alone would memoize the rejection forever.
+ */
+export function getWasmRunner(): Promise<WasmRunner> {
+  cached ??= createWasmRunner().catch((error: unknown) => {
+    cached = null;
+    throw error;
+  });
+  return cached;
+}
+
+/** Drops the cached runner without closing it. For tests only. */
+export function resetWasmRunnerForTests(): void {
+  cached = null;
+}
