@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useMemo, useState } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 
 import type { queryReviewCorrelation } from "../../analyses/review-correlation/query.js";
 
@@ -22,10 +22,10 @@ import type { queryReviewCorrelation } from "../../analyses/review-correlation/q
 //
 // Unlike the IIFE, defaults are never "restored" via stashed
 // data-default-* attributes — they are simply recomputed from props/state
-// on every render, so there is nothing to leak or get out of sync. The
-// mouseover/mouseleave listeners are attached in useEffect and removed in
-// its cleanup (the IIFE never removed its listeners; see docs/explore-views-plan.md
-// Step 4 "現存するリークの解消").
+// on every render, so there is nothing to leak or get out of sync. Hover is
+// delegated through React's own onMouseOver/onMouseLeave on the root, so there
+// is no listener to unregister in the first place (the IIFE never removed its
+// listeners; see docs/explore-views-plan.md Step 4 "現存するリークの解消").
 
 type ReviewCorrelation = Awaited<ReturnType<typeof queryReviewCorrelation>>;
 type AuthorActivity = ReviewCorrelation["authors"][number];
@@ -269,7 +269,6 @@ function EdgesSvg({
 }
 
 export default function BipartiteGraph({ data }: { data: ReviewCorrelation }) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const columns = useMemo(() => buildColumns(data), [data]);
@@ -287,30 +286,20 @@ export default function BipartiteGraph({ data }: { data: ReviewCorrelation }) {
     [hoveredNodeId, visiblePairs, authorsById, reviewersById],
   );
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    function handleMouseOver(event: MouseEvent): void {
-      const target = event.target as Element | null;
-      const node = target?.closest<HTMLElement>(".bg-node[data-node-id]");
-      if (!node || !root!.contains(node)) return;
-      const nodeId = node.getAttribute("data-node-id");
-      if (!nodeId) return;
-      setHoveredNodeId((current) => (current === nodeId ? current : nodeId));
-    }
-
-    function handleMouseLeave(): void {
-      setHoveredNodeId(null);
-    }
-
-    root.addEventListener("mouseover", handleMouseOver);
-    root.addEventListener("mouseleave", handleMouseLeave);
-    return () => {
-      root.removeEventListener("mouseover", handleMouseOver);
-      root.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, []);
+  // Delegated hover, bound to the element rather than registered against a ref.
+  // The ref version had to live in an effect, and an effect with `[]` deps runs
+  // exactly once: a first render that took the empty-state early return below
+  // rendered no `bg-root`, so the ref was null and the listeners were skipped —
+  // permanently, even after a later filter brought data in and the div mounted.
+  // Handlers declared on the JSX cannot desynchronize from what is mounted.
+  function handleMouseOver(event: MouseEvent<HTMLDivElement>): void {
+    const target = event.target as Element | null;
+    const node = target?.closest<HTMLElement>(".bg-node[data-node-id]");
+    if (!node || !event.currentTarget.contains(node)) return;
+    const nodeId = node.getAttribute("data-node-id");
+    if (!nodeId) return;
+    setHoveredNodeId((current) => (current === nodeId ? current : nodeId));
+  }
 
   if (columns.authors.length === 0 && columns.reviewers.length === 0) {
     return (
@@ -346,11 +335,12 @@ export default function BipartiteGraph({ data }: { data: ReviewCorrelation }) {
         </div>
       </div>
       <div
-        ref={rootRef}
         className="bg-root"
         data-component="bipartite"
         data-hovered={hoveredNodeId ?? undefined}
         style={rootStyle}
+        onMouseOver={handleMouseOver}
+        onMouseLeave={() => setHoveredNodeId(null)}
       >
         <div className="bg-grid">
           <div className="bg-col bg-authors">
