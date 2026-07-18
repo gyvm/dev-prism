@@ -11,7 +11,7 @@ import react from "@astrojs/react";
 // needed there). `apply: "serve"` scopes this to the dev server — zero build
 // impact. report:dwh must have run first, same precondition as the gallery
 // index. Caveat: these are the last-baked reports, not live re-renders.
-const serveFrozenReports = {
+const serveFrozenReports = /** @type {import("vite").Plugin} */ ({
   name: "serve-frozen-reports",
   apply: "serve",
   /** @param {import("vite").ViteDevServer} server */
@@ -29,19 +29,19 @@ const serveFrozenReports = {
       res.end(readFileSync(filePath));
     });
   },
-};
+});
 
 // Astro preserves outDir so it does not delete CLI-generated reports. Its
 // publicDir copy is additive, though, which would leave a removed Parquet (for
 // example bodies.parquet) behind after a subsequent build. Clear only the
 // generated Explore data directory; reports remain untouched.
-const clearExploreData = {
+const clearExploreData = /** @type {import("vite").Plugin} */ ({
   name: "clear-explore-data",
   apply: "build",
   buildStart() {
     rmSync(resolve(process.cwd(), "dist/data"), { recursive: true, force: true });
   },
-};
+});
 
 // Astro shell for the gh-insights front-end (Reports gallery + Explore island).
 // The npm scripts invoke `astro --root src/web`, which sets the project root to
@@ -74,9 +74,11 @@ export default defineConfig({
     // Tailwind v4 + daisyUI run via @tailwindcss/postcss (postcss.config.mjs),
     // NOT @tailwindcss/vite: the Vite plugin is incompatible with Astro 6's
     // rolldown-vite (passes aliasOnly:true → "Missing field tsconfigPaths").
-    // See withastro/astro#16542. PostCSS processes the shared src/ui/theme.css
-    // imported in Layout.astro — the SAME token source the Node CLI report path
-    // consumes, so Explore and frozen reports cannot drift.
+    // See withastro/astro#16542. PostCSS processes src/ui/theme.css, imported
+    // in Layout.astro. That file styles the Explore shell only — the Node CLI
+    // report path does not consume it (an earlier claim here said otherwise).
+    // Both paths derive their palette from src/ui/tokens.ts; tokens.test.ts
+    // fails if theme.css drifts from it.
     //
     // duckdb-wasm ships its own workers/wasm; excluding it from dep
     // pre-bundling keeps Vite from mangling the worker URLs.

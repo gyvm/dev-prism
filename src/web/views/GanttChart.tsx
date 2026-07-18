@@ -1,0 +1,436 @@
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { createPortal } from "react-dom";
+
+import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
+import type { PrTimeline, TimelineAuxiliary, TimelineState } from "../../shared/types.js";
+
+/**
+ * Explore's PR timeline (gantt) chart.
+ *
+ * This is a from-scratch React port of src/renderers/gantt-chart.ts, not a
+ * refactor of it (docs/explore-views-plan.md D1/D2). The frozen-report
+ * renderer is left untouched and keeps emitting an HTML string plus an inline
+ * `<script>` IIFE for hover/tooltip behavior. That IIFE never unregisters the
+ * `window` scroll/blur listeners or the tooltip node it appends to
+ * `document.body` (see gantt-chart.ts comments) — it leaks on every re-run.
+ *
+ * This component reproduces the same visual output — same CSS classes and DOM
+ * shape, which PAGE_STYLES targets — and the same hover behavior (segment
+ * tooltip with aux details, repo/author hover highlighting), but as ordinary
+ * React state. The window listeners are registered and removed in a single
+ * `useEffect`, and the tooltip node is a portal that unmounts with the
+ * component. Nothing survives past the component's lifetime.
+ */
+
+const TIMELINE_STATES: readonly TimelineState[] = [
+  "implementing",
+  "wait_review",
+  "fixing",
+  "wait_merge",
+];
+
+const TIMELINE_STATE_LABELS: Record<TimelineState, string> = {
+  implementing: "実装中",
+  wait_review: "レビュー待ち",
+  fixing: "レビュー修正中",
+  wait_merge: "マージ待ち",
+};
+
+function clamp01(value: number): number {
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+function formatDayLabel(date: Date): string {
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
+}
+
+function formatDurationMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes}分`;
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const remainingMinutes = minutes % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (days === 0 && remainingMinutes > 0) parts.push(`${remainingMinutes}m`);
+  return `${minutes}分 (${parts.join("")})`;
+}
+
+function formatTimelinePoint(
+  value: string,
+  timezone: string,
+): Readonly<{ date: string; time: string }> {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: timezone,
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(value));
+
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? "";
+
+  return {
+    date: `${part("month")}/${part("day")}`,
+    time: `${part("hour")}:${part("minute")}`,
+  };
+}
+
+function formatTimelineDateTime(value: string, timezone: string): string {
+  const point = formatTimelinePoint(value, timezone);
+  return `${point.date} ${point.time}`;
+}
+
+function formatTimelineRange(startAt: string, endAt: string, timezone: string): string {
+  const start = formatTimelinePoint(startAt, timezone);
+  const end = formatTimelinePoint(endAt, timezone);
+  if (start.date === end.date) {
+    return `${start.time} - ${end.time}`;
+  }
+  return `${start.date} ${start.time} - ${end.date} ${end.time}`;
+}
+
+function buildStatusRow(
+  aux: TimelineAuxiliary,
+  timezone: string,
+): readonly [string, string] {
+  const fmt = (value: string): string => formatTimelineDateTime(value, timezone);
+  if (aux.closingState === "merged" && aux.mergedAt !== null) {
+    return ["状態", `マージ済み (${fmt(aux.mergedAt)})`];
+  }
+  if (aux.closingState === "closed_unmerged" && aux.closedAt !== null) {
+    return ["状態", `クローズ ${fmt(aux.closedAt)} ※未マージ`];
+  }
+  return ["状態", "オープン中"];
+}
+
+function buildAuxRows(
+  aux: TimelineAuxiliary,
+  timezone: string,
+): ReadonlyArray<readonly [string, string]> {
+  const fmt = (value: string | null): string =>
+    value === null ? "-" : formatTimelineDateTime(value, timezone);
+  const reaction =
+    aux.firstReaction === null
+      ? "-"
+      : `${formatTimelineDateTime(aux.firstReaction.at, timezone)} (@${aux.firstReaction.by})`;
+  return [
+    buildStatusRow(aux, timezone),
+    ["最初のコミット", fmt(aux.firstCommitAt)],
+    ["レビュー依頼時刻", fmt(aux.readyForReviewAt)],
+    ["最初のレビュー反応", reaction],
+    ["最初の承認", fmt(aux.firstApproveAt)],
+    ["承認回数", `${aux.approveCount} (うち取消 ${aux.dismissCount})`],
+    ["レビュー反応数", `${aux.reviewCommentCount}`],
+    ["承認後の追加コミット", `${aux.postApproveCommitCount}`],
+  ];
+}
+
+type SegmentBar = Readonly<{
+  state: TimelineState;
+  leftPct: number;
+  widthPct: number;
+  startAt: string;
+  endAt: string;
+  durationMinutes: number;
+  label: string;
+}>;
+
+type RowData = Readonly<{
+  key: string;
+  repoKey: string;
+  author: string | null;
+  ref: string;
+  url: string;
+  title: string;
+  closedUnmerged: boolean;
+  bars: readonly SegmentBar[];
+  auxRows: ReadonlyArray<readonly [string, string]>;
+}>;
+
+function buildRow(
+  timeline: PrTimeline,
+  weekStartMs: number,
+  weekDurationMs: number,
+  timezone: string,
+): RowData | null {
+  const bars: SegmentBar[] = [];
+  for (const segment of timeline.segments) {
+    const startMs = Date.parse(segment.startAt);
+    const endMs = Date.parse(segment.endAt);
+    const left = clamp01((startMs - weekStartMs) / weekDurationMs);
+    const right = clamp01((endMs - weekStartMs) / weekDurationMs);
+    const width = right - left;
+    if (width <= 0) continue;
+    const durationMinutes = Math.max(1, Math.round(segment.durationHours * 60));
+    const rangeLabel = formatTimelineRange(segment.startAt, segment.endAt, timezone);
+    bars.push({
+      state: segment.state,
+      leftPct: left * 100,
+      widthPct: Math.max(width * 100, 0.5),
+      startAt: segment.startAt,
+      endAt: segment.endAt,
+      durationMinutes,
+      label: `${rangeLabel} / ${formatDurationMinutes(durationMinutes)} / ${TIMELINE_STATE_LABELS[segment.state]}`,
+    });
+  }
+  if (bars.length === 0) return null;
+
+  const repoKey = `${timeline.repo.owner}/${timeline.repo.name}`;
+  return {
+    key: `${repoKey}#${timeline.number}`,
+    repoKey,
+    author: timeline.author,
+    ref: `${repoKey}#${timeline.number}`,
+    url: `https://github.com/${timeline.repo.owner}/${timeline.repo.name}/pull/${timeline.number}`,
+    title: timeline.title,
+    closedUnmerged: timeline.auxiliary.closingState === "closed_unmerged",
+    bars,
+    auxRows: buildAuxRows(timeline.auxiliary, timezone),
+  };
+}
+
+type HoveredFilter = Readonly<{ kind: "repo" | "author"; value: string }>;
+
+type TooltipState = Readonly<{
+  items: ReadonlyArray<Pick<SegmentBar, "state" | "label">>;
+  auxRows: ReadonlyArray<readonly [string, string]>;
+}>;
+
+function positionTooltip(el: HTMLDivElement | null, clientX: number, clientY: number): void {
+  if (!el) return;
+  const offset = 14;
+  const x = clientX + offset;
+  const y = clientY + offset;
+  const rect = el.getBoundingClientRect();
+  const maxX = window.innerWidth - rect.width - 10;
+  const maxY = window.innerHeight - rect.height - 10;
+  el.style.left = `${Math.max(10, Math.min(x, maxX))}px`;
+  el.style.top = `${Math.max(10, Math.min(y, maxY))}px`;
+}
+
+function EmptyState() {
+  return (
+    <section>
+      <h2>PRタイムライン</h2>
+      <p className="empty">今週のタイムラインデータはありません。</p>
+    </section>
+  );
+}
+
+export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: PrTimelineOutput) {
+  const [hoveredFilter, setHoveredFilter] = useState<HoveredFilter | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
+
+  // gantt-chart.ts's inline IIFE registers window scroll/blur listeners it
+  // never removes (docs/explore-views-plan.md Step 4 "現存するリークの解消").
+  // The effect cleanup below is the fix: mount/unmount is now symmetric.
+  useEffect(() => {
+    function hide(): void {
+      setTooltip(null);
+    }
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("blur", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("blur", hide);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!tooltip) return;
+    positionTooltip(tooltipRef.current, pointerRef.current.x, pointerRef.current.y);
+  }, [tooltip]);
+
+  if (timelines.length === 0) return <EmptyState />;
+
+  const weekStartMs = Date.parse(weekStart);
+  const weekEndMs = Date.parse(weekEnd);
+  const weekDurationMs = Math.max(weekEndMs - weekStartMs, 1);
+
+  const dayCount = 7;
+  const bucketMs = weekDurationMs / dayCount;
+  const axisLabels: string[] = [];
+  for (let i = 0; i < dayCount; i++) {
+    const midMs = weekStartMs + i * bucketMs + bucketMs / 2;
+    axisLabels.push(formatDayLabel(new Date(midMs)));
+  }
+
+  const rows = timelines
+    .map((timeline) => buildRow(timeline, weekStartMs, weekDurationMs, timezone))
+    .filter((row): row is RowData => row !== null);
+
+  if (rows.length === 0) return <EmptyState />;
+
+  const hasClosedUnmerged = rows.some((row) => row.closedUnmerged);
+
+  function handleTrackEnter(event: MouseEvent<HTMLDivElement>, row: RowData): void {
+    pointerRef.current = { x: event.clientX, y: event.clientY };
+    setTooltip({
+      items: row.bars.map((bar) => ({ state: bar.state, label: bar.label })),
+      auxRows: row.auxRows,
+    });
+  }
+  function handleTrackMove(event: MouseEvent<HTMLDivElement>): void {
+    pointerRef.current = { x: event.clientX, y: event.clientY };
+    positionTooltip(tooltipRef.current, event.clientX, event.clientY);
+  }
+  function handleTrackLeave(): void {
+    setTooltip(null);
+  }
+  function handleFilterEnter(kind: HoveredFilter["kind"], value: string): void {
+    setHoveredFilter((current) =>
+      current?.kind === kind && current.value === value ? current : { kind, value },
+    );
+  }
+  function handleListLeave(): void {
+    setHoveredFilter(null);
+    setTooltip(null);
+  }
+
+  return (
+    <section>
+      <div className="section-head">
+        <div>
+          <h2>PRタイムライン</h2>
+        </div>
+        <div className="timeline-legend" aria-label="Timeline legend">
+          {TIMELINE_STATES.map((state) => (
+            <span className="legend-item" key={state}>
+              <span className={`legend-swatch ${state}`} />
+              {TIMELINE_STATE_LABELS[state]}
+            </span>
+          ))}
+          {/* The string renderer also tags the item below
+              `legend-closed-unmerged`, a class no stylesheet defines. Dropped
+              here rather than carried over; `legend-swatch-closed` is what
+              actually styles it. */}
+          {hasClosedUnmerged && (
+            <span className="legend-item">
+              <span className="legend-swatch legend-swatch-closed" />
+              クローズ (未マージ)
+            </span>
+          )}
+        </div>
+      </div>
+      <div
+        className="timeline-list"
+        data-component="timeline"
+        data-hovered-filter={
+          hoveredFilter ? `${hoveredFilter.kind}:${hoveredFilter.value}` : undefined
+        }
+        onMouseLeave={handleListLeave}
+      >
+        <article className="timeline-row timeline-axis-row" aria-hidden="true">
+          <div className="timeline-meta">プルリクエスト</div>
+          <div className="timeline-track-wrap">
+            <div className="timeline-axis">
+              {axisLabels.map((label, i) => (
+                <span key={i}>{label}</span>
+              ))}
+            </div>
+          </div>
+        </article>
+        {rows.map((row) => {
+          const { author } = row;
+          const isActive =
+            hoveredFilter !== null &&
+            ((hoveredFilter.kind === "repo" && hoveredFilter.value === row.repoKey) ||
+              (hoveredFilter.kind === "author" &&
+                author !== null &&
+                hoveredFilter.value === author));
+          return (
+            <article
+              key={row.key}
+              className={`timeline-row${isActive ? " timeline-filter-active" : ""}`}
+              data-repo={row.repoKey}
+              data-author={author ?? undefined}
+              data-closed-unmerged={row.closedUnmerged ? "true" : undefined}
+              data-aux={JSON.stringify(row.auxRows)}
+            >
+              <div className="timeline-meta">
+                <span className="pr-title-line">
+                  <a className="pr-title" href={row.url} target="_blank" rel="noopener noreferrer">
+                    {row.title}
+                  </a>
+                  <span className="pr-author-prefix">by</span>
+                  {author === null ? (
+                    <span className="pr-author">作成者不明</span>
+                  ) : (
+                    <span
+                      className="pr-author"
+                      data-author={author}
+                      onMouseEnter={() => handleFilterEnter("author", author)}
+                    >
+                      @{author}
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="pr-ref"
+                  data-repo={row.repoKey}
+                  onMouseEnter={() => handleFilterEnter("repo", row.repoKey)}
+                >
+                  {row.ref}
+                </span>
+              </div>
+              <div className="timeline-track-wrap">
+                <div
+                  className="timeline-track"
+                  onMouseEnter={(event) => handleTrackEnter(event, row)}
+                  onMouseMove={handleTrackMove}
+                  onMouseLeave={handleTrackLeave}
+                >
+                  {row.bars.map((bar, i) => (
+                    <span
+                      key={i}
+                      className={`segment ${bar.state}`}
+                      style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%` }}
+                      data-state={bar.state}
+                      data-start={bar.startAt}
+                      data-end={bar.endAt}
+                      data-duration-minutes={bar.durationMinutes}
+                      data-label={bar.label}
+                    />
+                  ))}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {tooltip &&
+        createPortal(
+          <div className="timeline-tooltip" role="tooltip" ref={tooltipRef}>
+            <div className="timeline-tooltip-title">ステータス詳細</div>
+            <ol>
+              {tooltip.items.map((item, i) => (
+                <li key={i}>
+                  <span className={`timeline-tooltip-swatch ${item.state}`} />
+                  <span>{item.label}</span>
+                </li>
+              ))}
+            </ol>
+            {tooltip.auxRows.length > 0 && (
+              <dl>
+                {tooltip.auxRows.map(([label, value], i) => (
+                  <Fragment key={i}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            )}
+          </div>,
+          document.body,
+        )}
+    </section>
+  );
+}

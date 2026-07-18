@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 
 import { resolveScope, type Grain, type Scope } from "../../analyses/scope.js";
 import { scopeToSearchParams } from "../../analyses/scope-url.js";
-import { createWasmRunner, type WasmRunner } from "../duckdb-runner.js";
-import { buildExploreHtml, queryFilterOptions, scopeFromUrl } from "../explore.js";
+import { getWasmRunner } from "../duckdb-runner.js";
+import { queryFilterOptions, scopeFromUrl } from "../explore.js";
+import { VIEWS, type ViewId } from "../views/registry.js";
 import MultiSelect from "./MultiSelect.js";
 import PeriodPicker from "./PeriodPicker.js";
 
-// Client-only island port of the former vanilla `main.ts`. React owns the DOM
-// shell, the controlled filter state, and the pickers; the heavy lifting
-// (DuckDB-WASM runner, scope parsing, analyses, renderers) stays in the
-// framework-free modules above, preserving Reports/Explore parity.
+// One Explore view. The island is mounted per route (/explore/<view>/), so the
+// `view` prop is fixed for its lifetime — navigation remounts it. The DuckDB
+// runner deliberately does NOT live here: it is a module-scope singleton
+// (duckdb-runner.ts) so an Astro ClientRouter navigation reuses the booted WASM
+// instead of paying the multi-second boot again. See docs/explore-views-plan.md.
 
 type Draft = Readonly<{
   from: Date | null;
@@ -53,58 +55,42 @@ function dateLabel(date: Date | null): string {
   return date ? date.toISOString().slice(0, 10) : "—";
 }
 
-// The report renderers ship hover/tooltip behavior as inline <script> tags.
-// innerHTML does not execute them, so re-create each script element to run it.
-function activateScripts(root: HTMLElement): void {
-  for (const old of [...root.querySelectorAll("script")]) {
-    const fresh = document.createElement("script");
-    for (const attr of [...old.attributes]) fresh.setAttribute(attr.name, attr.value);
-    fresh.textContent = old.textContent;
-    old.replaceWith(fresh);
-  }
-}
-
-export default function Explore() {
+export default function Explore({ view }: { view: ViewId }) {
+  const definition = VIEWS[view];
   const [status, setStatus] = useState("DuckDB-WASM を起動中…");
+  const [content, setContent] = useState<ReactElement | null>(null);
   const [initialScope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
   const [draft, setDraft] = useState<Draft>(() => draftFromScope(initialScope));
   const [options, setOptions] = useState<Options>({ repos: [], users: [] });
-  const runnerRef = useRef<WasmRunner | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
   // Monotonic guard: a slower earlier run must not overwrite a newer one.
   const generation = useRef(0);
 
-  const run = useCallback(async (scope: Scope): Promise<void> => {
-    const runner = runnerRef.current;
-    if (!runner) return;
-    const gen = ++generation.current;
-    const query = scopeToSearchParams(scope).toString();
-    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
-    setStatus("集計中…");
-    try {
-      const html = await buildExploreHtml(runner, scope);
-      if (gen !== generation.current) return; // superseded by a later run
-      const el = resultsRef.current;
-      if (el) {
-        el.innerHTML = html;
-        activateScripts(el);
+  const run = useCallback(
+    async (scope: Scope): Promise<void> => {
+      const gen = ++generation.current;
+      const query = scopeToSearchParams(scope).toString();
+      window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+      setStatus("集計中…");
+      try {
+        const runner = await getWasmRunner();
+        const element = await definition.render(runner, scope);
+        if (gen !== generation.current) return; // superseded by a later run
+        setContent(element);
+        setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
+      } catch (error) {
+        if (gen === generation.current) setStatus(`エラー: ${errorMessage(error)}`);
       }
-      setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
-    } catch (error) {
-      if (gen === generation.current) setStatus(`エラー: ${errorMessage(error)}`);
-    }
-  }, []);
+    },
+    [definition],
+  );
 
-  // Boot the WASM runner once, then load filter options and run the initial scope.
+  // Boot (or reuse) the runner, then load filter options and run the initial
+  // scope. The runner is never closed here — it is owned by the page session.
   useEffect(() => {
     let disposed = false;
-    createWasmRunner()
-      .then(async (runner) => {
-        if (disposed) {
-          void runner.close();
-          return;
-        }
-        runnerRef.current = runner;
+    getWasmRunner()
+      .then((runner) => {
+        if (disposed) return;
         queryFilterOptions(runner)
           .then((loaded) => {
             if (!disposed) setOptions(loaded);
@@ -112,13 +98,13 @@ export default function Explore() {
           .catch(() => {
             /* options are a convenience; a failure should not block analyses */
           });
-        await run(scopeFromDraft(draftFromScope(initialScope)));
       })
-      .catch((error) => setStatus(`エラー: ${errorMessage(error)}`));
+      .catch(() => {
+        /* run() surfaces the boot error; don't double-report it here */
+      });
+    void run(scopeFromDraft(draftFromScope(initialScope)));
     return () => {
       disposed = true;
-      void runnerRef.current?.close();
-      runnerRef.current = null;
     };
     // Mount-only: run/initialScope are stable for the component's lifetime.
   }, [run, initialScope]);
@@ -136,7 +122,7 @@ export default function Explore() {
   return (
     <main className="explore-main">
       <header>
-        <h1>Explore</h1>
+        <h1>{definition.label}</h1>
         <form className="explore-filters" aria-label="フィルタ" onSubmit={onSubmit}>
           <PeriodPicker
             from={draft.from}
@@ -187,7 +173,7 @@ export default function Explore() {
         </form>
         <p className="explore-status" role="status">{status}</p>
       </header>
-      <div ref={resultsRef}></div>
+      {content}
     </main>
   );
 }

@@ -1,0 +1,33 @@
+---
+// /explore/ redirects to the default view. GitHub Pages is purely static (no
+// HTTP 3xx), so this uses the same client-side `<meta http-equiv="refresh">`
+// pattern as pages/index.astro rather than Astro.redirect() (which targets SSR).
+// Any filter query already on the URL is carried across by the inline script so
+// a shared /explore/?from=... permalink keeps its scope.
+import { DEFAULT_VIEW } from "../../views/registry.js";
+import { siteBase } from "../../base-path.ts";
+
+const base = siteBase();
+const target = `${base}explore/${DEFAULT_VIEW}/`;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <link rel="canonical" href={target} />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <title>Explore へ移動中…</title>
+    <script is:inline define:vars={{ target }}>
+      // Preserve the filter scope through the redirect. Runs before the meta
+      // refresh fires; replace() keeps this hop out of the back-button history.
+      if (window.location.search) {
+        window.location.replace(target + window.location.search);
+      }
+    </script>
+  </head>
+  <body>
+    <p>移動しない場合は <a href={target}>Explore</a> を開いてください。</p>
+  </body>
+</html>
