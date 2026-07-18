@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 
@@ -22,6 +22,8 @@ import type { PrTimeline, TimelineAuxiliary, TimelineState } from "../../shared/
  * `useEffect`, and the tooltip node is a portal that unmounts with the
  * component. Nothing survives past the component's lifetime.
  */
+
+const DAY_COUNT = 7;
 
 const TIMELINE_STATES: readonly TimelineState[] = [
   "implementing",
@@ -151,6 +153,11 @@ type RowData = Readonly<{
   closedUnmerged: boolean;
   bars: readonly SegmentBar[];
   auxRows: ReadonlyArray<readonly [string, string]>;
+  /** `auxRows` serialized for the `data-aux` attribute the string renderer also
+   *  emits. Nothing in this component reads it back — the tooltip is driven by
+   *  state — but the DOM shape is kept in parity with src/renderers/gantt-chart.ts.
+   *  Serialized here so it is paid once per data load, not once per hover. */
+  auxJson: string;
 }>;
 
 function buildRow(
@@ -182,6 +189,7 @@ function buildRow(
   if (bars.length === 0) return null;
 
   const repoKey = `${timeline.repo.owner}/${timeline.repo.name}`;
+  const auxRows = buildAuxRows(timeline.auxiliary, timezone);
   return {
     key: `${repoKey}#${timeline.number}`,
     repoKey,
@@ -191,7 +199,8 @@ function buildRow(
     title: timeline.title,
     closedUnmerged: timeline.auxiliary.closingState === "closed_unmerged",
     bars,
-    auxRows: buildAuxRows(timeline.auxiliary, timezone),
+    auxRows,
+    auxJson: JSON.stringify(auxRows),
   };
 }
 
@@ -249,24 +258,27 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
     positionTooltip(tooltipRef.current, pointerRef.current.x, pointerRef.current.y);
   }, [tooltip]);
 
-  if (timelines.length === 0) return <EmptyState />;
+  // Derived purely from the data props — but hover state (tooltip,
+  // hoveredFilter) re-renders this component on every pointer move across the
+  // list, and without the memo each of those renders re-parsed every segment's
+  // dates and built two Intl.DateTimeFormat instances per segment. That is
+  // data-load work, not pointer work.
+  const { axisLabels, rows } = useMemo(() => {
+    const weekStartMs = Date.parse(weekStart);
+    const weekEndMs = Date.parse(weekEnd);
+    const weekDurationMs = Math.max(weekEndMs - weekStartMs, 1);
+    const bucketMs = weekDurationMs / DAY_COUNT;
+    return {
+      axisLabels: Array.from({ length: DAY_COUNT }, (_, i) =>
+        formatDayLabel(new Date(weekStartMs + i * bucketMs + bucketMs / 2)),
+      ),
+      rows: timelines
+        .map((timeline) => buildRow(timeline, weekStartMs, weekDurationMs, timezone))
+        .filter((row): row is RowData => row !== null),
+    };
+  }, [weekStart, weekEnd, timezone, timelines]);
 
-  const weekStartMs = Date.parse(weekStart);
-  const weekEndMs = Date.parse(weekEnd);
-  const weekDurationMs = Math.max(weekEndMs - weekStartMs, 1);
-
-  const dayCount = 7;
-  const bucketMs = weekDurationMs / dayCount;
-  const axisLabels: string[] = [];
-  for (let i = 0; i < dayCount; i++) {
-    const midMs = weekStartMs + i * bucketMs + bucketMs / 2;
-    axisLabels.push(formatDayLabel(new Date(midMs)));
-  }
-
-  const rows = timelines
-    .map((timeline) => buildRow(timeline, weekStartMs, weekDurationMs, timezone))
-    .filter((row): row is RowData => row !== null);
-
+  // Subsumes the empty-`timelines` case: no timelines means no rows.
   if (rows.length === 0) return <EmptyState />;
 
   const hasClosedUnmerged = rows.some((row) => row.closedUnmerged);
@@ -353,7 +365,7 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
               data-repo={row.repoKey}
               data-author={author ?? undefined}
               data-closed-unmerged={row.closedUnmerged ? "true" : undefined}
-              data-aux={JSON.stringify(row.auxRows)}
+              data-aux={row.auxJson}
             >
               <div className="timeline-meta">
                 <span className="pr-title-line">
