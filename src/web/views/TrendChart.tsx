@@ -70,6 +70,20 @@ export default function TrendChart({
   const titleId = useId();
   const [hover, setHover] = useState<number | null>(null);
 
+  // A filter submit can swap `buckets` while the pointer still rests on the
+  // chart — a keyboard submit, or a preset button whose click path never
+  // crosses the SVG, so `onMouseLeave` never fires. Explore keeps the rendered
+  // element in state (islands/Explore.tsx), so this component is reconciled
+  // rather than remounted and `hover` would otherwise survive into data it no
+  // longer indexes. Resetting during render is React's recommended alternative
+  // to a useEffect for this; note it does not spare the pass below from a stale
+  // `hover`, which is why the lookup there is defensive too.
+  const [renderedBuckets, setRenderedBuckets] = useState(buckets);
+  if (renderedBuckets !== buckets) {
+    setRenderedBuckets(buckets);
+    setHover(null);
+  }
+
   const geometry = useMemo(() => {
     const max = axisMax(buckets.flatMap((b) => series.map((s) => b[s.key])));
     const plotW = VIEW_W - PAD.left - PAD.right;
@@ -93,7 +107,12 @@ export default function TrendChart({
   const { max, plotH, x, y } = geometry;
   // Keep the axis readable at any bucket count rather than printing every tick.
   const labelStride = Math.max(1, Math.ceil(buckets.length / 8));
-  const active = hover != null ? buckets[hover] : null;
+  // Defensive, not decorative: on the render pass where `buckets` has just
+  // shrunk, the reset above is queued but not yet applied, so `hover` can still
+  // point past the end. An out-of-range read has to drop the overlay — throwing
+  // inside render blanks the whole Explore island, which has no error boundary.
+  const hoveredBucket = hover == null ? undefined : buckets[hover];
+  const active = hover != null && hoveredBucket ? { index: hover, bucket: hoveredBucket } : null;
 
   // End labels sit at each line's final value, so converging series collide and
   // render as overlapping glyphs. Walk them top-down and push each down until it
@@ -166,12 +185,12 @@ export default function TrendChart({
           ) : null,
         )}
 
-        {hover != null && (
+        {active && (
           <line
             className="trend-crosshair"
-            x1={x(hover)}
+            x1={x(active.index)}
             y1={PAD.top}
-            x2={x(hover)}
+            x2={x(active.index)}
             y2={PAD.top + plotH}
           />
         )}
@@ -183,11 +202,11 @@ export default function TrendChart({
               points={buckets.map((b, i) => `${x(i)},${y(b[s.key])}`).join(" ")}
               stroke={s.color}
             />
-            {hover != null && (
+            {active && (
               <circle
                 className="trend-dot"
-                cx={x(hover)}
-                cy={y(buckets[hover]![s.key])}
+                cx={x(active.index)}
+                cy={y(active.bucket[s.key])}
                 r={5}
                 fill={s.color}
               />
@@ -226,8 +245,8 @@ export default function TrendChart({
 
       <p className="trend-readout" role="status">
         {active
-          ? `${formatBucket(active.bucket, grain)} — ${series
-              .map((s) => `${s.label} ${active[s.key]}`)
+          ? `${formatBucket(active.bucket.bucket, grain)} — ${series
+              .map((s) => `${s.label} ${active.bucket[s.key]}`)
               .join(" / ")}`
           : "グラフにカーソルを合わせると内訳が出ます。"}
       </p>
