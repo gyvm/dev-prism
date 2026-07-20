@@ -1,6 +1,7 @@
 import type { DoraMetrics } from "../../shared/types.js";
 import type { DwhQueryRunner } from "../../warehouse/query.js";
 import type { Scope } from "../scope.js";
+import { previousScope } from "../scope.js";
 import { inListFilter, timeRangeFilter } from "../scope-sql.js";
 
 // SQL-native DORA. Output matches the `DoraMetrics` view-model the metric-cards
@@ -59,5 +60,55 @@ export async function queryDora(runner: DwhQueryRunner, scope: Scope): Promise<D
     leadTimeForChangesHours: deploys === 0 ? null : row.p50_lead,
     changeFailureRatePercent: deploys === 0 ? null : (failureCount / deploys) * 100,
     mttrHours: failureCount === 0 ? null : row.mttr,
+  };
+}
+
+/** Absolute change (current − previous) per DORA metric; null when either side is null. */
+export type DoraDelta = Readonly<{
+  deploymentFrequency: number | null;
+  leadTimeForChangesHours: number | null;
+  changeFailureRatePercent: number | null;
+  mttrHours: number | null;
+}>;
+
+export type DoraComparison = Readonly<{
+  current: DoraMetrics;
+  previous: DoraMetrics | null; // null when the scope is unbounded on either side
+  delta: DoraDelta | null; // null when there is no comparable previous period
+}>;
+
+function diff(current: number | null, previous: number | null): number | null {
+  return current === null || previous === null ? null : current - previous;
+}
+
+function diffDora(current: DoraMetrics, previous: DoraMetrics): DoraDelta {
+  return {
+    deploymentFrequency: diff(current.deploymentFrequency, previous.deploymentFrequency),
+    leadTimeForChangesHours: diff(current.leadTimeForChangesHours, previous.leadTimeForChangesHours),
+    changeFailureRatePercent: diff(current.changeFailureRatePercent, previous.changeFailureRatePercent),
+    mttrHours: diff(current.mttrHours, previous.mttrHours),
+  };
+}
+
+/**
+ * DORA metrics for the current period plus the same-length immediately-preceding
+ * period (1-1b). Runs the unchanged `buildDoraSql` twice — once per scope — so it
+ * stays byte-for-byte parity-safe with the frozen report, and derives the prior
+ * window in TS via `previousScope`.
+ */
+export async function queryDoraComparison(
+  runner: DwhQueryRunner,
+  scope: Scope,
+): Promise<DoraComparison> {
+  const prevScope = previousScope(scope);
+  const [current, previous] = await Promise.all([
+    queryDora(runner, scope),
+    prevScope ? queryDora(runner, prevScope) : Promise.resolve(null),
+  ]);
+
+  return {
+    current,
+    previous,
+    delta: previous ? diffDora(current, previous) : null,
   };
 }

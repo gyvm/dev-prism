@@ -1,6 +1,6 @@
 import type { DwhQueryRunner } from "../../warehouse/query.js";
 import type { Scope } from "../scope.js";
-import { scopeTimestamp } from "../scope.js";
+import { previousScope, scopeTimestamp } from "../scope.js";
 import { botFilter, inListFilter } from "../scope-sql.js";
 import type {
   DevPrismPrCandidate,
@@ -95,14 +95,6 @@ function formatSignedHours(value: number | null): string {
   if (value === null) return "N/A";
   const sign = value > 0 ? "+" : "";
   return `${sign}${formatHours(value)}`;
-}
-
-function previousScope(scope: Scope): Scope | null {
-  if (scope.from === null || scope.to === null) return null;
-  const durationMs = scope.to.getTime() - scope.from.getTime();
-  const to = new Date(scope.from.getTime() - 1);
-  const from = new Date(to.getTime() - durationMs);
-  return { ...scope, from, to };
 }
 
 function activeWindowFilter(scope: Scope): string {

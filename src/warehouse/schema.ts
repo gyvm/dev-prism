@@ -273,6 +273,9 @@ const exploreDwhTableNames = [
   "pr_review_threads",
   "pr_review_comments",
   "pr_commits",
+  // Current open review-request snapshot — powers the aging page's "ball holder"
+  // (who a waiting PR is blocked on). Only actor references, no body text.
+  "pr_review_requests",
   "actors",
   "repos",
 ] as const;
