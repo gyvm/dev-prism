@@ -80,6 +80,23 @@ export const EXPLORE_STYLES = `
 .explore-ms__empty { padding: 8px 6px; color: var(--fg-subtle); font-size: 13px; }
 /* Clear the fixed sidebar toggle (top-left) so the heading is not covered. */
 .explore-main { max-width: 1100px; margin: 0 auto; padding: 56px 20px 48px; }
+/* DORA comparison cards (1-1b). Reuses .metric-grid/.metric-card/the four
+   metric-card-TONE accent colors from PAGE_STYLES (report parity); these
+   two rules are the delta/n addition that only exists in Explore. */
+.metric-card-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
+.metric-card-delta { margin: 6px 0 0; font-size: 12px; font-weight: 650; }
+.metric-card-delta-good { color: var(--success); }
+.metric-card-delta-bad { color: var(--danger); }
+.metric-card-delta-neutral { color: var(--fg-muted); }
+/* Cycle-time funnel (1-2): four stage cards, no aggregate total by design
+   (docs/explore-screens.md — p50s do not sum). */
+.cycle-funnel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.cycle-funnel-card { display: block; border: 1px solid var(--border-muted); border-radius: 8px; padding: 12px 13px; min-height: 96px; background: var(--panel); box-shadow: inset 0 1px 0 rgba(255,255,255,.72); color: inherit; text-decoration: none; transition: border-color .12s ease, background-color .12s ease; }
+a.cycle-funnel-card:hover, a.cycle-funnel-card:focus-visible { border-color: var(--accent-cyan); background: var(--panel-subtle); }
+a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outline-offset: 2px; }
+.cycle-funnel-label { display: block; color: var(--fg-muted); font-size: 13px; font-weight: 650; }
+.cycle-funnel-value { display: block; font-size: 22px; line-height: 1.15; margin: 13px 0 0; color: var(--accent-cyan); }
+.cycle-funnel-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
 /* Trend chart (Explore-only; the frozen report has no trend section).
    Marks stay thin and the grid recessive so the data reads first. */
 .trend { background: var(--panel); border: 1px solid var(--border-default); border-radius: 12px; padding: 20px; margin-top: 18px; }
@@ -102,6 +119,33 @@ export const EXPLORE_STYLES = `
 .trend-table table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 12px; }
 .trend-table th, .trend-table td { padding: 4px 8px; border-bottom: 1px solid var(--border-muted); text-align: right; }
 .trend-table thead th, .trend-table tbody th { text-align: left; color: var(--fg-muted); font-weight: 650; }
+
+/* Reviewless-merge card (2-1): a single .metric-card, narrower than the
+   4-across DORA grid, plus the note line for the "n / merged n" readout that
+   MetricCards' hover tooltip pattern doesn't need here (always visible). */
+.metric-grid-single { grid-template-columns: minmax(0, 240px); }
+.metric-card-reviewless { --metric-tone: var(--danger); }
+.metric-card-note { margin: 8px 0 0; color: var(--fg-muted); font-size: 12px; line-height: 1.4; }
+
+/* Size × pickup scatter (2-3). Grid/axis-tick/empty/readout/table classes are
+   shared with .trend-* (TrendChart) and .empty (PAGE_STYLES) — generic enough
+   to reuse verbatim; only the plot height and mark styling are scatter-specific. */
+.scatter-svg { display: block; width: 100%; height: 320px; overflow: visible; }
+.scatter-axis-label { fill: var(--fg-muted); font-size: 11px; font-weight: 650; }
+.scatter-point { fill: var(--accent-cyan); fill-opacity: .72; stroke: var(--panel); stroke-width: 1; transition: fill-opacity .1s ease, stroke .1s ease; }
+.scatter-point-active { fill-opacity: 1; stroke: var(--accent-blue); stroke-width: 1.5; }
+.scatter-point-link { cursor: pointer; }
+
+/* Reviewer lead-time bars (2-5). Bars are plain divs sized by %, the same
+   width-as-percentage idiom BipartiteGraph's .bg-bar uses, rather than another
+   SVG chart — there is no axis to share across rows, just a relative compare. */
+.reviewer-lead-list { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.reviewer-lead-row { display: grid; grid-template-columns: minmax(100px, 160px) minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.reviewer-lead-name { color: var(--fg-default); font-size: 13px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reviewer-lead-bar-wrap { position: relative; height: 14px; border-radius: 999px; background: var(--bg-muted); overflow: hidden; }
+.reviewer-lead-bar { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 999px; background: var(--accent-cyan); }
+.reviewer-lead-value { color: var(--fg-muted); font-size: 12px; white-space: nowrap; }
+.reviewer-lead-pending { color: var(--attention); font-weight: 650; }
 
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }

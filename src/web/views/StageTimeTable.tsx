@@ -1,0 +1,170 @@
+import type { CSSProperties } from "react";
+import { useMemo, useState } from "react";
+
+import { CYCLE_STAGE_KEYS } from "../../analyses/cycle-time/view-model.js";
+import type { CycleStageKey, PrStageTimes } from "../../analyses/cycle-time/view-model.js";
+import { formatHours } from "../../renderers/utils.js";
+
+// 3-2: stage-by-stage duration table, same data as GanttChart (3-1) in tabular
+// form. `initialSort` lands the funnel-card drilldown (docs/explore-screens.md
+// "ページ間の動線"); resolving the query parameter into that prop is the
+// caller's job, not this component's.
+
+type SortKey = CycleStageKey | "sizeLines" | "mergedAt" | "number";
+
+type SortState = Readonly<{ key: SortKey; desc: boolean }>;
+
+type Column = Readonly<{ key: SortKey; label: string; align?: "right" }>;
+
+const STAGE_LABELS: Readonly<Record<CycleStageKey, string>> = {
+  commit_to_open: "コミット→オープン",
+  open_to_review: "オープン→レビュー",
+  review_to_approve: "レビュー→アプルーブ",
+  approve_to_merge: "アプルーブ→マージ",
+};
+
+const COLUMNS: readonly Column[] = [
+  { key: "number", label: "PR" },
+  { key: "sizeLines", label: "変更行数", align: "right" },
+  ...CYCLE_STAGE_KEYS.map((key) => ({ key, label: STAGE_LABELS[key], align: "right" as const })),
+  { key: "mergedAt", label: "マージ日" },
+];
+
+const th: CSSProperties = {
+  textAlign: "left",
+  padding: "6px 10px",
+  whiteSpace: "nowrap",
+  borderBottom: "1px solid var(--border-default)",
+};
+
+const td: CSSProperties = {
+  padding: "6px 10px",
+  borderBottom: "1px solid var(--border-muted)",
+};
+
+function formatStageHours(hours: number | null): string {
+  return hours === null ? "—" : formatHours(hours);
+}
+
+function formatMergedDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Sort value for a column; null (missing stage data) always sorts last. */
+function sortValue(row: PrStageTimes, key: SortKey): number | null {
+  if (key === "number") return row.number;
+  if (key === "sizeLines") return row.sizeLines;
+  if (key === "mergedAt") return Date.parse(row.mergedAt);
+  const index = CYCLE_STAGE_KEYS.indexOf(key);
+  return row.stageHours[index] ?? null;
+}
+
+function compareRows(a: PrStageTimes, b: PrStageTimes, sort: SortState): number {
+  const av = sortValue(a, sort.key);
+  const bv = sortValue(b, sort.key);
+  if (av === null && bv === null) return 0;
+  if (av === null) return 1;
+  if (bv === null) return -1;
+  const diff = av - bv;
+  return sort.desc ? -diff : diff;
+}
+
+export default function StageTimeTable({
+  rows,
+  initialSort,
+}: {
+  rows: readonly PrStageTimes[];
+  initialSort?: Readonly<{ key: CycleStageKey | "sizeLines" | "mergedAt"; desc: boolean }>;
+}) {
+  // Deviation: no default sort is mandated by the spec, so an unsorted table
+  // defaults to "most recently merged first" — the same order a fresh load of
+  // 3-1's gantt chart reads in.
+  const [sort, setSort] = useState<SortState>(initialSort ?? { key: "mergedAt", desc: true });
+
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => compareRows(a, b, sort)),
+    [rows, sort],
+  );
+
+  function toggleSort(key: SortKey): void {
+    setSort((current) => (current.key === key ? { key, desc: !current.desc } : { key, desc: true }));
+  }
+
+  if (rows.length === 0) {
+    return (
+      <section>
+        <h2>ステージ別時間テーブル</h2>
+        <p className="empty">この期間のPRデータがありません。</p>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <h2>ステージ別時間テーブル</h2>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr>
+              {COLUMNS.map((col) => {
+                const isSorted = sort.key === col.key;
+                const ariaSort = isSorted ? (sort.desc ? "descending" : "ascending") : "none";
+                return (
+                  <th
+                    key={col.key}
+                    scope="col"
+                    aria-sort={ariaSort}
+                    style={{ ...th, textAlign: col.align ?? "left" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.key)}
+                      style={{
+                        all: "unset",
+                        cursor: "pointer",
+                        fontWeight: 650,
+                        color: "var(--fg-default)",
+                      }}
+                    >
+                      {col.label}
+                      {isSorted ? (sort.desc ? " ▼" : " ▲") : ""}
+                    </button>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map((row) => (
+              <tr key={`${row.repoKey}#${row.number}`}>
+                <td style={td}>
+                  {row.url ? (
+                    <a href={row.url} target="_blank" rel="noopener noreferrer">
+                      #{row.number} {row.title ?? "(無題)"}
+                    </a>
+                  ) : (
+                    <span>
+                      #{row.number} {row.title ?? "(無題)"}
+                    </span>
+                  )}
+                </td>
+                <td style={{ ...td, textAlign: "right" }}>{row.sizeLines}</td>
+                {row.stageHours.map((hours, i) => (
+                  <td key={i} style={{ ...td, textAlign: "right" }}>
+                    {formatStageHours(hours)}
+                  </td>
+                ))}
+                <td style={td}>{formatMergedDate(row.mergedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
