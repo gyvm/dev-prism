@@ -124,6 +124,12 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
    4-across DORA grid, plus the note line for the "n / merged n" readout that
    MetricCards' hover tooltip pattern doesn't need here (always visible). */
 .metric-grid-single { grid-template-columns: minmax(0, 240px); }
+/* 3 cards in the 4-column .metric-grid leave a hole; give aging its own count.
+   EXPLORE_STYLES is injected after PAGE_STYLES, so the base grid's media
+   queries lose to this rule — restate the collapse points here. */
+.metric-grid-triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 860px) { .metric-grid-triple { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .metric-grid-triple { grid-template-columns: 1fr; } }
 .metric-card-reviewless { --metric-tone: var(--danger); }
 .metric-card-note { margin: 8px 0 0; color: var(--fg-muted); font-size: 12px; line-height: 1.4; }
 
