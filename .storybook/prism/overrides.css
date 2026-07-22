@@ -109,7 +109,8 @@
 /* Approximate the candidate's vertical dashed grid. A gradient background cannot
    align exactly with bucket boundaries (PAD.left + variable bucket count),
    so this is a mood proxy for evaluation, not the final implementation. */
-:root.prism .trend-svg {
+:root.prism .trend-svg,
+:root.prism .scatter-svg {
   background-image: repeating-linear-gradient(
     to right,
     transparent 0,
@@ -117,6 +118,15 @@
     var(--border-muted) calc(100% / 12 - 1px),
     var(--border-muted) calc(100% / 12)
   );
+}
+
+/* Bars pick the amber accent up from the tokens; only soften their shape. */
+:root.prism .aging-histogram-bar {
+  border-radius: 8px 8px 0 0;
+}
+:root.prism .stage-table th,
+:root.prism .aging-table th {
+  border-bottom-color: var(--border-default);
 }
 
 /* NOTE kept for the evaluation review: the lead-time metric tone (#b7791f,

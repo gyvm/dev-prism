@@ -153,6 +153,35 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .reviewer-lead-value { color: var(--fg-muted); font-size: 12px; white-space: nowrap; }
 .reviewer-lead-pending { color: var(--attention); font-weight: 650; }
 
+/* Stage-time table (3-2) and aging table (4-2). Both are plain data tables
+   sharing the same chrome; only the header/cell text-align is per-column
+   (via [data-align], the same "leave the dynamic bit as a data attribute"
+   idiom aria-sort already uses here) and stays out of the shared rule. */
+.stage-table-wrap, .aging-table-wrap { overflow-x: auto; }
+.stage-table, .aging-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stage-table th, .aging-table th { text-align: left; padding: 6px 10px; white-space: nowrap; border-bottom: 1px solid var(--border-default); }
+.stage-table td, .aging-table td { padding: 6px 10px; border-bottom: 1px solid var(--border-muted); }
+.stage-table th[data-align="right"], .stage-table td[data-align="right"],
+.aging-table th[data-align="right"], .aging-table td[data-align="right"] { text-align: right; }
+.stage-table-sort-btn { all: unset; cursor: pointer; font-weight: 650; color: var(--fg-default); }
+
+/* Aging status badges (4-2). Tones are the existing DESIGN.md accents at low
+   alpha, expressed with color-mix() against transparent so the fill/border
+   stay derived from the token instead of a re-typed rgba() literal. */
+.aging-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; border: 1px solid transparent; }
+.aging-badge-draft { color: var(--fg-muted); background: color-mix(in srgb, var(--fg-subtle) 12%, transparent); border-color: color-mix(in srgb, var(--fg-subtle) 28%, transparent); }
+.aging-badge-awaiting_review { color: var(--attention); background: color-mix(in srgb, var(--attention) 12%, transparent); border-color: color-mix(in srgb, var(--attention) 28%, transparent); }
+.aging-badge-changes_requested { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: color-mix(in srgb, var(--danger) 28%, transparent); }
+.aging-badge-approved { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
+
+/* Aging histogram (4-3). Bar height % is per-bucket data, so it stays an
+   inline style; tone and typography move here. */
+.aging-histogram { display: flex; align-items: flex-end; gap: 16px; height: 160px; padding: 8px 4px 0; }
+.aging-histogram-col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.aging-histogram-count { font-size: 12px; color: var(--fg-muted); }
+.aging-histogram-bar { width: 100%; max-width: 56px; background: var(--accent-cyan); border-radius: 4px 4px 0 0; }
+.aging-histogram-label { font-size: 12px; color: var(--fg-subtle); }
+
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }
 .explore-tab { padding: 7px 14px; border: 1px solid transparent; border-radius: 8px 8px 0 0; color: var(--fg-muted); font-size: 13px; font-weight: 650; text-decoration: none; }

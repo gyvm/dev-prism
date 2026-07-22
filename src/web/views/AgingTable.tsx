@@ -1,38 +1,19 @@
-import type { CSSProperties } from "react";
-
 import type { AgingPr, AgingStatus, AgingTable as AgingTableData } from "../../analyses/aging/view-model.js";
 import { formatHours } from "../../renderers/utils.js";
 
 // 4-2: one row per open PR, in the order the caller supplies (age-descending
 // is the data layer's responsibility per docs/explore-screens.md 4-2 — this
 // component never re-sorts). Status badges use existing DESIGN.md tones
-// (cyan/blue/green/amber/red only, no purple) at low alpha rather than new
-// CSS classes, since page-styles.ts has no table/badge classes yet to reuse.
+// (cyan/blue/green/amber/red only, no purple) at low alpha via the
+// `.aging-badge-<status>` classes in explore-styles.ts, which derive their
+// fill/border from the same tokens with color-mix() rather than re-typing the
+// alpha as a literal rgba().
 
 const STATUS_LABELS: Readonly<Record<AgingStatus, string>> = {
   draft: "ドラフト",
   awaiting_review: "レビュー待ち",
   changes_requested: "変更依頼中",
   approved: "アプルーブ済み",
-};
-
-const STATUS_COLORS: Readonly<Record<AgingStatus, { fg: string; bg: string; border: string }>> = {
-  draft: { fg: "var(--fg-muted)", bg: "rgba(114,128,145,.12)", border: "rgba(114,128,145,.28)" },
-  awaiting_review: { fg: "var(--attention)", bg: "rgba(183,121,31,.12)", border: "rgba(183,121,31,.28)" },
-  changes_requested: { fg: "var(--danger)", bg: "rgba(194,65,58,.12)", border: "rgba(194,65,58,.28)" },
-  approved: { fg: "var(--success)", bg: "rgba(31,143,95,.12)", border: "rgba(31,143,95,.28)" },
-};
-
-const th: CSSProperties = {
-  textAlign: "left",
-  padding: "6px 10px",
-  whiteSpace: "nowrap",
-  borderBottom: "1px solid var(--border-default)",
-};
-
-const td: CSSProperties = {
-  padding: "6px 10px",
-  borderBottom: "1px solid var(--border-muted)",
 };
 
 // >=24h reads as days (spec example "3.2日"); under that, hours/minutes via
@@ -53,24 +34,7 @@ function formatUpdatedAt(iso: string): string {
 }
 
 function StatusBadge({ status }: { status: AgingStatus }) {
-  const palette = STATUS_COLORS[status];
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 650,
-        whiteSpace: "nowrap",
-        color: palette.fg,
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-      }}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
+  return <span className={`aging-badge aging-badge-${status}`}>{STATUS_LABELS[status]}</span>;
 }
 
 function PrCell({ pr }: { pr: AgingPr }) {
@@ -96,47 +60,35 @@ export default function AgingTable({ table }: { table: AgingTableData }) {
   return (
     <section>
       <h2>エイジングテーブル</h2>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div className="aging-table-wrap">
+        <table className="aging-table">
           <thead>
             <tr>
-              <th scope="col" style={th}>
-                PR タイトル
-              </th>
-              <th scope="col" style={th}>
-                リポジトリ
-              </th>
-              <th scope="col" style={th}>
-                作成者
-              </th>
-              <th scope="col" style={th}>
-                状態
-              </th>
-              <th scope="col" style={th}>
-                ボール保持者
-              </th>
-              <th scope="col" style={{ ...th, textAlign: "right" }}>
+              <th scope="col">PR タイトル</th>
+              <th scope="col">リポジトリ</th>
+              <th scope="col">作成者</th>
+              <th scope="col">状態</th>
+              <th scope="col">ボール保持者</th>
+              <th scope="col" data-align="right">
                 経過時間
               </th>
-              <th scope="col" style={th}>
-                最終更新
-              </th>
+              <th scope="col">最終更新</th>
             </tr>
           </thead>
           <tbody>
             {table.prs.map((pr) => (
               <tr key={`${pr.repoKey}#${pr.number}`}>
-                <td style={td}>
+                <td>
                   <PrCell pr={pr} />
                 </td>
-                <td style={td}>{pr.repoKey}</td>
-                <td style={td}>{pr.author ?? "—"}</td>
-                <td style={td}>
+                <td>{pr.repoKey}</td>
+                <td>{pr.author ?? "—"}</td>
+                <td>
                   <StatusBadge status={pr.status} />
                 </td>
-                <td style={td}>{pr.ballHolder ?? "—"}</td>
-                <td style={{ ...td, textAlign: "right" }}>{formatAge(pr.ageHours)}</td>
-                <td style={td}>{formatUpdatedAt(pr.updatedAt)}</td>
+                <td>{pr.ballHolder ?? "—"}</td>
+                <td data-align="right">{formatAge(pr.ageHours)}</td>
+                <td>{formatUpdatedAt(pr.updatedAt)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 
 import { CYCLE_STAGE_KEYS } from "../../analyses/cycle-time/view-model.js";
@@ -29,18 +28,6 @@ const COLUMNS: readonly Column[] = [
   ...CYCLE_STAGE_KEYS.map((key) => ({ key, label: STAGE_LABELS[key], align: "right" as const })),
   { key: "mergedAt", label: "マージ日" },
 ];
-
-const th: CSSProperties = {
-  textAlign: "left",
-  padding: "6px 10px",
-  whiteSpace: "nowrap",
-  borderBottom: "1px solid var(--border-default)",
-};
-
-const td: CSSProperties = {
-  padding: "6px 10px",
-  borderBottom: "1px solid var(--border-muted)",
-};
 
 function formatStageHours(hours: number | null): string {
   return hours === null ? "—" : formatHours(hours);
@@ -107,8 +94,8 @@ export default function StageTimeTable({
   return (
     <section>
       <h2>ステージ別時間テーブル</h2>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div className="stage-table-wrap">
+        <table className="stage-table">
           <thead>
             <tr>
               {COLUMNS.map((col) => {
@@ -119,17 +106,12 @@ export default function StageTimeTable({
                     key={col.key}
                     scope="col"
                     aria-sort={ariaSort}
-                    style={{ ...th, textAlign: col.align ?? "left" }}
+                    data-align={col.align === "right" ? "right" : undefined}
                   >
                     <button
                       type="button"
                       onClick={() => toggleSort(col.key)}
-                      style={{
-                        all: "unset",
-                        cursor: "pointer",
-                        fontWeight: 650,
-                        color: "var(--fg-default)",
-                      }}
+                      className="stage-table-sort-btn"
                     >
                       {col.label}
                       {isSorted ? (sort.desc ? " ▼" : " ▲") : ""}
@@ -142,7 +124,7 @@ export default function StageTimeTable({
           <tbody>
             {sortedRows.map((row) => (
               <tr key={`${row.repoKey}#${row.number}`}>
-                <td style={td}>
+                <td>
                   {row.url ? (
                     <a href={row.url} target="_blank" rel="noopener noreferrer">
                       #{row.number} {row.title ?? "(無題)"}
@@ -153,13 +135,13 @@ export default function StageTimeTable({
                     </span>
                   )}
                 </td>
-                <td style={{ ...td, textAlign: "right" }}>{row.sizeLines}</td>
+                <td data-align="right">{row.sizeLines}</td>
                 {row.stageHours.map((hours, i) => (
-                  <td key={i} style={{ ...td, textAlign: "right" }}>
+                  <td key={i} data-align="right">
                     {formatStageHours(hours)}
                   </td>
                 ))}
-                <td style={td}>{formatMergedDate(row.mergedAt)}</td>
+                <td>{formatMergedDate(row.mergedAt)}</td>
               </tr>
             ))}
           </tbody>

@@ -39,41 +39,20 @@ export default function AgingHistogram({ histogram }: { histogram: AgingHistogra
         aria-label={`経過時間帯別のオープンPR件数: ${counts
           .map((c) => `${c.bucket} ${c.count}件`)
           .join("、")}`}
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: 16,
-          height: 160,
-          padding: "8px 4px 0",
-        }}
+        className="aging-histogram"
       >
         {counts.map((c) => (
-          <div
-            key={c.bucket}
-            aria-hidden="true"
-            style={{
-              flex: "1 1 0",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 6,
-              height: "100%",
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>{c.count}</span>
+          <div key={c.bucket} aria-hidden="true" className="aging-histogram-col">
+            <span className="aging-histogram-count">{c.count}</span>
             <div
+              className="aging-histogram-bar"
               style={{
-                width: "100%",
-                maxWidth: 56,
                 // A zero count still gets a hairline so the bucket reads as
                 // "present, empty" rather than missing from the chart.
                 height: `${Math.max((c.count / max) * 100, c.count > 0 ? 2 : 0.5)}%`,
-                background: "var(--accent-cyan)",
-                borderRadius: "4px 4px 0 0",
               }}
             />
-            <span style={{ fontSize: 12, color: "var(--fg-subtle)" }}>{c.bucket}</span>
+            <span className="aging-histogram-label">{c.bucket}</span>
           </div>
         ))}
       </div>
