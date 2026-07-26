@@ -6,7 +6,6 @@ import Explore from "../../islands/Explore";
 import { PAGE_STYLES } from "../../../renderers/page-styles.js";
 import { EXPLORE_STYLES } from "../../shell/explore-styles.js";
 import { VIEW_IDS, VIEWS, resolveViewId } from "../../views/registry.js";
-import { siteBase } from "../../base-path.ts";
 
 // One static page per Explore view (/explore/<view>/). Navigation between them
 // goes through Astro's ClientRouter, which swaps the body without tearing down
@@ -25,7 +24,6 @@ export function getStaticPaths() {
 }
 
 const view = resolveViewId(Astro.params.view);
-const base = siteBase();
 
 // Preload the DuckDB-WASM module so the multi-MB download starts during HTML
 // parse instead of after the island's JS executes. getJsDelivrBundles() runs
@@ -51,39 +49,5 @@ const wasmModuleUrl = getJsDelivrBundles().eh.mainModule;
   <style is:global set:html={PAGE_STYLES}></style>
   <style is:global set:html={EXPLORE_STYLES}></style>
 
-  <nav class="explore-tabs" aria-label="ビュー">
-    {
-      VIEW_IDS.map((id) => (
-        <a
-          class:list={["explore-tab", { "is-active": id === view }]}
-          href={`${base}explore/${id}/`}
-          data-view={id}
-          aria-current={id === view ? "page" : undefined}
-        >
-          {VIEWS[id].label}
-        </a>
-      ))
-    }
-  </nav>
-
   <Explore client:only="react" view={view} />
 </Layout>
-
-<script>
-  // Carry the active filter scope across view links. The hrefs are static (the
-  // scope lives in the URL query, which only exists at runtime), so rewrite them
-  // at click time. Capture phase, so this runs before ClientRouter handles the
-  // navigation. Bound to `document`, which ClientRouter preserves — and bundled
-  // module scripts execute once per session, so this never double-binds.
-  document.addEventListener(
-    "click",
-    (event) => {
-      const target = event.target as HTMLElement | null;
-      const link = target?.closest?.("a[data-view]") as HTMLAnchorElement | null;
-      if (link && window.location.search) {
-        link.setAttribute("href", link.pathname + window.location.search);
-      }
-    },
-    true,
-  );
-</script>

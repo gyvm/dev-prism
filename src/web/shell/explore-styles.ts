@@ -25,8 +25,8 @@ export const EXPLORE_STYLES = `
 .explore-field { display: grid; gap: 3px; font-size: 12px; color: var(--fg-muted); }
 .explore-field input, .explore-field select { font-size: 13px; padding: 5px 7px; border: 1px solid var(--border-default); border-radius: 6px; }
 .explore-field input[type="checkbox"] { justify-self: start; width: 16px; height: 16px; }
-.explore-filters button[type="submit"] { align-self: flex-end; padding: 7px 16px; border: 0; border-radius: 6px; background: var(--accent-blue); color: var(--panel); font-size: 13px; font-weight: 650; cursor: pointer; }
-.explore-filters button[type="submit"]:hover { background: #1d4fd7; }
+.explore-filters button[type="submit"] { align-self: flex-end; padding: 7px 16px; border: 0; border-radius: 6px; background: var(--accent-cyan); color: var(--panel); font-size: 13px; font-weight: 650; cursor: pointer; }
+.explore-filters button[type="submit"]:hover { background: color-mix(in srgb, var(--accent-cyan) 85%, black); }
 .explore-status { color: var(--fg-muted); font-size: 13px; margin: 4px 0 0; }
 /* Period picker (presets + React Aria DateRangePicker) spans its own row. */
 .explore-period { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -80,6 +80,14 @@ export const EXPLORE_STYLES = `
 .explore-ms__empty { padding: 8px 6px; color: var(--fg-subtle); font-size: 13px; }
 /* Clear the fixed sidebar toggle (top-left) so the heading is not covered. */
 .explore-main { max-width: 1100px; margin: 0 auto; padding: 56px 20px 48px; }
+/* Basic, operational UI treatment for Explore only. PAGE_STYLES is also used
+   by generated reports, so keep this delta scoped to the interactive island. */
+body:has(.explore-main)::before { content: none; }
+.explore-main section { border-radius: 10px; box-shadow: none; }
+.explore-main .metric-card { border-top: 1px solid var(--border-muted); box-shadow: none; }
+.explore-main .metric-card:hover, .explore-main .metric-card:focus-visible { border-color: var(--border-default); border-top-color: var(--border-default); background: var(--panel-subtle); }
+.explore-main .bg-node { border-radius: 6px; background: var(--panel); }
+.explore-main .bg-root[data-hovered] .bg-node.bg-active { background: color-mix(in srgb, var(--accent-cyan) 8%, var(--panel)); box-shadow: none; }
 /* DORA comparison cards (1-1b). Reuses .metric-grid/.metric-card/the four
    metric-card-TONE accent colors from PAGE_STYLES (report parity); these
    two rules are the delta/n addition that only exists in Explore. */
@@ -91,7 +99,7 @@ export const EXPLORE_STYLES = `
 /* Cycle-time funnel (1-2): four stage cards, no aggregate total by design
    (docs/explore-screens.md — p50s do not sum). */
 .cycle-funnel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.cycle-funnel-card { display: block; border: 1px solid var(--border-muted); border-radius: 8px; padding: 12px 13px; min-height: 96px; background: var(--panel); box-shadow: inset 0 1px 0 rgba(255,255,255,.72); color: inherit; text-decoration: none; transition: border-color .12s ease, background-color .12s ease; }
+.cycle-funnel-card { display: block; border: 1px solid var(--border-muted); border-radius: 8px; padding: 12px 13px; min-height: 96px; background: var(--panel); box-shadow: none; color: inherit; text-decoration: none; transition: border-color .12s ease, background-color .12s ease; }
 a.cycle-funnel-card:hover, a.cycle-funnel-card:focus-visible { border-color: var(--accent-cyan); background: var(--panel-subtle); }
 a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outline-offset: 2px; }
 .cycle-funnel-label { display: block; color: var(--fg-muted); font-size: 13px; font-weight: 650; }
@@ -99,14 +107,15 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .cycle-funnel-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
 /* Trend chart (Explore-only; the frozen report has no trend section).
    Marks stay thin and the grid recessive so the data reads first. */
-.trend { background: var(--panel); border: 1px solid var(--border-default); border-radius: 12px; padding: 20px; margin-top: 18px; }
+.trend { background: var(--panel); border: 1px solid var(--border-default); border-radius: 10px; padding: 20px; margin-top: 18px; box-shadow: none; }
 .trend h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
 .trend-grain { color: var(--fg-subtle); font-size: 12px; font-weight: 600; }
 .trend-empty { color: var(--fg-muted); margin: 0; font-size: 13px; }
 .trend-legend { display: flex; gap: 14px; margin: 0 0 10px; padding: 0; list-style: none; color: var(--fg-muted); font-size: 12px; }
 .trend-legend li { display: flex; align-items: center; gap: 6px; }
 .trend-swatch { width: 10px; height: 10px; border-radius: 3px; }
-.trend-svg { display: block; width: 100%; height: 200px; overflow: visible; }
+.chart-scroll { overflow-x: auto; }
+.trend-svg { display: block; width: 100%; max-width: 960px; height: auto; aspect-ratio: 720 / 200; margin: 0 auto; overflow: visible; }
 .trend-grid { stroke: var(--border-muted); stroke-width: 1; }
 .trend-axis { fill: var(--fg-subtle); font-size: 10px; }
 .trend-crosshair { stroke: var(--border-default); stroke-width: 1; stroke-dasharray: 3 3; }
@@ -136,7 +145,7 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 /* Size × pickup scatter (2-3). Grid/axis-tick/empty/readout/table classes are
    shared with .trend-* (TrendChart) and .empty (PAGE_STYLES) — generic enough
    to reuse verbatim; only the plot height and mark styling are scatter-specific. */
-.scatter-svg { display: block; width: 100%; height: 320px; overflow: visible; }
+.scatter-svg { display: block; width: 100%; max-width: 960px; height: auto; aspect-ratio: 720 / 320; margin: 0 auto; overflow: visible; }
 .scatter-axis-label { fill: var(--fg-muted); font-size: 11px; font-weight: 650; }
 .scatter-point { fill: var(--accent-cyan); fill-opacity: .72; stroke: var(--panel); stroke-width: 1; transition: fill-opacity .1s ease, stroke .1s ease; }
 .scatter-point-active { fill-opacity: 1; stroke: var(--accent-blue); stroke-width: 1.5; }
@@ -184,10 +193,14 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }
-.explore-tab { padding: 7px 14px; border: 1px solid transparent; border-radius: 8px 8px 0 0; color: var(--fg-muted); font-size: 13px; font-weight: 650; text-decoration: none; }
+.explore-main .explore-tabs { max-width: none; margin: 0; padding: 20px 0 0; }
+.explore-tab { padding: 7px 14px; border: 1px solid transparent; border-radius: 6px; color: var(--fg-muted); font-size: 13px; font-weight: 650; text-decoration: none; }
 .explore-tab:hover { background: var(--bg-muted); color: var(--fg-default); }
-.explore-tab.is-active { border-color: var(--border-default); border-bottom-color: var(--panel); background: var(--panel); color: var(--accent-cyan); }
+.explore-tab.is-active { border-color: transparent; background: var(--panel-subtle); color: var(--accent-cyan); }
 .explore-tab:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
 /* The tabs own the top padding now, so the island's heading sits under them. */
 .explore-main { padding-top: 20px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
 `;

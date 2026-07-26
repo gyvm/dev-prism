@@ -131,13 +131,13 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
         </p>
       )}
 
-      <svg
-        className="scatter-svg"
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        role="img"
-        aria-labelledby={titleId}
-        preserveAspectRatio="none"
-      >
+      <div className="chart-scroll">
+        <svg
+          className="scatter-svg"
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          role="img"
+          aria-labelledby={titleId}
+        >
         {y.ticks.map((tick) => {
           const gy = yScale(tick);
           return (
@@ -210,7 +210,8 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
             <g key={pointKey(point)}>{circle}</g>
           );
         })}
-      </svg>
+        </svg>
+      </div>
 
       <p className="trend-readout" role="status">
         {tooltip

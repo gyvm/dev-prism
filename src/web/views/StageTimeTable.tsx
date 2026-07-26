@@ -29,6 +29,13 @@ const COLUMNS: readonly Column[] = [
   { key: "mergedAt", label: "マージ日" },
 ];
 
+const MERGED_DATE_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "UTC",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function formatStageHours(hours: number | null): string {
   return hours === null ? "—" : formatHours(hours);
 }
@@ -36,10 +43,7 @@ function formatStageHours(hours: number | null): string {
 function formatMergedDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return MERGED_DATE_FORMATTER.format(date);
 }
 
 /** Sort value for a column; null (missing stage data) always sorts last. */

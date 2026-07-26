@@ -59,11 +59,11 @@ export default function MultiSelect({ label, options, selected, onChange }: Prop
           <input
             className="explore-ms__search"
             type="text"
+            aria-label={`${label}を絞り込む`}
+            autoComplete="off"
             placeholder="絞り込み…"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            // eslint-disable-next-line jsx-a11y/no-autofocus
-            autoFocus
           />
           {selected.length > 0 && (
             <button type="button" className="explore-ms__clear" onClick={() => onChange([])}>

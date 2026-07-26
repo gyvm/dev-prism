@@ -16,6 +16,15 @@ const STATUS_LABELS: Readonly<Record<AgingStatus, string>> = {
   approved: "アプルーブ済み",
 };
 
+const UPDATED_AT_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "UTC",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 // >=24h reads as days (spec example "3.2日"); under that, hours/minutes via
 // the shared formatHours (e.g. "45分", "5.3h").
 function formatAge(hours: number): string {
@@ -26,11 +35,7 @@ function formatAge(hours: number): string {
 function formatUpdatedAt(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  const m = date.getUTCMonth() + 1;
-  const d = date.getUTCDate();
-  const hh = String(date.getUTCHours()).padStart(2, "0");
-  const mm = String(date.getUTCMinutes()).padStart(2, "0");
-  return `${m}/${d} ${hh}:${mm}`;
+  return UPDATED_AT_FORMATTER.format(date);
 }
 
 function StatusBadge({ status }: { status: AgingStatus }) {

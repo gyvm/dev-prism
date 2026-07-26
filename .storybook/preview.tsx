@@ -7,8 +7,8 @@ import { EXPLORE_STYLES } from "../src/web/shell/explore-styles.js";
 // Same stylesheet Layout.astro loads: Tailwind v4 + the `ghinsights` daisyUI
 // theme (default: true, so no data-theme attribute is needed).
 import "../src/ui/theme.css";
-// Prism candidate theme (design evaluation), active only while <html>
-// carries .prism — the shipped design is untouched (see .storybook/prism/).
+// Basic candidate theme used for visual comparison (see .storybook/prism/).
+// The adopted Explore-only rules live in EXPLORE_STYLES below.
 import "./prism/tokens.css";
 import "./prism/overrides.css";
 
@@ -26,20 +26,18 @@ document.head.appendChild(sheet);
 // scope (:root.prism) regardless of stylesheet order.
 function ThemeFrame({
   design,
-  mode,
+  fullPage,
   children,
 }: {
   design: string;
-  mode: string;
+  fullPage: boolean;
   children: React.ReactNode;
 }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("prism", design === "prism");
-    if (design === "prism") root.dataset.mode = mode;
-    else delete root.dataset.mode;
-  }, [design, mode]);
-  return <main>{children}</main>;
+  }, [design]);
+  return fullPage ? children : <main className="explore-main">{children}</main>;
 }
 
 const preview: Preview = {
@@ -54,29 +52,17 @@ const preview: Preview = {
         dynamicTitle: true,
         items: [
           { value: "current", title: "Current (shipped)" },
-          { value: "prism", title: "Prism (candidate)" },
-        ],
-      },
-    },
-    theme: {
-      description: "Color scheme (Prism design only — Current has no dark mode)",
-      toolbar: {
-        title: "Theme",
-        icon: "circlehollow",
-        dynamicTitle: true,
-        items: [
-          { value: "light", title: "Light" },
-          { value: "dark", title: "Dark" },
+          { value: "prism", title: "Basic (candidate)" },
         ],
       },
     },
   },
-  initialGlobals: { design: "current", theme: "light" },
+  initialGlobals: { design: "current" },
   decorators: [
     (Story, context) => (
       <ThemeFrame
         design={(context.globals.design as string) ?? "current"}
-        mode={(context.globals.theme as string) ?? "light"}
+        fullPage={context.parameters.explorePage === true}
       >
         <Story />
       </ThemeFrame>

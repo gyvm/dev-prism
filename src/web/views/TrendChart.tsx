@@ -33,7 +33,11 @@ export const TREND_COLORS = {
 
 const VIEW_W = 720;
 const VIEW_H = 200;
-const PAD = { top: 12, right: 64, bottom: 26, left: 40 } as const;
+// Reserve room for the direct series labels at the line ends. Activity labels
+// are short (作成 / マージ / レビュー / コメント), so 100px prevents clipping
+// without leaving the large blank gutter needed by the longer stage labels in
+// LeadTrendChart.
+const PAD = { top: 12, right: 100, bottom: 26, left: 40 } as const;
 
 const GRAIN_LABEL: Readonly<Record<Grain, string>> = {
   day: "日次",
@@ -41,12 +45,21 @@ const GRAIN_LABEL: Readonly<Record<Grain, string>> = {
   month: "月次",
 };
 
+const MONTH_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "UTC",
+  year: "numeric",
+  month: "numeric",
+});
+const DAY_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "UTC",
+  month: "numeric",
+  day: "numeric",
+});
+
 function formatBucket(iso: string, grain: Grain): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-  return grain === "month" ? `${date.getUTCFullYear()}/${month}` : `${month}/${day}`;
+  return (grain === "month" ? MONTH_FORMATTER : DAY_FORMATTER).format(date);
 }
 
 /** Nice-ish upper bound so the axis reads in round numbers. */
@@ -151,14 +164,14 @@ export default function TrendChart({
         ))}
       </ul>
 
-      <svg
-        className="trend-svg"
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        role="img"
-        aria-labelledby={titleId}
-        preserveAspectRatio="none"
-        onMouseLeave={() => setHover(null)}
-      >
+      <div className="chart-scroll">
+        <svg
+          className="trend-svg"
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          role="img"
+          aria-labelledby={titleId}
+          onMouseLeave={() => setHover(null)}
+        >
         {[0, 0.5, 1].map((ratio) => {
           const gy = PAD.top + plotH * (1 - ratio);
           return (
@@ -241,7 +254,8 @@ export default function TrendChart({
             onMouseEnter={() => setHover(index)}
           />
         ))}
-      </svg>
+        </svg>
+      </div>
 
       <p className="trend-readout" role="status">
         {active

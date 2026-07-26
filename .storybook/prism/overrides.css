@@ -1,66 +1,47 @@
-/* Prism candidate component overrides — Storybook evaluation only.
+/* Basic candidate component overrides — Storybook evaluation only.
    Rule: copy an existing PAGE_STYLES / EXPLORE_STYLES selector verbatim and
    prefix it with `:root.prism `. That adds 2 classes of specificity, so these
    win regardless of injection order (preview.tsx appends the shipped sheets
    at runtime, after this file is imported). */
 
-/* PAGE_STYLES paints a white wash over the top of the page (body::before) —
-   invisible on the shipped tinted background, an ugly gray band on the
-   candidate dark, pointless on its plain white. Remove it in both modes. */
+/* The basic candidate uses a flat report canvas. */
 :root.prism body::before {
   content: none;
 }
 
-/* --- Cards: kill borders and shadows, express depth via background steps,
-       large radii (card 32px, inner panel 24px). --- */
+/* --- Panels: borders and restrained radii make hierarchy legible without
+       the soft, oversized-card appearance of a generic SaaS dashboard. --- */
 :root.prism section {
   background: var(--panel);
-  border-color: transparent;
+  border-color: var(--border-default);
   border-radius: var(--prism-radius-card);
   box-shadow: none;
 }
-/* The shipped 2px tone border on top of each metric card arcs oddly around
-   a 24px radius; the candidate design keeps card surfaces plain, and the tone already
-   colours the numeral, so drop the border entirely here. */
 :root.prism .metric-card,
 :root.prism .cycle-funnel-card {
-  border-color: transparent;
+  border-color: var(--border-muted);
+  border-top: 1px solid var(--border-muted);
   border-radius: var(--prism-radius-panel);
-  background: var(--panel-subtle);
+  background: var(--panel);
   box-shadow: none;
 }
 :root.prism .metric-card:hover,
 :root.prism .metric-card:focus-visible {
-  border-color: transparent;
-  background: var(--bg-muted);
+  border-color: var(--border-default);
+  background: var(--panel-subtle);
 }
 :root.prism .dev-prism-candidate-group {
-  border-color: transparent;
+  border-color: var(--border-muted);
   border-radius: var(--prism-radius-panel);
-  background: var(--panel-subtle);
+  background: var(--panel);
 }
 :root.prism .bg-node {
-  border-color: transparent;
+  border-color: var(--border-muted);
   border-radius: var(--prism-radius-control);
-  background: var(--panel-subtle);
-}
-/* White highlight ring reads wrong on dark; ring in the panel colour. */
-:root.prism .bg-dot {
-  box-shadow: 0 0 0 3px var(--panel-subtle);
+  background: var(--panel);
 }
 
-/* --- Large numerals: big and thin (~350 weight). Needs the
-       variable font loaded via tokens.css to actually render at 350. --- */
-:root.prism .metric-card strong {
-  font-weight: 350;
-  font-size: 32px;
-}
-:root.prism .cycle-funnel-value {
-  font-weight: 350;
-  font-size: 28px;
-}
-
-/* --- Small controls: 12px radius, keep real borders for affordance. --- */
+/* --- Small controls: keep their familiar field-like affordance. --- */
 :root.prism .explore-preset,
 :root.prism .explore-field input,
 :root.prism .explore-field select {
@@ -82,8 +63,8 @@
   color: var(--accent-cyan);
 }
 
-/* --- Hover states with literal hexes in the shipped sheets: re-derive from
-       the accent so both modes work. --- */
+/* --- Hover states with literal hexes in the shipped sheets: derive from
+       the accent so the candidate remains internally consistent. --- */
 :root.prism .bg-root[data-hovered] .bg-node.bg-active {
   border-color: var(--accent-cyan);
   background: color-mix(in srgb, var(--accent-cyan) 8%, var(--panel));
@@ -94,36 +75,6 @@
   background: color-mix(in srgb, var(--accent-cyan) 6%, var(--panel));
 }
 
-/* --- Charts, CSS-reachable parts only (see plan: gradient area fills and
-       true vertical gridlines need JSX changes — phase 2). --- */
-:root.prism .trend-line {
-  stroke-width: 1.5;
-}
-:root.prism .trend-grid {
-  display: none;
-}
-:root.prism .trend-crosshair {
-  stroke: var(--border-default);
-  stroke-dasharray: 6 6;
-}
-/* Approximate the candidate's vertical dashed grid. A gradient background cannot
-   align exactly with bucket boundaries (PAD.left + variable bucket count),
-   so this is a mood proxy for evaluation, not the final implementation. */
-:root.prism .trend-svg,
-:root.prism .scatter-svg {
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(100% / 12 - 1px),
-    var(--border-muted) calc(100% / 12 - 1px),
-    var(--border-muted) calc(100% / 12)
-  );
-}
-
-/* Bars pick the amber accent up from the tokens; only soften their shape. */
-:root.prism .aging-histogram-bar {
-  border-radius: 8px 8px 0 0;
-}
 :root.prism .stage-table th,
 :root.prism .aging-table th {
   border-bottom-color: var(--border-default);

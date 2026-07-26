@@ -3,12 +3,11 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import type { StorybookConfig } from "@storybook/react-vite";
 
-// Storybook is the design workbench for Explore view components
-// (docs/explore-screens.md). Stories live next to the components in
-// src/web/views/ and feed view-model fixtures to presentational components —
-// DuckDB-WASM never runs here.
+// Storybook is the design workbench for Explore views and their shared controls
+// (docs/explore-screens.md). Stories feed fixtures to presentational components
+// — DuckDB-WASM never runs here.
 const config: StorybookConfig = {
-  stories: ["../src/web/views/**/*.stories.tsx"],
+  stories: ["../src/web/**/*.stories.tsx"],
   framework: "@storybook/react-vite",
   async viteFinal(config) {
     const { mergeConfig } = await import("vite");
