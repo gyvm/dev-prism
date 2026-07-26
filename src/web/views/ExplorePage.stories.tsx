@@ -1,13 +1,39 @@
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import type {
+  AgingHistogram as AgingHistogramData,
+  AgingPr,
+  AgingSummary,
+  AgingTable as AgingTableData,
+} from "../../analyses/aging/view-model.js";
+import type {
+  CycleFunnel as CycleFunnelData,
+  LeadTrend,
+  PrStageTimes,
+} from "../../analyses/cycle-time/view-model.js";
+import type { DoraComparison } from "../../analyses/dora-metrics/view-model.js";
 import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
+import type {
+  ReviewerLeadTimes,
+  ReviewlessMerges,
+  SizePickupScatter as SizePickupScatterData,
+} from "../../analyses/review-metrics/view-model.js";
 import type { Grain } from "../../analyses/scope.js";
-import { MetricCards } from "../../renderers/metric-cards.js";
 import type { ReviewCorrelation } from "../../shared/types.js";
 import ExploreFilters, { type ExploreFilterValue } from "../islands/ExploreFilters.js";
+import AgingHistogram from "./AgingHistogram.js";
+import AgingSummaryCards from "./AgingSummaryCards.js";
+import AgingTable from "./AgingTable.js";
 import BipartiteGraph from "./BipartiteGraph.js";
+import CycleFunnel from "./CycleFunnel.js";
+import DoraComparisonCards from "./DoraComparisonCards.js";
 import GanttChart from "./GanttChart.js";
+import LeadTrendChart from "./LeadTrendChart.js";
+import ReviewerLeadBars from "./ReviewerLeadBars.js";
+import ReviewlessMergeCard from "./ReviewlessMergeCard.js";
+import SizePickupScatter from "./SizePickupScatter.js";
+import StageTimeTable from "./StageTimeTable.js";
 import TrendChart, { TREND_COLORS } from "./TrendChart.js";
 
 const trendBuckets = [
@@ -25,6 +51,81 @@ function formatPeriod(from: Date | null, to: Date | null): string {
   const format = (date: Date | null) => date?.toISOString().slice(0, 10) ?? "—";
   return `${format(from)} 〜 ${format(to)}`;
 }
+
+// ── Flow (1-x) ──────────────────────────────────────────────────────────────
+
+const dora = {
+  current: {
+    deploymentFrequency: 16,
+    leadTimeForChangesHours: 21.4,
+    changeFailureRatePercent: 6.3,
+    mttrHours: 4.8,
+  },
+  previous: {
+    deploymentFrequency: 12,
+    leadTimeForChangesHours: 26.1,
+    changeFailureRatePercent: 6.3,
+    mttrHours: 7.0,
+  },
+  delta: {
+    deploymentFrequency: 4,
+    leadTimeForChangesHours: -4.7,
+    changeFailureRatePercent: 0,
+    mttrHours: -2.2,
+  },
+} satisfies DoraComparison;
+
+const cycleFunnel = {
+  stages: [
+    { stage: 1, key: "commit_to_open", p50Hours: 3.2, n: 24 },
+    { stage: 2, key: "open_to_review", p50Hours: 5.8, n: 24 },
+    { stage: 3, key: "review_to_approve", p50Hours: 12.4, n: 22 },
+    { stage: 4, key: "approve_to_merge", p50Hours: 1.1, n: 22 },
+  ],
+} satisfies CycleFunnelData;
+
+function leadBucket(
+  iso: string,
+  values: readonly [number, number, number, number],
+  n: readonly [number, number, number, number],
+) {
+  return { bucket: iso, stages: values.map((p50Hours, i) => ({ p50Hours, n: n[i]! })) };
+}
+
+const leadTrend = {
+  grain: "week",
+  buckets: [
+    leadBucket("2026-05-25T00:00:00Z", [3.1, 5.2, 11.0, 1.2], [12, 12, 11, 12]),
+    leadBucket("2026-06-01T00:00:00Z", [2.6, 6.8, 14.5, 0.9], [15, 15, 14, 15]),
+    leadBucket("2026-06-08T00:00:00Z", [4.0, 4.5, 9.2, 1.5], [9, 9, 8, 9]),
+    leadBucket("2026-06-15T00:00:00Z", [1.9, 7.1, 16.8, 1.0], [17, 17, 16, 17]),
+    leadBucket("2026-06-22T00:00:00Z", [3.4, 5.9, 12.1, 1.3], [11, 11, 10, 11]),
+    leadBucket("2026-06-29T00:00:00Z", [2.2, 8.4, 18.2, 0.7], [20, 20, 19, 20]),
+    leadBucket("2026-07-06T00:00:00Z", [5.1, 3.8, 7.4, 2.1], [6, 6, 6, 6]),
+    leadBucket("2026-07-13T00:00:00Z", [3.0, 6.2, 13.3, 1.1], [14, 14, 13, 14]),
+  ],
+} satisfies LeadTrend;
+
+// ── Review (2-x) ────────────────────────────────────────────────────────────
+
+const reviewless = { mergedCount: 42, reviewlessCount: 6, rate: 6 / 42 } satisfies ReviewlessMerges;
+
+const scatterPoints = [
+  { number: 101, title: "Fix typo in README", url: "https://github.com/gyvm/dev-prism/pull/101", repoKey: "gyvm/dev-prism", pickupHours: 0.5, sizeLines: 10 },
+  { number: 102, title: "Bump lockfile", url: "https://github.com/gyvm/dev-prism/pull/102", repoKey: "gyvm/dev-prism", pickupHours: 1.2, sizeLines: 25 },
+  { number: 103, title: "Add unit tests for scope filter", url: "https://github.com/gyvm/dev-prism/pull/103", repoKey: "gyvm/dev-prism", pickupHours: 3.5, sizeLines: 140 },
+  { number: 55, title: "Refactor warehouse runner", url: "https://github.com/gyvm/other-repo/pull/55", repoKey: "gyvm/other-repo", pickupHours: 6, sizeLines: 320 },
+  { number: 104, title: "Introduce aging query builder", url: "https://github.com/gyvm/dev-prism/pull/104", repoKey: "gyvm/dev-prism", pickupHours: 9, sizeLines: 480 },
+  { number: 106, title: "Rework Explore filter bar", url: "https://github.com/gyvm/dev-prism/pull/106", repoKey: "gyvm/dev-prism", pickupHours: 30, sizeLines: 1500 },
+  { number: 107, title: "Large data migration for pr_review_requests", url: "https://github.com/gyvm/dev-prism/pull/107", repoKey: "gyvm/dev-prism", pickupHours: 55, sizeLines: 2800 },
+  { number: 57, title: "Vendor upgrade + regenerate of generated clients", url: "https://github.com/gyvm/other-repo/pull/57", repoKey: "gyvm/other-repo", pickupHours: 100, sizeLines: 5000 },
+];
+
+const scatter = {
+  points: scatterPoints,
+  totalMatched: scatterPoints.length,
+  truncated: false,
+} satisfies SizePickupScatterData;
 
 const reviewCorrelation = {
   authors: [
@@ -45,6 +146,19 @@ const reviewCorrelation = {
     { author: "automation-bot", reviewer: "reviewer-bot", count: 5 },
   ],
 } satisfies ReviewCorrelation;
+
+const reviewerLead = {
+  reviewers: [
+    { reviewer: "hoshino", p50Hours: 2.5, respondedCount: 14, pendingCount: 0 },
+    { reviewer: "kaede", p50Hours: 18, respondedCount: 9, pendingCount: 2 },
+    { reviewer: "reviewer-bot", p50Hours: 0.3, respondedCount: 40, pendingCount: 0 },
+    { reviewer: "tsukishima", p50Hours: null, respondedCount: 0, pendingCount: 3 },
+    { reviewer: "amamiya", p50Hours: 6.5, respondedCount: 11, pendingCount: 1 },
+    { reviewer: "nagi", p50Hours: 40, respondedCount: 3, pendingCount: 0 },
+  ],
+} satisfies ReviewerLeadTimes;
+
+// ── Timeline (3-x) ──────────────────────────────────────────────────────────
 
 const timeline = {
   weekStart: "2026-07-13T00:00:00.000Z",
@@ -128,8 +242,54 @@ const timeline = {
   ],
 } satisfies PrTimelineOutput;
 
+const stageTimes: readonly PrStageTimes[] = [
+  { number: 512, title: "Add page-level Explore stories", url: "https://github.com/gyvm/dev-prism/pull/512", repoKey: "gyvm/dev-prism", sizeLines: 84, stageHours: [2.1, 5.4, 1.2, 0.8], mergedAt: "2026-07-15T22:00:00Z" },
+  { number: 498, title: "Rework aging status derivation", url: "https://github.com/gyvm/dev-prism/pull/498", repoKey: "gyvm/dev-prism", sizeLines: 412, stageHours: [18.6, 40.2, 6.5, 3.2], mergedAt: "2026-07-12T15:05:00Z" },
+  { number: 493, title: "Fix flaky DuckDB-WASM parquet load in CI", url: "https://github.com/gyvm/dev-prism/pull/493", repoKey: "gyvm/dev-prism", sizeLines: 26, stageHours: [0.4, 1.1, null, 0.3], mergedAt: "2026-07-11T08:20:00Z" },
+  { number: 60, title: "Large migration: split warehouse schema", url: "https://github.com/gyvm/other-repo/pull/60", repoKey: "gyvm/other-repo", sizeLines: 2140, stageHours: [64.0, 92.5, 30.1, 8.4], mergedAt: "2026-07-09T11:00:00Z" },
+];
+
+// ── Wip (4-x) ───────────────────────────────────────────────────────────────
+
+const agingSummary = {
+  openCount: 14,
+  awaitingReviewCount: 6,
+  oldestAgeDays: 21.7,
+} satisfies AgingSummary;
+
+const agingPrs: readonly AgingPr[] = [
+  { number: 512, title: "Investigate flaky nightly build", url: "https://github.com/gyvm/dev-prism/pull/512", repoKey: "gyvm/dev-prism", author: "hoshino", status: "awaiting_review", ballHolder: "amamiya", ageHours: 520.4, createdAt: "2026-07-01T03:00:00Z", updatedAt: "2026-07-18T09:00:00Z" },
+  { number: 507, title: "Draft: exploratory bulk-import rewrite", url: "https://github.com/gyvm/dev-prism/pull/507", repoKey: "gyvm/dev-prism", author: "kaede", status: "draft", ballHolder: "kaede", ageHours: 340.5, createdAt: "2026-07-08T02:00:00Z", updatedAt: "2026-07-20T14:00:00Z" },
+  { number: 503, title: "Address review feedback on scope-sql helper", url: "https://github.com/gyvm/dev-prism/pull/503", repoKey: "gyvm/dev-prism", author: "nagi", status: "changes_requested", ballHolder: "nagi", ageHours: 96.2, createdAt: "2026-07-18T10:00:00Z", updatedAt: "2026-07-21T18:30:00Z" },
+  { number: 499, title: "Approved, waiting for a maintainer to merge", url: "https://github.com/gyvm/other-repo/pull/499", repoKey: "gyvm/other-repo", author: "amamiya", status: "approved", ballHolder: "amamiya", ageHours: 40.0, createdAt: "2026-07-20T08:00:00Z", updatedAt: "2026-07-22T02:00:00Z" },
+  { number: 495, title: "Small fix, no reviewer assigned yet", url: "https://github.com/gyvm/dev-prism/pull/495", repoKey: "gyvm/dev-prism", author: null, status: "awaiting_review", ballHolder: null, ageHours: 2.3, createdAt: "2026-07-22T21:00:00Z", updatedAt: "2026-07-22T21:40:00Z" },
+];
+
+const agingTable = { prs: agingPrs } satisfies AgingTableData;
+
+const agingHistogram = {
+  buckets: [
+    { bucket: "<1d", count: 2 },
+    { bucket: "1-3d", count: 3 },
+    { bucket: "3-7d", count: 4 },
+    { bucket: "7-14d", count: 3 },
+    { bucket: "14d+", count: 2 },
+  ],
+} satisfies AgingHistogramData;
+
+// ── Page shell ──────────────────────────────────────────────────────────────
+
+type PageView = "flow" | "review" | "timeline" | "wip";
+
+const TABS: readonly { id: PageView; label: string }[] = [
+  { id: "flow", label: "フロー" },
+  { id: "review", label: "レビュー" },
+  { id: "timeline", label: "タイムライン" },
+  { id: "wip", label: "滞留" },
+];
+
 /**
- * A fixture-backed composition of the actual Flow route. DuckDB-WASM stays
+ * A fixture-backed composition of the actual Explore routes. DuckDB-WASM stays
  * out of Storybook, while the page chrome and interactive filter controls use
  * the exact components and classes from Explore.
  */
@@ -137,7 +297,7 @@ function ExplorePage({
   view,
   children,
 }: {
-  view: "flow" | "review" | "timeline";
+  view: PageView;
   children: (grain: Grain) => ReactNode;
 }) {
   const [filters, setFilters] = useState<ExploreFilterValue>({
@@ -168,36 +328,25 @@ function ExplorePage({
           onChange={setFilters}
           onPreset={applyFilters}
           onSubmit={() => applyFilters(filters)}
+          // Same expression Explore.tsx uses, so the disabled state previews for real.
+          timeControlsDisabled={view === "wip"}
         />
         <p className="explore-status" role="status" aria-live="polite">
           {status}
         </p>
       </header>
       <nav className="explore-tabs" aria-label="ビュー">
-        <a
-          className={view === "flow" ? "explore-tab is-active" : "explore-tab"}
-          href="#flow"
-          aria-current={view === "flow" ? "page" : undefined}
-          onClick={(event) => event.preventDefault()}
-        >
-          フロー
-        </a>
-        <a
-          className={view === "review" ? "explore-tab is-active" : "explore-tab"}
-          href="#review"
-          aria-current={view === "review" ? "page" : undefined}
-          onClick={(event) => event.preventDefault()}
-        >
-          レビュー
-        </a>
-        <a
-          className={view === "timeline" ? "explore-tab is-active" : "explore-tab"}
-          href="#timeline"
-          aria-current={view === "timeline" ? "page" : undefined}
-          onClick={(event) => event.preventDefault()}
-        >
-          PR個別
-        </a>
+        {TABS.map((tab) => (
+          <a
+            key={tab.id}
+            className={view === tab.id ? "explore-tab is-active" : "explore-tab"}
+            href={`#${tab.id}`}
+            aria-current={view === tab.id ? "page" : undefined}
+            onClick={(event) => event.preventDefault()}
+          >
+            {tab.label}
+          </a>
+        ))}
       </nav>
       {children(filters.grain)}
     </main>
@@ -209,14 +358,12 @@ function ExploreFlowPage() {
     <ExplorePage view="flow">
       {(grain) => (
         <>
-          <MetricCards
-            dora={{
-              deploymentFrequency: 16,
-              leadTimeForChangesHours: 21.4,
-              changeFailureRatePercent: 6.3,
-              mttrHours: 4.8,
-            }}
+          <DoraComparisonCards comparison={dora} />
+          <CycleFunnel
+            funnel={cycleFunnel}
+            stageHref={(key) => `/explore/timeline/?sort=${key}&dir=desc`}
           />
+          <LeadTrendChart trend={leadTrend} />
           <TrendChart
             title="PR 件数の推移"
             buckets={trendBuckets}
@@ -237,6 +384,7 @@ function ExploreReviewPage() {
     <ExplorePage view="review">
       {(grain) => (
         <>
+          <ReviewlessMergeCard data={reviewless} />
           <TrendChart
             title="レビュー・コメント件数の推移"
             buckets={trendBuckets}
@@ -246,7 +394,9 @@ function ExploreReviewPage() {
               { key: "comments", label: "コメント", color: TREND_COLORS.comments },
             ]}
           />
+          <SizePickupScatter scatter={scatter} />
           <BipartiteGraph data={reviewCorrelation} />
+          <ReviewerLeadBars data={reviewerLead} />
         </>
       )}
     </ExplorePage>
@@ -256,7 +406,27 @@ function ExploreReviewPage() {
 function ExploreTimelinePage() {
   return (
     <ExplorePage view="timeline">
-      {() => <GanttChart {...timeline} />}
+      {() => (
+        <>
+          <GanttChart {...timeline} />
+          {/* As the flow funnel's drilldown lands it: sorted by open→review, longest first. */}
+          <StageTimeTable rows={stageTimes} initialSort={{ key: "open_to_review", desc: true }} />
+        </>
+      )}
+    </ExplorePage>
+  );
+}
+
+function ExploreWipPage() {
+  return (
+    <ExplorePage view="wip">
+      {() => (
+        <>
+          <AgingSummaryCards summary={agingSummary} />
+          <AgingTable table={agingTable} />
+          <AgingHistogram histogram={agingHistogram} />
+        </>
+      )}
     </ExplorePage>
   );
 }
@@ -276,3 +446,4 @@ type Story = StoryObj<typeof meta>;
 export const Flow: Story = {};
 export const Review: Story = { render: () => <ExploreReviewPage /> };
 export const Timeline: Story = { render: () => <ExploreTimelinePage /> };
+export const Wip: Story = { render: () => <ExploreWipPage /> };

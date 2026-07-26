@@ -5,6 +5,7 @@ import type { DwhQueryRunner } from "../../warehouse/runner.js";
 import { renderFlowView } from "./FlowView.js";
 import { renderReviewView } from "./ReviewView.js";
 import { renderTimelineView } from "./TimelineView.js";
+import { renderWipView } from "./WipView.js";
 
 /**
  * The Explore views. Adding an insight means adding one entry here plus its
@@ -15,7 +16,18 @@ import { renderTimelineView } from "./TimelineView.js";
  * types; the alternative (a generic `{load, Component}` pair) leaks a type
  * parameter into every consumer for no gain.
  */
-export type ViewRenderer = (runner: DwhQueryRunner, scope: Scope) => Promise<ReactElement>;
+/**
+ * `now` is the reference instant for views that ask about the present rather
+ * than a window (the wip backlog). It is passed in rather than read inside a
+ * view so the query layer stays deterministic and testable — the aging queries
+ * already take an explicit `now`, and calling `new Date()` one level up would
+ * hand that determinism straight back.
+ */
+export type ViewRenderer = (
+  runner: DwhQueryRunner,
+  scope: Scope,
+  now: Date,
+) => Promise<ReactElement>;
 
 export type ViewDefinition = Readonly<{
   id: ViewId;
@@ -23,7 +35,7 @@ export type ViewDefinition = Readonly<{
   render: ViewRenderer;
 }>;
 
-export const VIEW_IDS = ["flow", "review", "timeline"] as const;
+export const VIEW_IDS = ["flow", "review", "timeline", "wip"] as const;
 
 export type ViewId = (typeof VIEW_IDS)[number];
 
@@ -32,7 +44,8 @@ export const DEFAULT_VIEW: ViewId = "flow";
 export const VIEWS: Readonly<Record<ViewId, ViewDefinition>> = {
   flow: { id: "flow", label: "フロー", render: renderFlowView },
   review: { id: "review", label: "レビュー", render: renderReviewView },
-  timeline: { id: "timeline", label: "PR個別", render: renderTimelineView },
+  timeline: { id: "timeline", label: "タイムライン", render: renderTimelineView },
+  wip: { id: "wip", label: "滞留", render: renderWipView },
 };
 
 export function isViewId(value: string | null | undefined): value is ViewId {

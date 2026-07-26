@@ -69,3 +69,17 @@ export function scopeTimestamp(date: Date): string {
   }
   return value;
 }
+
+/**
+ * The same-length period immediately before `scope` (for period-over-period
+ * comparisons). Returns `null` when either bound is unbounded — "the same length
+ * as before" is undefined without both ends. The previous window ends 1ms before
+ * `from` so the two windows never overlap on the boundary instant.
+ */
+export function previousScope(scope: Scope): Scope | null {
+  if (scope.from === null || scope.to === null) return null;
+  const durationMs = scope.to.getTime() - scope.from.getTime();
+  const to = new Date(scope.from.getTime() - 1);
+  const from = new Date(to.getTime() - durationMs);
+  return { ...scope, from, to };
+}

@@ -27,13 +27,18 @@ export const EXPLORE_STYLES = `
 .explore-field input[type="checkbox"] { justify-self: start; width: 16px; height: 16px; }
 .explore-filters button[type="submit"] { align-self: flex-end; padding: 7px 16px; border: 0; border-radius: 6px; background: var(--accent-cyan); color: var(--panel); font-size: 13px; font-weight: 650; cursor: pointer; }
 .explore-filters button[type="submit"]:hover { background: color-mix(in srgb, var(--accent-cyan) 85%, black); }
-.explore-status { color: var(--fg-muted); font-size: 13px; margin: 4px 0 0; }
+.explore-content { margin-top: 16px; }
+.explore-status { color: var(--fg-muted); font-size: 13px; margin: 0 0 10px; }
 /* Period picker (presets + React Aria DateRangePicker) spans its own row. */
 .explore-period { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .explore-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .explore-preset { padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); font-size: 12px; font-weight: 600; color: var(--fg-default); cursor: pointer; transition: border-color .12s ease, background .12s ease; }
 .explore-preset:hover { border-color: var(--accent-cyan); background: #f0fbfd; }
 .explore-preset:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
+/* Time-axis controls are greyed out on views a period does not apply to (滞留).
+   :disabled beats :hover here by coming later in the cascade at equal weight. */
+.explore-preset:disabled, .explore-preset:disabled:hover { border-color: var(--border-default); background: var(--bg-muted); color: var(--fg-subtle); cursor: not-allowed; }
+.explore-field select:disabled { background: var(--bg-muted); color: var(--fg-subtle); cursor: not-allowed; }
 
 /* React Aria DateRangePicker — DESIGN.md tokens (cyan accent, no purple). */
 .rac-group { display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); transition: border-color .12s ease, box-shadow .12s ease; }
@@ -46,6 +51,9 @@ export const EXPLORE_STYLES = `
 .rac-calbtn { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: 2px; border: 0; border-radius: 6px; background: var(--bg-muted); font-size: 13px; line-height: 1; cursor: pointer; }
 .rac-calbtn[data-hovered] { background: #dceef2; }
 .rac-calbtn[data-focus-visible] { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
+.rac-group[data-disabled] { background: var(--bg-muted); cursor: not-allowed; }
+.rac-group[data-disabled] .rac-dateinput, .rac-group[data-disabled] .rac-segment, .rac-group[data-disabled] .rac-dash { color: var(--fg-subtle); }
+.rac-calbtn[data-disabled] { opacity: .5; cursor: not-allowed; }
 .rac-popover { background: var(--panel); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: 0 12px 32px rgba(16,24,40,.16); }
 .rac-dialog { padding: 12px 14px; outline: none; }
 .rac-calheader { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
@@ -87,7 +95,9 @@ body:has(.explore-main)::before { content: none; }
 .explore-main .metric-card { border-top: 1px solid var(--border-muted); box-shadow: none; }
 .explore-main .metric-card:hover, .explore-main .metric-card:focus-visible { border-color: var(--border-default); border-top-color: var(--border-default); background: var(--panel-subtle); }
 .explore-main .bg-node { border-radius: 6px; background: var(--panel); }
+.explore-main .bg-dot { border-radius: 3px; }
 .explore-main .bg-root[data-hovered] .bg-node.bg-active { background: color-mix(in srgb, var(--accent-cyan) 8%, var(--panel)); box-shadow: none; }
+.explore-main .bg-root[data-hovered] .bg-node.bg-active .bg-bar { background: color-mix(in srgb, var(--accent-cyan) 12%, transparent); border-color: color-mix(in srgb, var(--accent-cyan) 24%, transparent); }
 /* DORA comparison cards (1-1b). Reuses .metric-grid/.metric-card/the four
    metric-card-TONE accent colors from PAGE_STYLES (report parity); these
    two rules are the delta/n addition that only exists in Explore. */
@@ -190,6 +200,23 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .aging-histogram-count { font-size: 12px; color: var(--fg-muted); }
 .aging-histogram-bar { width: 100%; max-width: 56px; background: var(--accent-cyan); border-radius: 4px 4px 0 0; }
 .aging-histogram-label { font-size: 12px; color: var(--fg-subtle); }
+
+/* PR timeline (gantt) track (1-3/Timeline). Replaces the report's pill rail +
+   repeating-gradient day grid with the flat bordered vocabulary the rest of
+   Explore uses (compare .aging-histogram-bar's border-radius, .trend-grid's
+   thin border-left day dividers). legend-swatch/timeline-tooltip-swatch stay
+   circular in PAGE_STYLES for the frozen report; these gantt-* parallels are
+   Explore-only so they can go square without touching the shared classes. */
+.gantt-track { position: relative; height: 20px; border: 1px solid var(--border-muted); border-radius: 4px; background: var(--bg-muted); overflow: hidden; cursor: help; }
+.gantt-daygrid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); pointer-events: none; }
+.gantt-daygrid-cell:not(:first-child) { border-left: 1px solid var(--border-muted); }
+.gantt-segment { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--panel); }
+.gantt-segment:last-child { border-right: 0; }
+.timeline-row[data-closed-unmerged="true"] .gantt-track { border-style: dashed; border-color: var(--border-default); background: var(--bg-muted); }
+.timeline-row[data-closed-unmerged="true"] .gantt-segment { filter: grayscale(.7) opacity(.6); }
+.gantt-legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.gantt-legend-swatch-closed { background: repeating-linear-gradient(135deg, var(--fg-subtle) 0 3px, transparent 3px 6px); border: 1px dashed var(--fg-subtle); border-radius: 2px; }
+.gantt-tooltip-swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 2px; margin-top: 5px; }
 
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }

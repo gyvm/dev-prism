@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactElement } from "react";
 
 import { resolveScope, type Scope } from "../../analyses/scope.js";
-import { scopeToSearchParams } from "../../analyses/scope-url.js";
+import { isScopeParamName, scopeToSearchParams } from "../../analyses/scope-url.js";
 import { siteBase } from "../base-path.js";
 import { getWasmRunner } from "../duckdb-runner.js";
 import { queryFilterOptions, scopeFromUrl } from "../explore.js";
@@ -46,6 +46,22 @@ function viewFromPathname(pathname: string): ViewId | null {
   return isViewId(segment) ? segment : null;
 }
 
+/**
+ * Replaces the scope-owned query parameters, leaving every other one in place.
+ * Overwriting the whole query string would drop view-local parameters — the 3-2
+ * table's `sort`/`dir` arrive by link and would be erased by the very first
+ * run() before the view ever reads them.
+ */
+function syncScopeToUrl(scope: Scope): void {
+  const params = new URLSearchParams(window.location.search);
+  for (const name of [...params.keys()]) {
+    if (isScopeParamName(name)) params.delete(name);
+  }
+  for (const [name, value] of scopeToSearchParams(scope)) params.set(name, value);
+  const query = params.toString();
+  window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+}
+
 export default function Explore({ view }: { view: ViewId }) {
   const [activeView, setActiveView] = useState(view);
   const definition = VIEWS[activeView];
@@ -60,12 +76,13 @@ export default function Explore({ view }: { view: ViewId }) {
   const run = useCallback(
     async (scope: Scope): Promise<void> => {
       const gen = ++generation.current;
-      const query = scopeToSearchParams(scope).toString();
-      window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+      syncScopeToUrl(scope);
       setStatus("集計中…");
       try {
         const runner = await getWasmRunner();
-        const element = await definition.render(runner, scope);
+        // Read per run, not per mount: the wip snapshot should reflect the
+        // instant the user asked, not when the tab happened to open.
+        const element = await definition.render(runner, scope, new Date());
         if (gen !== generation.current) return; // superseded by a later run
         setContent(element);
         setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
@@ -143,10 +160,8 @@ export default function Explore({ view }: { view: ViewId }) {
           onChange={setDraft}
           onPreset={applyDraft}
           onSubmit={applyCurrentDraft}
+          timeControlsDisabled={activeView === "wip"}
         />
-        <p className="explore-status" role="status" aria-live="polite">
-          {status}
-        </p>
       </header>
       <nav className="explore-tabs" aria-label="ビュー">
         {VIEW_IDS.map((id) => (
@@ -161,7 +176,12 @@ export default function Explore({ view }: { view: ViewId }) {
           </a>
         ))}
       </nav>
-      {content}
+      <div className="explore-content">
+        <p className="explore-status" role="status" aria-live="polite">
+          {status}
+        </p>
+        {content}
+      </div>
     </main>
   );
 }

@@ -22,13 +22,28 @@ type Props = Readonly<{
   /** Period presets are complete windows and apply immediately. */
   onPreset: (next: ExploreFilterValue) => void;
   onSubmit: () => void;
+  /**
+   * Greys out the time-axis controls (period + grain) for views that read the
+   * present rather than a window — the wip backlog. Repos/users/bots stay live
+   * everywhere (docs/explore-screens.md フィルタバー). Grain is included because
+   * it only drives trend charts, and wip has none: leaving it enabled would be
+   * a knob that visibly does nothing.
+   */
+  timeControlsDisabled?: boolean;
 }>;
 
 /**
  * Controlled Explore query controls. Keeping query state in the parent lets
  * the controls remain mounted while only the selected view below them changes.
  */
-export default function ExploreFilters({ value, options, onChange, onPreset, onSubmit }: Props) {
+export default function ExploreFilters({
+  value,
+  options,
+  onChange,
+  onPreset,
+  onSubmit,
+  timeControlsDisabled = false,
+}: Props) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -41,12 +56,14 @@ export default function ExploreFilters({ value, options, onChange, onPreset, onS
         to={value.to}
         onPreset={(from, to) => onPreset({ ...value, from, to })}
         onRange={(from, to) => onChange({ ...value, from, to })}
+        disabled={timeControlsDisabled}
       />
       <label className="explore-field">
         <span>粒度</span>
         <select
           name="grain"
           value={value.grain}
+          disabled={timeControlsDisabled}
           onChange={(event) => onChange({ ...value, grain: event.target.value as Grain })}
         >
           <option value="day">日</option>

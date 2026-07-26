@@ -316,17 +316,13 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
         <div className="timeline-legend" aria-label="Timeline legend">
           {TIMELINE_STATES.map((state) => (
             <span className="legend-item" key={state}>
-              <span className={`legend-swatch ${state}`} />
+              <span className={`gantt-legend-swatch ${state}`} />
               {TIMELINE_STATE_LABELS[state]}
             </span>
           ))}
-          {/* The string renderer also tags the item below
-              `legend-closed-unmerged`, a class no stylesheet defines. Dropped
-              here rather than carried over; `legend-swatch-closed` is what
-              actually styles it. */}
           {hasClosedUnmerged && (
             <span className="legend-item">
-              <span className="legend-swatch legend-swatch-closed" />
+              <span className="gantt-legend-swatch gantt-legend-swatch-closed" />
               クローズ (未マージ)
             </span>
           )}
@@ -392,18 +388,26 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
                 >
                   {row.ref}
                 </span>
+                {row.closedUnmerged && (
+                  <span className="aging-badge aging-badge-draft">未マージ</span>
+                )}
               </div>
               <div className="timeline-track-wrap">
                 <div
-                  className="timeline-track"
+                  className="gantt-track"
                   onMouseEnter={(event) => handleTrackEnter(event, row)}
                   onMouseMove={handleTrackMove}
                   onMouseLeave={handleTrackLeave}
                 >
+                  <div className="gantt-daygrid" aria-hidden="true">
+                    {Array.from({ length: DAY_COUNT }, (_, i) => (
+                      <span key={i} className="gantt-daygrid-cell" />
+                    ))}
+                  </div>
                   {row.bars.map((bar, i) => (
                     <span
                       key={i}
-                      className={`segment ${bar.state}`}
+                      className={`gantt-segment ${bar.state}`}
                       style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%` }}
                       data-state={bar.state}
                       data-start={bar.startAt}
@@ -425,7 +429,7 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
             <ol>
               {tooltip.items.map((item, i) => (
                 <li key={i}>
-                  <span className={`timeline-tooltip-swatch ${item.state}`} />
+                  <span className={`gantt-tooltip-swatch ${item.state}`} />
                   <span>{item.label}</span>
                 </li>
               ))}
