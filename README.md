@@ -240,6 +240,98 @@ composite Action 1 本で、収集 → DWH 更新 → サイトビルドを順�
 
 ---
 
+## セキュリティとネットワーク境界
+
+Dev Prism は PR 本文・レビューコメント・アカウント名を扱うため、「どこへ通信するのか」が
+導入判断の最初の関門になります。ここでは **通信先の全量** と、**利用者側でそれを強制する方法**を
+示します。
+
+### Dev Prism が必要とする通信先
+
+Action 実行中に発生しうる外向き通信は以下がすべてです。
+
+| 通信先 | いつ | 必須 |
+|---|---|---|
+| `registry.npmjs.org:443` | `npm ci` (エンジンの依存インストール) | ✅ |
+| `github.com:443` / `codeload.github.com:443` | `actions/checkout`、Node ランタイム取得 | ✅ |
+| `raw.githubusercontent.com:443` / `objects.githubusercontent.com:443` / `nodejs.org:443` | `setup-node` のバージョン manifest と Node 本体 | ✅ |
+| `api.github.com:443` | PR の収集 (REST + GraphQL) | ✅ |
+| `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` のホスト | GHES 利用時の収集先 (ランナーが自動注入) | GHES 時のみ |
+| Copilot API | AI 分析 | ⬜ **任意** |
+
+**外部にデータが出る経路は AI 分析だけ**です。`COPILOT_GITHUB_TOKEN` が未設定なら自動的に
+`--skip-ai` にフォールバックし、Copilot への通信は一切発生しません
+([AI 分析を CI で回す](#ai-分析を-ci-で回す))。収集した PR データの保存先は実行環境の
+`dwh-dir` (既定 `data/dwh`) のみで、外部ストレージには送りません。
+
+### 利用者側で egress を強制する
+
+上の表を信用する必要はありません。**Dev Prism 側に手を入れずに、呼び出し側のワークフローだけで
+通信先を強制できます。** [`step-security/harden-runner`](https://github.com/step-security/harden-runner) を
+**ジョブの最初のステップ**に置くと、runner VM 上でエージェントが常駐し、以降の同一ジョブの
+全プロセス — `uses: your-org/dev-prism` の内部で走る `npm ci` や、その依存の postinstall まで —
+が allowlist の外に出られなくなります。
+
+```yaml
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      # 必ず最初に置く。これ以降のステップがすべて対象になる
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            codeload.github.com:443
+            github.com:443
+            nodejs.org:443
+            objects.githubusercontent.com:443
+            raw.githubusercontent.com:443
+            registry.npmjs.org:443
+
+      - uses: actions/checkout@v4
+      - uses: your-org/dev-prism@v0     # ← この中の通信も上の allowlist に縛られる
+        with:
+          config: config.toml
+          base: /<repo>/
+          github-token: ${{ secrets.DEV_PRISM_GH_TOKEN }}
+```
+
+AI 分析を使う場合のみ、初回を `egress-policy: audit` で回して Copilot のエンドポイントを
+確認し、allowlist に追加してください。**AI を使わないなら上のリストのままで動きます。**
+
+Pages へデプロイするステップを同じジョブに置く場合は
+`*.actions.githubusercontent.com:443` の追加が必要になることがあります。収集ジョブと
+デプロイジョブを分けておくと、収集側の allowlist を最小に保てます。
+
+### この一覧は CI で検証されています
+
+上の表は口約束ではありません。本リポジトリの `verify.yml` は **`egress-policy: block` と
+まったく同じ allowlist** で毎 PR の E2E を回しています。Dev Prism が表にないホストへ
+通信し始めた時点で CI が赤くなるため、**表と実装の乖離が検出される**仕組みです。
+
+同時にこれは「**AI 無効時に AI へ通信しない**」の実証にもなっています。`verify.yml` の
+allowlist には Copilot 系エンドポイントが一切含まれておらず、`COPILOT_GITHUB_TOKEN` も
+設定していません。この状態で E2E が緑になること自体が、AI 無効時の通信ゼロの証拠です。
+
+### 制約と限界 (正直な注記)
+
+- **block モードは GitHub-hosted の Linux ランナーのみ。** Windows / macOS は audit のみ。
+  また `container:` を使うジョブでは動作しません (下地 VM の sudo が必要なため)
+- **harden-runner 自体がサードパーティのエージェント**です。信頼点が 1 つ増えるので、上の例の
+  ように必ず commit SHA でピンしてください。過去に DNS-over-HTTPS を使った egress フィルタの
+  バイパスが報告されています (v2.16.0 で修正済み。上記の例は v2.20.0)
+- **より強い層**として、GitHub が runner VM の外側・L7 で動く
+  [ネイティブ egress firewall](https://github.com/github-early-access/actions-native-egress-firewall)
+  を early access で提供しています (`runs-on: ubuntu-24.04-firewall`)。VM 内で root を取られても
+  回避できないため、GA したらこちらへの移行が望ましい構成です。エンタープライズなら
+  Azure private networking + NSG の outbound ルールでも同等の制御ができます
+- Dev Prism の Action が **composite である**ことがこの制御の前提です (ランナー上で直接プロセスが
+  走るため harden-runner の監視対象になる)。パターン C の Docker イメージ経路は対象が変わります
+
+---
+
 ## パターン C: セルフホスト (Docker)
 
 Pages を使わず、収集からサイト配信まで自前サーバ / インスタンスで完結させる構成です。

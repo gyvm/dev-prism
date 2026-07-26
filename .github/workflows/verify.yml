@@ -20,6 +20,36 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # Egress allowlist, enforced. This is the executable version of the
+      # "必要な通信先" table in the README: if the action ever starts talking to
+      # a host that is not listed here, THIS JOB GOES RED. That makes the README
+      # table a checked invariant instead of a promise, and gives consumers a
+      # list they can paste into their own harden-runner step verbatim.
+      #
+      # Deliberately absent: every Copilot / AI endpoint. verify.yml sets no
+      # COPILOT_GITHUB_TOKEN, so the pipeline must fall back to --skip-ai. A run
+      # that stays green here is positive evidence that AI-disabled means
+      # zero AI egress — the one invariant that is otherwise hard to test.
+      #
+      # Adding a dependency that fetches at install/build time will fail this
+      # step. That is the point: extend the list here AND the README table in
+      # the same PR. To find what got blocked, open the run's Network Events in
+      # StepSecurity insights, or flip egress-policy to `audit` for one run.
+      #
+      # block mode is GitHub-hosted Linux only (this job is ubuntu-latest) and
+      # does not work in `container:` jobs — see the README caveats.
+      - uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            codeload.github.com:443
+            github.com:443
+            nodejs.org:443
+            objects.githubusercontent.com:443
+            raw.githubusercontent.com:443
+            registry.npmjs.org:443
+
       - uses: actions/checkout@v6
 
       # Run the local action exactly as a consumer would. Throwaway dwh-dir /
