@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
 import type { PrTimeline, TimelineAuxiliary, TimelineState } from "../../shared/types.js";
+import { VISIBLE_ROW_LIMIT } from "./row-limit.js";
 
 /**
  * Explore's PR timeline (gantt) chart.
@@ -234,6 +235,7 @@ function EmptyState() {
 
 export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: PrTimelineOutput) {
   const [hoveredFilter, setHoveredFilter] = useState<HoveredFilter | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
@@ -282,6 +284,8 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
   if (rows.length === 0) return <EmptyState />;
 
   const hasClosedUnmerged = rows.some((row) => row.closedUnmerged);
+  const hiddenCount = expanded ? 0 : Math.max(0, rows.length - VISIBLE_ROW_LIMIT);
+  const visibleRows = hiddenCount > 0 ? rows.slice(0, VISIBLE_ROW_LIMIT) : rows;
 
   function handleTrackEnter(event: MouseEvent<HTMLDivElement>, row: RowData): void {
     pointerRef.current = { x: event.clientX, y: event.clientY };
@@ -346,7 +350,7 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
             </div>
           </div>
         </article>
-        {rows.map((row) => {
+        {visibleRows.map((row) => {
           const { author } = row;
           const isActive =
             hoveredFilter !== null &&
@@ -422,6 +426,11 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
           );
         })}
       </div>
+      {hiddenCount > 0 && (
+        <button type="button" className="timeline-more" onClick={() => setExpanded(true)}>
+          残り {hiddenCount} 件を表示（全 {rows.length} 件）
+        </button>
+      )}
       {tooltip &&
         createPortal(
           <div className="timeline-tooltip" role="tooltip" ref={tooltipRef}>

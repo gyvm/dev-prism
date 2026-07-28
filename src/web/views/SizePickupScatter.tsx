@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 
@@ -27,11 +27,36 @@ function log10(value: number): number {
   return Math.log(value) / Math.LN10;
 }
 
-/** Nice-ish linear upper bound, same rounding TrendChart uses for its y-axis. */
-function niceLinearMax(values: readonly number[]): number {
-  const peak = Math.max(1, ...values);
+/** Rounds a peak out to the next 1/2/…/9 × 10ⁿ. Unlike TrendChart's count-axis
+ *  version this does not floor at 1: pickup times are routinely well under an
+ *  hour, and flooring there collapses the whole plot into the leftmost sliver. */
+function niceBound(peak: number): number {
+  if (peak <= 0) return 1;
   const magnitude = 10 ** Math.floor(log10(peak));
   return Math.ceil(peak / magnitude) * magnitude;
+}
+
+/**
+ * Upper bound for the pickup axis that a single slow review cannot dictate.
+ *
+ * Pickup time is heavily right-skewed — most PRs get looked at within minutes,
+ * one sat over a weekend — and scaling to the maximum crushes every point into
+ * a vertical line at x≈0, which is exactly the shape this chart exists to read.
+ * So when the tail is far off the body of the distribution, the axis ends at p95
+ * and the stragglers are drawn clamped to the right edge, flagged as off-axis
+ * rather than silently dropped.
+ *
+ * The `>= 12` guard keeps small samples honest: with a handful of points, "p95"
+ * is barely distinguishable from "the maximum" and clipping would hide a real
+ * data point on the strength of no evidence.
+ */
+function pickupDomain(values: readonly number[]): Readonly<{ max: number; clipped: number }> {
+  const sorted = [...values].sort((a, b) => a - b);
+  const peak = sorted[sorted.length - 1] ?? 0;
+  const p95 = sorted[Math.floor((sorted.length - 1) * 0.95)] ?? 0;
+  const skewed = sorted.length >= 12 && p95 > 0 && peak > p95 * 3;
+  const max = niceBound(skewed ? p95 : peak);
+  return { max, clipped: values.filter((v) => v > max).length };
 }
 
 /**
@@ -81,14 +106,26 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
   const geometry = useMemo(() => {
     const plotW = VIEW_W - PAD.left - PAD.right;
     const plotH = VIEW_H - PAD.top - PAD.bottom;
-    const xMax = niceLinearMax(points.map((p) => p.pickupHours));
+    const x = pickupDomain(points.map((p) => p.pickupHours));
     const y = decadeDomain(points.map((p) => p.sizeLines));
-    const xScale = (value: number) => PAD.left + (value / xMax) * plotW;
+    // Clamped, not just scaled: an off-axis point still belongs on the plot,
+    // pinned to the edge, so "there are slow outliers" stays visible.
+    const xScale = (value: number) => PAD.left + (Math.min(value, x.max) / x.max) * plotW;
     const yLogSpan = log10(y.max) - log10(y.min);
     const yScale = (value: number) =>
       PAD.top + plotH - ((log10(Math.max(value, 1)) - log10(y.min)) / yLogSpan) * plotH;
-    return { plotW, plotH, xMax, y, xScale, yScale };
+    return { plotW, plotH, x, y, xScale, yScale };
   }, [points]);
+
+  // Position on mount, not only on the next mousemove: the portal node has no
+  // inline left/top until positionTooltip runs, and a position:fixed element
+  // with left/top:auto lands at its static position (bottom of <body>). A
+  // hover-and-hold over a 5px point never fires another mousemove, so the
+  // tooltip would sit there. Same pattern GanttChart uses.
+  useLayoutEffect(() => {
+    if (!tooltip) return;
+    positionTooltip(tooltipRef.current, pointerRef.current.x, pointerRef.current.y);
+  }, [tooltip]);
 
   if (points.length === 0) {
     return (
@@ -99,8 +136,8 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
     );
   }
 
-  const { plotH, xMax, y, xScale, yScale } = geometry;
-  const xTicks = [0, xMax / 4, xMax / 2, (xMax * 3) / 4, xMax];
+  const { plotH, x, y, xScale, yScale } = geometry;
+  const xTicks = [0, x.max / 4, x.max / 2, (x.max * 3) / 4, x.max];
 
   function handlePointEnter(point: SizePickupPoint, event: ReactMouseEvent): void {
     pointerRef.current = { x: event.clientX, y: event.clientY };
@@ -131,6 +168,13 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
         </p>
       )}
 
+      {x.clipped > 0 && (
+        <p className="section-copy">
+          {x.clipped} 件は {formatHours(x.max)} を超えるため右端に寄せています （最長{" "}
+          {formatHours(Math.max(...points.map((p) => p.pickupHours)))}）。
+        </p>
+      )}
+
       <div className="chart-scroll">
         <svg
           className="scatter-svg"
@@ -158,7 +202,7 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
             y={VIEW_H - PAD.bottom + 16}
             textAnchor="middle"
           >
-            {Math.round(tick * 10) / 10}
+            {formatHours(tick)}
           </text>
         ))}
 
@@ -168,7 +212,7 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
           y={VIEW_H - 6}
           textAnchor="middle"
         >
-          オープン→初回レビュー時間（時間）
+          オープン→初回レビュー時間
         </text>
         <text
           className="scatter-axis-label"
@@ -184,12 +228,16 @@ export default function SizePickupScatter({ scatter }: { scatter: SizePickupScat
           const cx = xScale(point.pickupHours);
           const cy = yScale(point.sizeLines);
           const active = tooltip?.point === point;
+          const offAxis = point.pickupHours > x.max;
           const circle = (
             <circle
-              className={active ? "scatter-point scatter-point-active" : "scatter-point"}
+              className={
+                (active ? "scatter-point scatter-point-active" : "scatter-point") +
+                (offAxis ? " scatter-point-clipped" : "")
+              }
               cx={cx}
               cy={cy}
-              r={5}
+              r={4}
               onMouseEnter={(event) => handlePointEnter(point, event)}
               onMouseMove={handlePointMove}
               onMouseLeave={handlePointLeave}

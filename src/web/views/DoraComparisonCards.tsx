@@ -19,13 +19,23 @@ type Card = Readonly<{
   tone: CardTone;
   label: string;
   value: string;
-  /** Secondary "n=X" line. Only used where the headline value does not already
-   *  spell the denominator out (failure-rate/MTTR bake `n` into `value` itself
-   *  because the two also need to distinguish "no data" from "n merges, 0
-   *  reverts" — see docs/explore-screens.md データと数値の方針). */
+  /** Secondary line under the headline. Carries the denominator, and for
+   *  failure-rate/MTTR the "0 reverts" vs "no data" distinction those two need
+   *  (docs/explore-screens.md データと数値の方針). It lives here rather than in
+   *  `value` because `value` is a 28px display slot: a sentence in it wraps to
+   *  two lines and breaks the four cards' shared height. */
   n: string | null;
+  /** True when `value` is a placeholder ("—") rather than a measurement. The
+   *  card keeps its category accent on the top border, but the headline drops
+   *  to neutral: "Revert 0件" printed in danger red (or MTTR's success green)
+   *  reads as a verdict on a number that was never measured. */
+  muted: boolean;
   delta: CardDelta | null;
 }>;
+
+/** No measurement to show. Both no-revert cards land here — the metric is
+ *  undefined, not zero, so the slot gets an em dash and the story goes to `n`. */
+const NO_VALUE = "—";
 
 /**
  * `value > 0` reads as an increase, `value < 0` as a decrease. Whether that is
@@ -51,11 +61,6 @@ function formatCountAbs(abs: number): string {
   return `${abs}件`;
 }
 
-function formatHoursAbs(abs: number): string {
-  if (abs < 1) return `${Math.round(abs * 60)}分`;
-  return `${Math.round(abs * 10) / 10}h`;
-}
-
 function formatPercentPointAbs(abs: number): string {
   return `${abs.toFixed(1)}pt`;
 }
@@ -66,18 +71,29 @@ function mergedCount(current: DoraMetrics): number {
   return current.deploymentFrequency;
 }
 
-function formatChangeFailureRate(current: DoraMetrics): string {
-  if (current.changeFailureRatePercent === null) return "データなし";
-  if (current.changeFailureRatePercent === 0) {
-    return `Revert 0件(n=${mergedCount(current)})`;
-  }
-  return `${current.changeFailureRatePercent.toFixed(1)}%(n=${mergedCount(current)})`;
+/** The headline/sub-line/tone split for a card whose value can be absent. */
+type Readout = Readonly<{ value: string; n: string | null; muted: boolean }>;
+
+function measured(value: string, n: string | null): Readout {
+  return { value, n, muted: false };
 }
 
-function formatMttr(current: DoraMetrics): string {
-  if (mergedCount(current) === 0) return "データなし";
-  if (current.mttrHours === null) return `Revert 0件(n=${mergedCount(current)})`;
-  return formatHours(current.mttrHours);
+function absent(n: string): Readout {
+  return { value: NO_VALUE, n, muted: true };
+}
+
+function changeFailureRateReadout(current: DoraMetrics): Readout {
+  const merged = mergedCount(current);
+  if (current.changeFailureRatePercent === null) return absent("データなし");
+  if (current.changeFailureRatePercent === 0) return absent(`Revert 0件 / n=${merged}`);
+  return measured(`${current.changeFailureRatePercent.toFixed(1)}%`, `n=${merged}`);
+}
+
+function mttrReadout(current: DoraMetrics): Readout {
+  const merged = mergedCount(current);
+  if (merged === 0) return absent("データなし");
+  if (current.mttrHours === null) return absent(`Revert 0件 / n=${merged}`);
+  return measured(formatHours(current.mttrHours), `n=${merged}`);
 }
 
 function buildCards(comparison: DoraComparison): readonly Card[] {
@@ -90,6 +106,7 @@ function buildCards(comparison: DoraComparison): readonly Card[] {
       label: "マージ数",
       value: `${current.deploymentFrequency}件`,
       n: null,
+      muted: false,
       delta: buildDelta(d("deploymentFrequency"), "increase", formatCountAbs),
     },
     {
@@ -97,21 +114,22 @@ function buildCards(comparison: DoraComparison): readonly Card[] {
       label: "変更のリードタイム",
       value: formatHours(current.leadTimeForChangesHours),
       n: mergedCount(current) > 0 ? `n=${mergedCount(current)}` : null,
-      delta: buildDelta(d("leadTimeForChangesHours"), "decrease", formatHoursAbs),
+      muted: false,
+      // formatHours, not a local copy: the delta must round the same way as the
+      // headline value directly above it.
+      delta: buildDelta(d("leadTimeForChangesHours"), "decrease", formatHours),
     },
     {
       tone: "failure-rate",
       label: "変更失敗率",
-      value: formatChangeFailureRate(current),
-      n: null,
+      ...changeFailureRateReadout(current),
       delta: buildDelta(d("changeFailureRatePercent"), "decrease", formatPercentPointAbs),
     },
     {
       tone: "mttr",
       label: "MTTR",
-      value: formatMttr(current),
-      n: null,
-      delta: buildDelta(d("mttrHours"), "decrease", formatHoursAbs),
+      ...mttrReadout(current),
+      delta: buildDelta(d("mttrHours"), "decrease", formatHours),
     },
   ];
 }
@@ -124,7 +142,10 @@ export default function DoraComparisonCards({ comparison }: { comparison: DoraCo
       <h2>DORAメトリクス</h2>
       <div className="metric-grid">
         {cards.map((card) => (
-          <article key={card.tone} className={`metric-card metric-card-${card.tone}`}>
+          <article
+            key={card.tone}
+            className={`metric-card metric-card-${card.tone}${card.muted ? " metric-card-muted" : ""}`}
+          >
             <span className="metric-label">{card.label}</span>
             <strong>{card.value}</strong>
             {card.n && <span className="metric-card-n">{card.n}</span>}

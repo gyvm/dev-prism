@@ -21,18 +21,25 @@ import { renderRootCss } from "../../ui/tokens.js";
 export const EXPLORE_ROOT_CSS = renderRootCss();
 
 export const EXPLORE_STYLES = `
-.explore-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 14px 0; }
+/* Every control in the filter bar is --control-h tall and box-sizing:border-box,
+   so the row aligns on one baseline regardless of which element type (button,
+   select, the React Aria group, the multiselect trigger) draws it. Before this,
+   each control sized itself from its own padding and the row stair-stepped. */
+.explore-filters { --control-h: 32px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 14px 0; }
 .explore-field { display: grid; gap: 3px; font-size: 12px; color: var(--fg-muted); }
-.explore-field input, .explore-field select { font-size: 13px; padding: 5px 7px; border: 1px solid var(--border-default); border-radius: 6px; }
-.explore-field input[type="checkbox"] { justify-self: start; width: 16px; height: 16px; }
-.explore-filters button[type="submit"] { align-self: flex-end; padding: 7px 16px; border: 0; border-radius: 6px; background: var(--accent-cyan); color: var(--panel); font-size: 13px; font-weight: 650; cursor: pointer; }
+.explore-field input, .explore-field select { height: var(--control-h); box-sizing: border-box; font-size: 13px; padding: 0 8px; border: 1px solid var(--border-default); border-radius: 6px; }
+/* The bot toggle is a checkbox with its label beside it, not above it: a 16px
+   box under a caption leaves the row visibly short and left-hugging. */
+.explore-field-inline { display: flex; flex-direction: row-reverse; align-items: center; justify-content: flex-end; gap: 7px; height: var(--control-h); }
+.explore-field-inline input[type="checkbox"] { width: 16px; height: 16px; padding: 0; }
+.explore-filters button[type="submit"] { align-self: flex-end; height: var(--control-h); box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 6px; background: var(--accent-cyan); color: var(--panel); font-size: 13px; font-weight: 650; cursor: pointer; }
 .explore-filters button[type="submit"]:hover { background: color-mix(in srgb, var(--accent-cyan) 85%, black); }
 .explore-content { margin-top: 16px; }
 .explore-status { color: var(--fg-muted); font-size: 13px; margin: 0 0 10px; }
 /* Period picker (presets + React Aria DateRangePicker) spans its own row. */
 .explore-period { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .explore-presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.explore-preset { padding: 6px 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); font-size: 12px; font-weight: 600; color: var(--fg-default); cursor: pointer; transition: border-color .12s ease, background .12s ease; }
+.explore-preset { display: inline-flex; align-items: center; height: var(--control-h); box-sizing: border-box; padding: 0 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); font-size: 12px; font-weight: 600; color: var(--fg-default); cursor: pointer; transition: border-color .12s ease, background .12s ease; }
 .explore-preset:hover { border-color: var(--accent-cyan); background: #f0fbfd; }
 .explore-preset:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
 /* Time-axis controls are greyed out on views a period does not apply to (滞留).
@@ -41,7 +48,7 @@ export const EXPLORE_STYLES = `
 .explore-field select:disabled { background: var(--bg-muted); color: var(--fg-subtle); cursor: not-allowed; }
 
 /* React Aria DateRangePicker — DESIGN.md tokens (cyan accent, no purple). */
-.rac-group { display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); transition: border-color .12s ease, box-shadow .12s ease; }
+.rac-group { display: inline-flex; align-items: center; height: var(--control-h); box-sizing: border-box; gap: 4px; padding: 0 5px 0 10px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); transition: border-color .12s ease, box-shadow .12s ease; }
 .rac-group[data-focus-within] { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(8,145,178,.12); }
 .rac-dateinput { display: inline-flex; padding: 1px 2px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--fg-default); white-space: nowrap; }
 .rac-segment { padding: 1px 2px; border-radius: 4px; outline: none; color: var(--fg-default); text-align: end; }
@@ -75,7 +82,7 @@ export const EXPLORE_STYLES = `
 .rac-calcell[data-disabled] { color: #c2c9d2; cursor: default; }
 /* Searchable repo/user multiselect. */
 .explore-ms { position: relative; }
-.explore-ms__btn { min-width: 130px; text-align: left; padding: 5px 9px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--panel); font-size: 13px; color: var(--fg-default); cursor: pointer; }
+.explore-ms__btn { min-width: 130px; height: var(--control-h); box-sizing: border-box; text-align: left; padding: 0 9px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--panel); font-size: 13px; color: var(--fg-default); cursor: pointer; }
 .explore-ms__btn:hover:not(:disabled) { border-color: var(--accent-cyan); }
 .explore-ms__btn:disabled { color: #a4adb8; cursor: default; }
 .explore-ms__panel { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 240px; max-height: 280px; overflow: auto; padding: 8px; background: var(--panel); border: 1px solid var(--border-default); border-radius: 8px; box-shadow: 0 6px 18px rgba(16,24,40,.12); }
@@ -86,8 +93,12 @@ export const EXPLORE_STYLES = `
 .explore-ms__opt:hover { background: var(--bg-muted); }
 .explore-ms__opt input { width: 15px; height: 15px; }
 .explore-ms__empty { padding: 8px 6px; color: var(--fg-subtle); font-size: 13px; }
-/* Clear the fixed sidebar toggle (top-left) so the heading is not covered. */
-.explore-main { max-width: 1100px; margin: 0 auto; padding: 56px 20px 48px; }
+.explore-main { max-width: 1100px; margin: 0 auto; padding: 20px 20px 48px; }
+/* The sidebar toggle is position:fixed at 12px/12px and 40px square, so it
+   occupies x < 52px. While the centered container's left margin clears that,
+   the two never meet; below it the toggle lands on top of the <h1>. 1220px =
+   1100 content + 2×(52 toggle + 8 breathing room). */
+@media (max-width: 1220px) { .explore-main { padding-top: 56px; } }
 /* Basic, operational UI treatment for Explore only. PAGE_STYLES is also used
    by generated reports, so keep this delta scoped to the interactive island. */
 body:has(.explore-main)::before { content: none; }
@@ -102,6 +113,11 @@ body:has(.explore-main)::before { content: none; }
    metric-card-TONE accent colors from PAGE_STYLES (report parity); these
    two rules are the delta/n addition that only exists in Explore. */
 .metric-card-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
+/* A card whose headline is a placeholder ("—") keeps its category accent on the
+   top border but drops the value to neutral. The tone colors are verdicts —
+   danger for failure rate, success for MTTR — and applying one to a metric that
+   was never measured is the wrong claim in both directions. */
+.metric-card-muted strong { color: var(--fg-subtle); }
 .metric-card-delta { margin: 6px 0 0; font-size: 12px; font-weight: 650; }
 .metric-card-delta-good { color: var(--success); }
 .metric-card-delta-bad { color: var(--danger); }
@@ -160,6 +176,9 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .scatter-point { fill: var(--accent-cyan); fill-opacity: .72; stroke: var(--panel); stroke-width: 1; transition: fill-opacity .1s ease, stroke .1s ease; }
 .scatter-point-active { fill-opacity: 1; stroke: var(--accent-blue); stroke-width: 1.5; }
 .scatter-point-link { cursor: pointer; }
+/* Points past the axis maximum, pinned to the right edge. Hollow so a pile-up
+   at the boundary never reads as a real cluster of measurements there. */
+.scatter-point-clipped { fill: none; stroke: var(--accent-cyan); stroke-width: 1.5; stroke-dasharray: 2 2; }
 
 /* Reviewer lead-time bars (2-5). Bars are plain divs sized by %, the same
    width-as-percentage idiom BipartiteGraph's .bg-bar uses, rather than another
@@ -198,7 +217,9 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .aging-histogram { display: flex; align-items: flex-end; gap: 16px; height: 160px; padding: 8px 4px 0; }
 .aging-histogram-col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
 .aging-histogram-count { font-size: 12px; color: var(--fg-muted); }
+.aging-histogram-count[data-empty="true"] { color: var(--fg-subtle); opacity: .55; }
 .aging-histogram-bar { width: 100%; max-width: 56px; background: var(--accent-cyan); border-radius: 4px 4px 0 0; }
+.aging-histogram-bar[data-empty="true"] { background: var(--border-muted); }
 .aging-histogram-label { font-size: 12px; color: var(--fg-subtle); }
 
 /* PR timeline (gantt) track (1-3/Timeline). Replaces the report's pill rail +
@@ -210,13 +231,19 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .gantt-track { position: relative; height: 20px; border: 1px solid var(--border-muted); border-radius: 4px; background: var(--bg-muted); overflow: hidden; cursor: help; }
 .gantt-daygrid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); pointer-events: none; }
 .gantt-daygrid-cell:not(:first-child) { border-left: 1px solid var(--border-muted); }
-.gantt-segment { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--panel); }
+/* min-width, because the width % is a fraction of the *window*: a PR that lived
+   four hours inside a one-year Explore range computes to well under a pixel and
+   vanishes. 3px is the floor at which a segment still reads as a mark. */
+.gantt-segment { position: absolute; top: 0; bottom: 0; min-width: 3px; border-right: 1px solid var(--panel); }
 .gantt-segment:last-child { border-right: 0; }
 .timeline-row[data-closed-unmerged="true"] .gantt-track { border-style: dashed; border-color: var(--border-default); background: var(--bg-muted); }
 .timeline-row[data-closed-unmerged="true"] .gantt-segment { filter: grayscale(.7) opacity(.6); }
 .gantt-legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
 .gantt-legend-swatch-closed { background: repeating-linear-gradient(135deg, var(--fg-subtle) 0 3px, transparent 3px 6px); border: 1px dashed var(--fg-subtle); border-radius: 2px; }
 .gantt-tooltip-swatch { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 2px; margin-top: 5px; }
+.timeline-more { display: block; width: 100%; margin-top: 12px; padding: 9px 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--panel); color: var(--accent-blue); font-size: 13px; font-weight: 650; cursor: pointer; }
+.timeline-more:hover { border-color: var(--accent-cyan); background: var(--panel-subtle); }
+.timeline-more:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
 
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }
@@ -225,8 +252,6 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .explore-tab:hover { background: var(--bg-muted); color: var(--fg-default); }
 .explore-tab.is-active { border-color: transparent; background: var(--panel-subtle); color: var(--accent-cyan); }
 .explore-tab:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
-/* The tabs own the top padding now, so the island's heading sits under them. */
-.explore-main { padding-top: 20px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
 }

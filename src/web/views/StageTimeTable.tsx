@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { CYCLE_STAGE_KEYS } from "../../analyses/cycle-time/view-model.js";
 import type { CycleStageKey, PrStageTimes } from "../../analyses/cycle-time/view-model.js";
 import { formatHours } from "../../renderers/utils.js";
+import { VISIBLE_ROW_LIMIT } from "./row-limit.js";
 
 // 3-2: stage-by-stage duration table, same data as GanttChart (3-1) in tabular
 // form. `initialSort` lands the funnel-card drilldown (docs/explore-screens.md
@@ -76,6 +77,7 @@ export default function StageTimeTable({
   // defaults to "most recently merged first" — the same order a fresh load of
   // 3-1's gantt chart reads in.
   const [sort, setSort] = useState<SortState>(initialSort ?? { key: "mergedAt", desc: true });
+  const [expanded, setExpanded] = useState(false);
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => compareRows(a, b, sort)),
@@ -85,6 +87,15 @@ export default function StageTimeTable({
   function toggleSort(key: SortKey): void {
     setSort((current) => (current.key === key ? { key, desc: !current.desc } : { key, desc: true }));
   }
+
+  // Same cap, and for the same reason, as the gantt above it (GanttChart's
+  // VISIBLE_ROW_LIMIT): a year-wide Explore window puts hundreds of rows on the
+  // page. Capping is safe *because* the table sorts — the outliers this table
+  // exists to surface are what a sort brings to the top, so they are always in
+  // the visible slice. Re-collapsing on sort would fight the user, so `expanded`
+  // is deliberately not reset in toggleSort.
+  const hiddenCount = expanded ? 0 : Math.max(0, sortedRows.length - VISIBLE_ROW_LIMIT);
+  const visibleRows = hiddenCount > 0 ? sortedRows.slice(0, VISIBLE_ROW_LIMIT) : sortedRows;
 
   if (rows.length === 0) {
     return (
@@ -126,7 +137,7 @@ export default function StageTimeTable({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row) => (
+            {visibleRows.map((row) => (
               <tr key={`${row.repoKey}#${row.number}`}>
                 <td>
                   {row.url ? (
@@ -151,6 +162,11 @@ export default function StageTimeTable({
           </tbody>
         </table>
       </div>
+      {hiddenCount > 0 && (
+        <button type="button" className="timeline-more" onClick={() => setExpanded(true)}>
+          残り {hiddenCount} 件を表示（全 {sortedRows.length} 件）
+        </button>
+      )}
     </section>
   );
 }

@@ -5,7 +5,7 @@ import Layout from "../../layouts/Layout.astro";
 import Explore from "../../islands/Explore";
 import { PAGE_STYLES } from "../../../renderers/page-styles.js";
 import { EXPLORE_STYLES } from "../../shell/explore-styles.js";
-import { VIEW_IDS, VIEWS, resolveViewId } from "../../views/registry.js";
+import { VIEW_IDS, resolveViewId, viewTitle } from "../../views/registry.js";
 
 // One static page per Explore view (/explore/<view>/). Navigation between them
 // goes through Astro's ClientRouter, which swaps the body without tearing down
@@ -38,7 +38,7 @@ const view = resolveViewId(Astro.params.view);
 const wasmModuleUrl = getJsDelivrBundles().eh.mainModule;
 ---
 
-<Layout title={`${VIEWS[view].label} — Explore`} active="explore">
+<Layout title={viewTitle(view)} active="explore">
   <Fragment slot="head">
     <link rel="preload" as="fetch" crossorigin="anonymous" href={wasmModuleUrl} />
   </Fragment>

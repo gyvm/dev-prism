@@ -8,6 +8,8 @@ import type {
 } from "../../analyses/cycle-time/view-model.js";
 import type { Grain } from "../../analyses/scope.js";
 import { formatHours } from "../../renderers/utils.js";
+import { placeEndLabels } from "./end-labels.js";
+import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
 
 // Lead-time trend (1-3): the funnel's four stages (1-2), over time, so the
 // same breakdown reads as a direction of travel rather than a snapshot.
@@ -47,29 +49,6 @@ const VIEW_H = 200;
 // The Japanese stage names render directly at the line ends, so the chart
 // reserves their width inside the viewBox instead of relying on SVG overflow.
 const PAD = { top: 12, right: 150, bottom: 26, left: 40 } as const;
-
-const GRAIN_LABEL: Readonly<Record<Grain, string>> = {
-  day: "日次",
-  week: "週次",
-  month: "月次",
-};
-
-const MONTH_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
-  timeZone: "UTC",
-  year: "numeric",
-  month: "numeric",
-});
-const DAY_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
-  timeZone: "UTC",
-  month: "numeric",
-  day: "numeric",
-});
-
-function formatBucket(iso: string, grain: Grain): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return (grain === "month" ? MONTH_FORMATTER : DAY_FORMATTER).format(date);
-}
 
 /** Nice-ish upper bound so the axis reads in round numbers; ignores sparse nulls. */
 function axisMax(values: readonly (number | null)[]): number {
@@ -150,27 +129,20 @@ export default function LeadTrendChart({ trend }: { trend: LeadTrend }) {
   const active = hover != null && hoveredBucket ? { index: hover, bucket: hoveredBucket } : null;
 
   // End labels: attach to each stage's *last present* value (not necessarily
-  // the last bucket — a stage can go sparse at the tail), then de-collide
-  // top-down same as TrendChart.
+  // the last bucket — a stage can go sparse at the tail), then de-collide with
+  // the same helper TrendChart uses. The clamp is what stops all four stages —
+  // which converge on ~0h whenever review is fast — from stacking down over the
+  // x-axis tick labels.
   const lastIndex = buckets.length - 1;
-  const endLabels = CYCLE_STAGE_KEYS.map((key, stageIndex) => {
-    const stageRuns = runs[stageIndex]!;
-    const lastRun = stageRuns[stageRuns.length - 1];
-    const lastPoint = lastRun?.[lastRun.length - 1];
-    return lastPoint ? { key, color: LEAD_TREND_COLORS[key], idealY: y(lastPoint.value) } : null;
-  })
-    .filter((v): v is { key: CycleStageKey; color: string; idealY: number } => v !== null)
-    .sort((a, b) => a.idealY - b.idealY)
-    .reduce<{ key: CycleStageKey; color: string; labelY: number }[]>((placed, entry) => {
-      const previous = placed[placed.length - 1];
-      const minGap = 13;
-      const labelY =
-        previous && entry.idealY - previous.labelY < minGap
-          ? previous.labelY + minGap
-          : entry.idealY;
-      placed.push({ key: entry.key, color: entry.color, labelY });
-      return placed;
-    }, []);
+  const endLabels = placeEndLabels(
+    CYCLE_STAGE_KEYS.map((key, stageIndex) => {
+      const stageRuns = runs[stageIndex]!;
+      const lastRun = stageRuns[stageRuns.length - 1];
+      const lastPoint = lastRun?.[lastRun.length - 1];
+      return lastPoint ? { item: key, idealY: y(lastPoint.value) } : null;
+    }).filter((v): v is { item: CycleStageKey; idealY: number } => v !== null),
+    { top: PAD.top, bottom: PAD.top + plotH },
+  );
 
   return (
     <section className="trend">
@@ -262,8 +234,14 @@ export default function LeadTrendChart({ trend }: { trend: LeadTrend }) {
           );
         })}
 
-        {endLabels.map(({ key, color, labelY }) => (
-          <text key={key} className="trend-endlabel" x={x(lastIndex) + 8} y={labelY + 4} fill={color}>
+        {endLabels.map(({ item: key, labelY }) => (
+          <text
+            key={key}
+            className="trend-endlabel"
+            x={x(lastIndex) + 8}
+            y={labelY + 4}
+            fill={LEAD_TREND_COLORS[key]}
+          >
             {STAGE_LABELS[key]}
           </text>
         ))}

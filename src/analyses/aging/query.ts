@@ -154,8 +154,10 @@ export function buildAgingSummarySql(scope: Scope, nowTs: string): string {
     WITH ${LATEST_REVIEW_CTE},
     ${LAST_COMMIT_CTE},
     open_prs AS (
-      SELECT pr.is_draft AS is_draft, pr.first_approve_at AS first_approve_at,
-             lr.state AS lr_state, lr.submitted_at AS lr_submitted_at, lc.at AS last_commit_at,
+      -- AWAITING_REVIEW is evaluated here, where the pr/lr/lc aliases it names
+      -- are in scope, so 4-1's count and 4-2's 'awaiting_review' status can
+      -- never drift apart the way two copies of the predicate would.
+      SELECT ${AWAITING_REVIEW} AS awaiting_review,
              (epoch_ms(${nowTs}) - epoch_ms(pr.created_at)) / 3600000.0 AS age_hours
       FROM pull_requests pr
       JOIN repos r ON r.repo_id = pr.repo_id
@@ -165,12 +167,7 @@ export function buildAgingSummarySql(scope: Scope, nowTs: string): string {
       WHERE pr.merged_at IS NULL AND pr.closed_at IS NULL${openFilters(scope)}
     )
     SELECT count(*) AS open_n,
-           count(*) FILTER (
-             WHERE NOT coalesce(is_draft, false)
-               AND first_approve_at IS NULL
-               AND NOT coalesce(lr_state = 'CHANGES_REQUESTED'
-                 AND (last_commit_at IS NULL OR last_commit_at <= lr_submitted_at), false)
-           ) AS awaiting_review_n,
+           count(*) FILTER (WHERE awaiting_review) AS awaiting_review_n,
            max(age_hours) / 24.0 AS oldest_age_days
     FROM open_prs
   `;

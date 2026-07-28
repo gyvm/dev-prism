@@ -43,12 +43,17 @@ export default function AgingHistogram({ histogram }: { histogram: AgingHistogra
       >
         {counts.map((c) => (
           <div key={c.bucket} aria-hidden="true" className="aging-histogram-col">
-            <span className="aging-histogram-count">{c.count}</span>
+            <span className="aging-histogram-count" data-empty={c.count === 0 ? "true" : undefined}>
+              {c.count}
+            </span>
             <div
               className="aging-histogram-bar"
+              // An empty bucket keeps its hairline so it reads as "present,
+              // empty" rather than missing — but in the grid's own grey, not
+              // the accent. Four accent-colored slivers next to one real bar
+              // read as five measurements, one of which is broken.
+              data-empty={c.count === 0 ? "true" : undefined}
               style={{
-                // A zero count still gets a hairline so the bucket reads as
-                // "present, empty" rather than missing from the chart.
                 height: `${Math.max((c.count / max) * 100, c.count > 0 ? 2 : 0.5)}%`,
               }}
             />

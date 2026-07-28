@@ -5,7 +5,7 @@ import { isScopeParamName, scopeToSearchParams } from "../../analyses/scope-url.
 import { siteBase } from "../base-path.js";
 import { getWasmRunner } from "../duckdb-runner.js";
 import { queryFilterOptions, scopeFromUrl } from "../explore.js";
-import { isViewId, VIEW_IDS, VIEWS, type ViewId } from "../views/registry.js";
+import { isViewId, VIEW_IDS, VIEWS, viewTitle, type ViewId } from "../views/registry.js";
 import ExploreFilters, { type ExploreFilterOptions, type ExploreFilterValue } from "./ExploreFilters.js";
 
 // One persistent Explore shell. Changing a view swaps only its analysis below
@@ -121,6 +121,14 @@ export default function Explore({ view }: { view: ViewId }) {
   useEffect(() => {
     void run(scopeFromDraft(draft));
   }, [run]);
+
+  // The tab bar swaps views with pushState instead of a real navigation, so
+  // ClientRouter never swaps in the destination page's <title>. Without this the
+  // tab caption, any bookmark taken mid-session, and the title-change screen
+  // readers announce on route change all keep naming the view first loaded.
+  useEffect(() => {
+    document.title = viewTitle(activeView);
+  }, [activeView]);
 
   useEffect(() => {
     const onPopState = () => {

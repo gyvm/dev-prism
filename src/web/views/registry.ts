@@ -48,6 +48,15 @@ export const VIEWS: Readonly<Record<ViewId, ViewDefinition>> = {
   wip: { id: "wip", label: "滞留", render: renderWipView },
 };
 
+/**
+ * Browser tab title for a view. Shared between the SSR `<title>` in
+ * pages/explore/[view].astro and the island's client-side tab switch, which
+ * navigates with pushState and therefore has to set `document.title` itself.
+ */
+export function viewTitle(id: ViewId): string {
+  return `${VIEWS[id].label} — Explore`;
+}
+
 export function isViewId(value: string | null | undefined): value is ViewId {
   return value != null && (VIEW_IDS as readonly string[]).includes(value);
 }

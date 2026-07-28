@@ -89,7 +89,7 @@ export default function ExploreFilters({
           onChange={(users) => onChange({ ...value, users })}
         />
       </div>
-      <label className="explore-field">
+      <label className="explore-field explore-field-inline">
         <span>Bot を含む</span>
         <input
           type="checkbox"
