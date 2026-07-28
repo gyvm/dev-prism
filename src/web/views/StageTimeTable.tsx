@@ -74,8 +74,11 @@ export default function StageTimeTable({
   initialSort?: Readonly<{ key: CycleStageKey | "sizeLines" | "mergedAt"; desc: boolean }>;
 }) {
   // Deviation: no default sort is mandated by the spec, so an unsorted table
-  // defaults to "most recently merged first" — the same order a fresh load of
-  // 3-1's gantt chart reads in.
+  // defaults to "most recently merged first". Note this is the opposite
+  // direction from 3-1's gantt above, which now opens oldest-start-first: the
+  // gantt is read top-to-bottom as a sequence of events, the table is read as a
+  // ranking, and a ranking that opens on the oldest rows buries the recent ones
+  // under the visible-row cap.
   const [sort, setSort] = useState<SortState>(initialSort ?? { key: "mergedAt", desc: true });
   const [expanded, setExpanded] = useState(false);
 

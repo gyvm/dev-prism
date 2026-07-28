@@ -249,6 +249,19 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .timeline-more:hover { border-color: var(--accent-cyan); background: var(--panel-subtle); }
 .timeline-more:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
 
+/* Gantt sort control. Stacked above the legend rather than beside it: both sit
+   in the right-hand slot of .section-head, and side by side they wrap the
+   legend onto a second line at narrow widths. Toggling repeats StageTimeTable's
+   idiom — click the active key to flip direction — so both halves of the
+   Timeline view sort the same way. */
+.timeline-head-aside { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.timeline-sort { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; font-size: 12px; }
+.timeline-sort-label { color: var(--fg-subtle); }
+.timeline-sort-btn { height: 24px; padding: 0 10px; border: 1px solid var(--border-default); border-radius: 999px; background: var(--panel); color: var(--fg-muted); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .12s ease, background .12s ease; }
+.timeline-sort-btn:hover { border-color: var(--accent-cyan); background: var(--panel-subtle); }
+.timeline-sort-btn[aria-pressed="true"] { border-color: var(--accent-blue); background: var(--panel-subtle); color: var(--fg-default); }
+.timeline-sort-btn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
+
 /* View tabs (flow / review / timeline). */
 .explore-tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }
 .explore-main .explore-tabs { max-width: none; margin: 0; padding: 20px 0 0; }
