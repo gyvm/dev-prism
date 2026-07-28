@@ -2,6 +2,8 @@ import { useId, useMemo, useState } from "react";
 
 import type { ActivityTrendBucket } from "../../analyses/activity-trend/view-model.js";
 import type { Grain } from "../../analyses/scope.js";
+import { placeEndLabels } from "./end-labels.js";
+import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
 
 // Line chart for activity counts over time. Explore-only (the frozen report has
 // no trend section), so it is a plain React component with no inline script —
@@ -33,21 +35,11 @@ export const TREND_COLORS = {
 
 const VIEW_W = 720;
 const VIEW_H = 200;
-const PAD = { top: 12, right: 64, bottom: 26, left: 40 } as const;
-
-const GRAIN_LABEL: Readonly<Record<Grain, string>> = {
-  day: "日次",
-  week: "週次",
-  month: "月次",
-};
-
-function formatBucket(iso: string, grain: Grain): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-  return grain === "month" ? `${date.getUTCFullYear()}/${month}` : `${month}/${day}`;
-}
+// Reserve room for the direct series labels at the line ends. Activity labels
+// are short (作成 / マージ / レビュー / コメント), so 100px prevents clipping
+// without leaving the large blank gutter needed by the longer stage labels in
+// LeadTrendChart.
+const PAD = { top: 12, right: 100, bottom: 26, left: 40 } as const;
 
 /** Nice-ish upper bound so the axis reads in round numbers. */
 function axisMax(values: readonly number[]): number {
@@ -114,24 +106,15 @@ export default function TrendChart({
   const hoveredBucket = hover == null ? undefined : buckets[hover];
   const active = hover != null && hoveredBucket ? { index: hover, bucket: hoveredBucket } : null;
 
-  // End labels sit at each line's final value, so converging series collide and
-  // render as overlapping glyphs. Walk them top-down and push each down until it
-  // clears the previous one — the labels stay attached to the right line while
-  // remaining legible.
+  // End labels sit at each line's final value, so converging series collide.
+  // placeEndLabels de-collides them and keeps the stack inside the plot, which
+  // matters here: series that all end near zero push the stack down onto the
+  // x-axis tick labels otherwise.
   const lastIndex = buckets.length - 1;
-  const endLabels = series
-    .map((s) => ({ series: s, idealY: y(buckets[lastIndex]![s.key]) }))
-    .sort((a, b) => a.idealY - b.idealY)
-    .reduce<{ series: TrendSeries; labelY: number }[]>((placed, entry) => {
-      const previous = placed[placed.length - 1];
-      const minGap = 13;
-      const labelY =
-        previous && entry.idealY - previous.labelY < minGap
-          ? previous.labelY + minGap
-          : entry.idealY;
-      placed.push({ series: entry.series, labelY });
-      return placed;
-    }, []);
+  const endLabels = placeEndLabels(
+    series.map((s) => ({ item: s, idealY: y(buckets[lastIndex]![s.key]) })),
+    { top: PAD.top, bottom: PAD.top + plotH },
+  );
 
   return (
     <section className="trend">
@@ -151,14 +134,14 @@ export default function TrendChart({
         ))}
       </ul>
 
-      <svg
-        className="trend-svg"
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        role="img"
-        aria-labelledby={titleId}
-        preserveAspectRatio="none"
-        onMouseLeave={() => setHover(null)}
-      >
+      <div className="chart-scroll">
+        <svg
+          className="trend-svg"
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          role="img"
+          aria-labelledby={titleId}
+          onMouseLeave={() => setHover(null)}
+        >
         {[0, 0.5, 1].map((ratio) => {
           const gy = PAD.top + plotH * (1 - ratio);
           return (
@@ -217,7 +200,7 @@ export default function TrendChart({
         {/* Direct labels: the redundant encoding that keeps the pair legible for
             tritan viewers, where these hues sit closest. Drawn after the lines
             so a nudged label is never covered by one. */}
-        {endLabels.map(({ series: s, labelY }) => (
+        {endLabels.map(({ item: s, labelY }) => (
           <text
             key={s.key}
             className="trend-endlabel"
@@ -241,7 +224,8 @@ export default function TrendChart({
             onMouseEnter={() => setHover(index)}
           />
         ))}
-      </svg>
+        </svg>
+      </div>
 
       <p className="trend-readout" role="status">
         {active

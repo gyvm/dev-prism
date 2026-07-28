@@ -61,6 +61,19 @@ export function scopeFromSearchParams(params: URLSearchParams): Scope {
   });
 }
 
+const SCOPE_PARAM_NAMES: readonly string[] = ["from", "to", "repos", "users", "bots", "grain"];
+
+/**
+ * True for a URL parameter this module owns and round-trips. A caller that
+ * rewrites the scope portion of the URL (Explore's `run()`) uses this to clear
+ * only its own keys, leaving view-local parameters — e.g. the 3-2 table's
+ * `sort`/`dir` landed by a funnel drilldown — intact. Without it, rewriting the
+ * whole query string silently drops whatever another feature put there.
+ */
+export function isScopeParamName(name: string): boolean {
+  return SCOPE_PARAM_NAMES.includes(name) || name.startsWith(THRESHOLD_PREFIX);
+}
+
 /** Link from a report (or anywhere) into Explore carrying the given scope. */
 export function exploreHref(scope: Scope, basePath = "/explore"): string {
   const query = scopeToSearchParams(scope).toString();

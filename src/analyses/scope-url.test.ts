@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveScope } from "./scope.js";
-import { exploreHref, scopeFromSearchParams, scopeToSearchParams } from "./scope-url.js";
+import {
+  exploreHref,
+  isScopeParamName,
+  scopeFromSearchParams,
+  scopeToSearchParams,
+} from "./scope-url.js";
 
 describe("scope URL serialization", () => {
   it("omits defaults to keep the URL clean", () => {
@@ -76,5 +81,24 @@ describe("scope URL serialization", () => {
     const scope = resolveScope({ from: new Date("2026-04-20T00:00:00.000Z"), to: new Date("2026-04-27T00:00:00.000Z") });
     expect(exploreHref(scope)).toBe("/explore?from=2026-04-20T00%3A00%3A00.000Z&to=2026-04-27T00%3A00%3A00.000Z");
     expect(exploreHref(resolveScope())).toBe("/explore");
+  });
+
+  it("claims exactly the parameters it round-trips, so view-local ones survive", () => {
+    const scope = resolveScope({
+      from: new Date("2026-04-20T00:00:00.000Z"),
+      to: new Date("2026-04-27T00:00:00.000Z"),
+      repos: ["x/y"],
+      users: ["alice"],
+      includeBots: false,
+      grain: "month",
+      thresholds: { scatterMaxPoints: 500 },
+    });
+    for (const name of scopeToSearchParams(scope).keys()) {
+      expect(isScopeParamName(name)).toBe(true);
+    }
+    // The 3-2 drilldown's parameters are not ours; a caller replacing the scope
+    // portion of a URL must leave them alone.
+    expect(isScopeParamName("sort")).toBe(false);
+    expect(isScopeParamName("dir")).toBe(false);
   });
 });

@@ -26,6 +26,8 @@ type Props = Readonly<{
   onPreset: (from: Date, to: Date) => void;
   /** Calendar edits update the draft; applied on the form's 更新 button. */
   onRange: (from: Date | null, to: Date | null) => void;
+  /** Greyed out on views a period does not apply to (the wip backlog). */
+  disabled?: boolean;
 }>;
 
 // The app models periods as UTC day boundaries (Date.toISOString().slice(0,10)),
@@ -41,7 +43,7 @@ function fromCalendar(date: DateValue): Date {
   return new Date(Date.UTC(date.year, date.month - 1, date.day));
 }
 
-export default function PeriodPicker({ from, to, onPreset, onRange }: Props) {
+export default function PeriodPicker({ from, to, onPreset, onRange, disabled = false }: Props) {
   // `now` is read once per mount; presets are relative windows.
   const [presets] = useState(() => datePresets(new Date()));
   const start = toCalendar(from);
@@ -57,6 +59,7 @@ export default function PeriodPicker({ from, to, onPreset, onRange }: Props) {
             type="button"
             key={preset.id}
             className="explore-preset"
+            disabled={disabled}
             onClick={() => onPreset(preset.from, preset.to)}
           >
             {preset.label}
@@ -67,6 +70,7 @@ export default function PeriodPicker({ from, to, onPreset, onRange }: Props) {
         className="rac-daterange"
         aria-label="期間"
         value={value}
+        isDisabled={disabled}
         onChange={(range) =>
           range ? onRange(fromCalendar(range.start), fromCalendar(range.end)) : onRange(null, null)
         }

@@ -1,0 +1,86 @@
+/* Basic candidate component overrides — Storybook evaluation only.
+   Rule: copy an existing PAGE_STYLES / EXPLORE_STYLES selector verbatim and
+   prefix it with `:root.prism `. That adds 2 classes of specificity, so these
+   win regardless of injection order (preview.tsx appends the shipped sheets
+   at runtime, after this file is imported). */
+
+/* The basic candidate uses a flat report canvas. */
+:root.prism body::before {
+  content: none;
+}
+
+/* --- Panels: borders and restrained radii make hierarchy legible without
+       the soft, oversized-card appearance of a generic SaaS dashboard. --- */
+:root.prism section {
+  background: var(--panel);
+  border-color: var(--border-default);
+  border-radius: var(--prism-radius-card);
+  box-shadow: none;
+}
+:root.prism .metric-card,
+:root.prism .cycle-funnel-card {
+  border-color: var(--border-muted);
+  border-top: 1px solid var(--border-muted);
+  border-radius: var(--prism-radius-panel);
+  background: var(--panel);
+  box-shadow: none;
+}
+:root.prism .metric-card:hover,
+:root.prism .metric-card:focus-visible {
+  border-color: var(--border-default);
+  background: var(--panel-subtle);
+}
+:root.prism .dev-prism-candidate-group {
+  border-color: var(--border-muted);
+  border-radius: var(--prism-radius-panel);
+  background: var(--panel);
+}
+:root.prism .bg-node {
+  border-color: var(--border-muted);
+  border-radius: var(--prism-radius-control);
+  background: var(--panel);
+}
+
+/* --- Small controls: keep their familiar field-like affordance. --- */
+:root.prism .explore-preset,
+:root.prism .explore-field input,
+:root.prism .explore-field select {
+  border-radius: var(--prism-radius-control);
+}
+:root.prism .explore-filters button[type="submit"] {
+  border-radius: var(--prism-radius-control);
+  background: var(--accent-cyan);
+}
+:root.prism .explore-filters button[type="submit"]:hover {
+  background: color-mix(in srgb, var(--accent-cyan) 85%, black);
+}
+:root.prism .explore-tab {
+  border-radius: var(--prism-radius-control);
+}
+:root.prism .explore-tab.is-active {
+  border-color: transparent;
+  background: var(--panel-subtle);
+  color: var(--accent-cyan);
+}
+
+/* --- Hover states with literal hexes in the shipped sheets: derive from
+       the accent so the candidate remains internally consistent. --- */
+:root.prism .bg-root[data-hovered] .bg-node.bg-active {
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 8%, var(--panel));
+  box-shadow: none;
+}
+:root.prism .explore-preset:hover {
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 6%, var(--panel));
+}
+
+:root.prism .stage-table th,
+:root.prism .aging-table th {
+  border-bottom-color: var(--border-default);
+}
+
+/* NOTE kept for the evaluation review: the lead-time metric tone (#b7791f,
+   semantic "attention") sits close to the new amber accent. If they read as
+   the same thing side by side, split the tone to orange-700:
+   :root.prism .metric-card-lead-time { --metric-tone: #c2410c; } */

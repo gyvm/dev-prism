@@ -13,7 +13,7 @@ import { resolveScope } from "../scope.js";
 import { calculatePrMetrics } from "./internal/calculate.js";
 import { computeAggregateMetrics } from "./internal/aggregate.js";
 import { computeDora } from "./internal/dora.js";
-import { queryDora } from "./query.js";
+import { queryDora, queryDoraComparison } from "./query.js";
 
 const alice: NormalizedActor = {
   sourceNodeId: "U_alice",
@@ -158,6 +158,41 @@ describe("queryDora parity with computeDora", () => {
       const onlyAlice = await withDwh(dwhDir, (runner) => queryDora(runner, resolveScope({ from, to, users: ["alice"] })));
       expect(all.deploymentFrequency).toBe(3);
       expect(onlyAlice.deploymentFrequency).toBe(2);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("compares the current window against the same-length previous window (1-1b)", async () => {
+    const prs = [
+      // current window [04-20, 04-27]: 2 merged
+      pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T02:00:00.000Z" }),
+      pr(2, { created: "2026-04-21T00:00:00.000Z", merged: "2026-04-21T02:00:00.000Z" }),
+      // previous window [04-12 23:59:59.999, 04-19 23:59:59.999]: 1 merged
+      pr(3, { created: "2026-04-15T00:00:00.000Z", merged: "2026-04-15T02:00:00.000Z" }),
+    ];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const cmp = await withDwh(dwhDir, (runner) => queryDoraComparison(runner, resolveScope({ from, to })));
+      expect(cmp.current.deploymentFrequency).toBe(2);
+      expect(cmp.previous?.deploymentFrequency).toBe(1);
+      expect(cmp.delta?.deploymentFrequency).toBe(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("has no previous period when the scope is unbounded", async () => {
+    const prs = [pr(1, { created: "2026-04-20T00:00:00.000Z", merged: "2026-04-20T02:00:00.000Z" })];
+    const root = await mkdtemp(join(tmpdir(), "gh-insights-dora-"));
+    const dwhDir = join(root, "dwh");
+    try {
+      await buildDwhFromPullRequests(prs, { dwhDir, botPatterns: [] });
+      const cmp = await withDwh(dwhDir, (runner) => queryDoraComparison(runner, resolveScope()));
+      expect(cmp.previous).toBeNull();
+      expect(cmp.delta).toBeNull();
     } finally {
       await rm(root, { recursive: true, force: true });
     }

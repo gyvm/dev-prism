@@ -1,0 +1,28 @@
+/* Basic candidate design tokens — Storybook evaluation only.
+   Scoped to :root.prism so the shipped design (tokens.ts → PAGE_STYLES /
+   EXPLORE_STYLES / theme.css) is untouched; the ThemeFrame decorator in
+   preview.tsx toggles the class. This is a compact, GitHub-adjacent report
+   treatment: white panels, clear borders, small radii, and one cyan accent. */
+
+:root.prism {
+  --bg-default: #f7f9fc;
+  --bg-muted: #eef3f8;
+  --panel: #ffffff;
+  --panel-subtle: #f5f8fb;
+  --fg-default: #202733;
+  --fg-muted: #586574;
+  --fg-subtle: #728091;
+  --border-default: #d6dee8;
+  --border-muted: #e2e8f0;
+  --accent-cyan: #0891b2;
+  --attention: #b7791f;
+
+  --tooltip-border: rgba(214, 222, 232, 0.95);
+  --tooltip-bg: #ffffff;
+
+  --prism-radius-card: 10px;
+  --prism-radius-panel: 8px;
+  --prism-radius-control: 6px;
+
+  color-scheme: light;
+}

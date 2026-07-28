@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
 import type { PrTimeline, TimelineAuxiliary, TimelineState } from "../../shared/types.js";
+import { VISIBLE_ROW_LIMIT } from "./row-limit.js";
 
 /**
  * Explore's PR timeline (gantt) chart.
@@ -151,6 +152,12 @@ type RowData = Readonly<{
   url: string;
   title: string;
   closedUnmerged: boolean;
+  /** Sort keys read the *unclamped* timeline, not `bars` — bars are clipped to
+   *  the week window, so two PRs that both started before it would compare
+   *  equal on their drawn geometry. */
+  startMs: number;
+  endMs: number;
+  durationHours: number;
   bars: readonly SegmentBar[];
   auxRows: ReadonlyArray<readonly [string, string]>;
   /** `auxRows` serialized for the `data-aux` attribute the string renderer also
@@ -198,10 +205,56 @@ function buildRow(
     url: `https://github.com/${timeline.repo.owner}/${timeline.repo.name}/pull/${timeline.number}`,
     title: timeline.title,
     closedUnmerged: timeline.auxiliary.closingState === "closed_unmerged",
+    startMs: Math.min(...timeline.segments.map((segment) => Date.parse(segment.startAt))),
+    endMs: Math.max(...timeline.segments.map((segment) => Date.parse(segment.endAt))),
+    durationHours: timeline.totalDurationHours,
     bars,
     auxRows,
     auxJson: JSON.stringify(auxRows),
   };
+}
+
+type SortKey = "start" | "end" | "duration";
+
+type SortState = Readonly<{ key: SortKey; desc: boolean }>;
+
+const SORT_OPTIONS: ReadonlyArray<Readonly<{ key: SortKey; label: string }>> = [
+  { key: "start", label: "開始" },
+  { key: "end", label: "終了" },
+  { key: "duration", label: "所要時間" },
+];
+
+/** Direction a key opens in when it is newly picked. The two time keys read
+ *  oldest-first — the gantt then steps down the page in the order the work
+ *  actually happened — while duration opens longest-first, since sorting by it
+ *  at all is a search for the outlier. */
+const SORT_OPENS_DESC: Readonly<Record<SortKey, boolean>> = {
+  start: false,
+  end: false,
+  duration: true,
+};
+
+const DEFAULT_SORT: SortState = { key: "start", desc: false };
+
+function sortValue(row: RowData, key: SortKey): number {
+  if (key === "start") return row.startMs;
+  if (key === "end") return row.endMs;
+  return row.durationHours;
+}
+
+/** NaN (an unparseable boundary) sorts last in both directions, as in
+ *  StageTimeTable — the flip below is applied after the guard, not to it. */
+function compareRows(a: RowData, b: RowData, sort: SortState): number {
+  const av = sortValue(a, sort.key);
+  const bv = sortValue(b, sort.key);
+  if (Number.isNaN(av) || Number.isNaN(bv)) {
+    if (Number.isNaN(av) && Number.isNaN(bv)) return 0;
+    return Number.isNaN(av) ? 1 : -1;
+  }
+  // Ties fall back to start time so equal durations still read chronologically.
+  const tie = Number.isNaN(a.startMs) || Number.isNaN(b.startMs) ? 0 : a.startMs - b.startMs;
+  const diff = av === bv ? tie : av - bv;
+  return sort.desc ? -diff : diff;
 }
 
 type HoveredFilter = Readonly<{ kind: "repo" | "author"; value: string }>;
@@ -234,6 +287,8 @@ function EmptyState() {
 
 export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: PrTimelineOutput) {
   const [hoveredFilter, setHoveredFilter] = useState<HoveredFilter | null>(null);
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+  const [expanded, setExpanded] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
@@ -278,10 +333,27 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
     };
   }, [weekStart, weekEnd, timezone, timelines]);
 
+  // Kept out of the memo above so re-sorting never re-parses segment dates.
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => compareRows(a, b, sort)),
+    [rows, sort],
+  );
+
   // Subsumes the empty-`timelines` case: no timelines means no rows.
   if (rows.length === 0) return <EmptyState />;
 
   const hasClosedUnmerged = rows.some((row) => row.closedUnmerged);
+  // Row cap applies to the *sorted* list, so the sort chooses which rows the
+  // collapsed view shows. As in StageTimeTable, `expanded` deliberately
+  // survives a sort change rather than re-collapsing under the user.
+  const hiddenCount = expanded ? 0 : Math.max(0, sortedRows.length - VISIBLE_ROW_LIMIT);
+  const visibleRows = hiddenCount > 0 ? sortedRows.slice(0, VISIBLE_ROW_LIMIT) : sortedRows;
+
+  function toggleSort(key: SortKey): void {
+    setSort((current) =>
+      current.key === key ? { key, desc: !current.desc } : { key, desc: SORT_OPENS_DESC[key] },
+    );
+  }
 
   function handleTrackEnter(event: MouseEvent<HTMLDivElement>, row: RowData): void {
     pointerRef.current = { x: event.clientX, y: event.clientY };
@@ -313,23 +385,39 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
         <div>
           <h2>PRタイムライン</h2>
         </div>
-        <div className="timeline-legend" aria-label="Timeline legend">
-          {TIMELINE_STATES.map((state) => (
-            <span className="legend-item" key={state}>
-              <span className={`legend-swatch ${state}`} />
-              {TIMELINE_STATE_LABELS[state]}
-            </span>
-          ))}
-          {/* The string renderer also tags the item below
-              `legend-closed-unmerged`, a class no stylesheet defines. Dropped
-              here rather than carried over; `legend-swatch-closed` is what
-              actually styles it. */}
-          {hasClosedUnmerged && (
-            <span className="legend-item">
-              <span className="legend-swatch legend-swatch-closed" />
-              クローズ (未マージ)
-            </span>
-          )}
+        <div className="timeline-head-aside">
+          <div className="timeline-sort" role="group" aria-label="並び替え">
+            <span className="timeline-sort-label">並び替え</span>
+            {SORT_OPTIONS.map((option) => {
+              const isSorted = sort.key === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  className="timeline-sort-btn"
+                  aria-pressed={isSorted}
+                  onClick={() => toggleSort(option.key)}
+                >
+                  {option.label}
+                  {isSorted ? (sort.desc ? " ▼" : " ▲") : ""}
+                </button>
+              );
+            })}
+          </div>
+          <div className="timeline-legend" aria-label="Timeline legend">
+            {TIMELINE_STATES.map((state) => (
+              <span className="legend-item" key={state}>
+                <span className={`gantt-legend-swatch ${state}`} />
+                {TIMELINE_STATE_LABELS[state]}
+              </span>
+            ))}
+            {hasClosedUnmerged && (
+              <span className="legend-item">
+                <span className="gantt-legend-swatch gantt-legend-swatch-closed" />
+                クローズ (未マージ)
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div
@@ -350,7 +438,7 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
             </div>
           </div>
         </article>
-        {rows.map((row) => {
+        {visibleRows.map((row) => {
           const { author } = row;
           const isActive =
             hoveredFilter !== null &&
@@ -392,18 +480,26 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
                 >
                   {row.ref}
                 </span>
+                {row.closedUnmerged && (
+                  <span className="aging-badge aging-badge-draft">未マージ</span>
+                )}
               </div>
               <div className="timeline-track-wrap">
                 <div
-                  className="timeline-track"
+                  className="gantt-track"
                   onMouseEnter={(event) => handleTrackEnter(event, row)}
                   onMouseMove={handleTrackMove}
                   onMouseLeave={handleTrackLeave}
                 >
+                  <div className="gantt-daygrid" aria-hidden="true">
+                    {Array.from({ length: DAY_COUNT }, (_, i) => (
+                      <span key={i} className="gantt-daygrid-cell" />
+                    ))}
+                  </div>
                   {row.bars.map((bar, i) => (
                     <span
                       key={i}
-                      className={`segment ${bar.state}`}
+                      className={`gantt-segment ${bar.state}`}
                       style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%` }}
                       data-state={bar.state}
                       data-start={bar.startAt}
@@ -418,6 +514,11 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
           );
         })}
       </div>
+      {hiddenCount > 0 && (
+        <button type="button" className="timeline-more" onClick={() => setExpanded(true)}>
+          残り {hiddenCount} 件を表示（全 {sortedRows.length} 件）
+        </button>
+      )}
       {tooltip &&
         createPortal(
           <div className="timeline-tooltip" role="tooltip" ref={tooltipRef}>
@@ -425,7 +526,7 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
             <ol>
               {tooltip.items.map((item, i) => (
                 <li key={i}>
-                  <span className={`timeline-tooltip-swatch ${item.state}`} />
+                  <span className={`gantt-tooltip-swatch ${item.state}`} />
                   <span>{item.label}</span>
                 </li>
               ))}

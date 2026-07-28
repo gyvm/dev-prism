@@ -49,6 +49,7 @@ describe("DWH schema", () => {
       "pr_review_threads",
       "pr_review_comments",
       "pr_commits",
+      "pr_review_requests",
       "actors",
       "repos",
     ]);

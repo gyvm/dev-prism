@@ -1,31 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactElement } from "react";
 
-import { resolveScope, type Grain, type Scope } from "../../analyses/scope.js";
-import { scopeToSearchParams } from "../../analyses/scope-url.js";
+import { resolveScope, type Scope } from "../../analyses/scope.js";
+import { isScopeParamName, scopeToSearchParams } from "../../analyses/scope-url.js";
+import { siteBase } from "../base-path.js";
 import { getWasmRunner } from "../duckdb-runner.js";
 import { queryFilterOptions, scopeFromUrl } from "../explore.js";
-import { VIEWS, type ViewId } from "../views/registry.js";
-import MultiSelect from "./MultiSelect.js";
-import PeriodPicker from "./PeriodPicker.js";
+import { isViewId, VIEW_IDS, VIEWS, viewTitle, type ViewId } from "../views/registry.js";
+import ExploreFilters, { type ExploreFilterOptions, type ExploreFilterValue } from "./ExploreFilters.js";
 
-// One Explore view. The island is mounted per route (/explore/<view>/), so the
-// `view` prop is fixed for its lifetime — navigation remounts it. The DuckDB
-// runner deliberately does NOT live here: it is a module-scope singleton
-// (duckdb-runner.ts) so an Astro ClientRouter navigation reuses the booted WASM
-// instead of paying the multi-second boot again. See docs/explore-views-plan.md.
+// One persistent Explore shell. Changing a view swaps only its analysis below
+// the filters; DuckDB-WASM and the selected scope remain in the same island.
 
-type Draft = Readonly<{
-  from: Date | null;
-  to: Date | null;
-  grain: Grain;
-  repos: readonly string[];
-  users: readonly string[];
-  includeBots: boolean;
-}>;
-
-type Options = Readonly<{ repos: string[]; users: string[] }>;
-
-function draftFromScope(scope: Scope): Draft {
+function draftFromScope(scope: Scope): ExploreFilterValue {
   return {
     from: scope.from,
     to: scope.to,
@@ -36,7 +22,7 @@ function draftFromScope(scope: Scope): Draft {
   };
 }
 
-function scopeFromDraft(draft: Draft): Scope {
+function scopeFromDraft(draft: ExploreFilterValue): Scope {
   return resolveScope({
     from: draft.from,
     to: draft.to,
@@ -55,25 +41,48 @@ function dateLabel(date: Date | null): string {
   return date ? date.toISOString().slice(0, 10) : "—";
 }
 
+function viewFromPathname(pathname: string): ViewId | null {
+  const segment = pathname.split("/").filter(Boolean).at(-1);
+  return isViewId(segment) ? segment : null;
+}
+
+/**
+ * Replaces the scope-owned query parameters, leaving every other one in place.
+ * Overwriting the whole query string would drop view-local parameters — the 3-2
+ * table's `sort`/`dir` arrive by link and would be erased by the very first
+ * run() before the view ever reads them.
+ */
+function syncScopeToUrl(scope: Scope): void {
+  const params = new URLSearchParams(window.location.search);
+  for (const name of [...params.keys()]) {
+    if (isScopeParamName(name)) params.delete(name);
+  }
+  for (const [name, value] of scopeToSearchParams(scope)) params.set(name, value);
+  const query = params.toString();
+  window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+}
+
 export default function Explore({ view }: { view: ViewId }) {
-  const definition = VIEWS[view];
+  const [activeView, setActiveView] = useState(view);
+  const definition = VIEWS[activeView];
   const [status, setStatus] = useState("DuckDB-WASM を起動中…");
   const [content, setContent] = useState<ReactElement | null>(null);
   const [initialScope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
-  const [draft, setDraft] = useState<Draft>(() => draftFromScope(initialScope));
-  const [options, setOptions] = useState<Options>({ repos: [], users: [] });
+  const [draft, setDraft] = useState<ExploreFilterValue>(() => draftFromScope(initialScope));
+  const [options, setOptions] = useState<ExploreFilterOptions>({ repos: [], users: [] });
   // Monotonic guard: a slower earlier run must not overwrite a newer one.
   const generation = useRef(0);
 
   const run = useCallback(
     async (scope: Scope): Promise<void> => {
       const gen = ++generation.current;
-      const query = scopeToSearchParams(scope).toString();
-      window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+      syncScopeToUrl(scope);
       setStatus("集計中…");
       try {
         const runner = await getWasmRunner();
-        const element = await definition.render(runner, scope);
+        // Read per run, not per mount: the wip snapshot should reflect the
+        // instant the user asked, not when the tab happened to open.
+        const element = await definition.render(runner, scope, new Date());
         if (gen !== generation.current) return; // superseded by a later run
         setContent(element);
         setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
@@ -84,8 +93,8 @@ export default function Explore({ view }: { view: ViewId }) {
     [definition],
   );
 
-  // Boot (or reuse) the runner, then load filter options and run the initial
-  // scope. The runner is never closed here — it is owned by the page session.
+  // Boot (or reuse) the runner, then load filter options. The runner is never
+  // closed here — it is owned by the page session.
   useEffect(() => {
     let disposed = false;
     getWasmRunner()
@@ -102,78 +111,85 @@ export default function Explore({ view }: { view: ViewId }) {
       .catch(() => {
         /* run() surfaces the boot error; don't double-report it here */
       });
-    void run(scopeFromDraft(draftFromScope(initialScope)));
     return () => {
       disposed = true;
     };
-    // Mount-only: run/initialScope are stable for the component's lifetime.
-  }, [run, initialScope]);
+  }, []);
 
-  const applyDraft = (next: Draft): void => {
+  // A view switch intentionally reuses the current draft and changes only the
+  // analysis content rendered below the tab bar.
+  useEffect(() => {
+    void run(scopeFromDraft(draft));
+  }, [run]);
+
+  // The tab bar swaps views with pushState instead of a real navigation, so
+  // ClientRouter never swaps in the destination page's <title>. Without this the
+  // tab caption, any bookmark taken mid-session, and the title-change screen
+  // readers announce on route change all keep naming the view first loaded.
+  useEffect(() => {
+    document.title = viewTitle(activeView);
+  }, [activeView]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const next = viewFromPathname(window.location.pathname);
+      if (next) setActiveView(next);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const applyDraft = (next: ExploreFilterValue): void => {
     setDraft(next);
     void run(scopeFromDraft(next));
   };
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
+  const applyCurrentDraft = (): void => {
     void run(scopeFromDraft(draft));
+  };
+
+  const viewHref = (id: ViewId) => `${siteBase()}explore/${id}/${window.location.search}`;
+
+  const changeView = (event: MouseEvent<HTMLAnchorElement>, id: ViewId): void => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (id === activeView) return;
+    window.history.pushState(null, "", viewHref(id));
+    setActiveView(id);
   };
 
   return (
     <main className="explore-main">
       <header>
-        <h1>{definition.label}</h1>
-        <form className="explore-filters" aria-label="フィルタ" onSubmit={onSubmit}>
-          <PeriodPicker
-            from={draft.from}
-            to={draft.to}
-            onPreset={(from, to) => applyDraft({ ...draft, from, to })}
-            onRange={(from, to) => setDraft({ ...draft, from, to })}
-          />
-          <label className="explore-field">
-            <span>粒度</span>
-            <select
-              name="grain"
-              value={draft.grain}
-              onChange={(event) => setDraft({ ...draft, grain: event.target.value as Grain })}
-            >
-              <option value="day">日</option>
-              <option value="week">週</option>
-              <option value="month">月</option>
-            </select>
-          </label>
-          <div className="explore-field">
-            <span>Repos</span>
-            <MultiSelect
-              label="Repos"
-              options={options.repos}
-              selected={draft.repos}
-              onChange={(repos) => setDraft({ ...draft, repos })}
-            />
-          </div>
-          <div className="explore-field">
-            <span>Users</span>
-            <MultiSelect
-              label="Users"
-              options={options.users}
-              selected={draft.users}
-              onChange={(users) => setDraft({ ...draft, users })}
-            />
-          </div>
-          <label className="explore-field">
-            <span>Bot を含む</span>
-            <input
-              type="checkbox"
-              name="includeBots"
-              checked={draft.includeBots}
-              onChange={(event) => setDraft({ ...draft, includeBots: event.target.checked })}
-            />
-          </label>
-          <button type="submit">更新</button>
-        </form>
-        <p className="explore-status" role="status">{status}</p>
+        <h1>Explore</h1>
+        <ExploreFilters
+          value={draft}
+          options={options}
+          onChange={setDraft}
+          onPreset={applyDraft}
+          onSubmit={applyCurrentDraft}
+          timeControlsDisabled={activeView === "wip"}
+        />
       </header>
-      {content}
+      <nav className="explore-tabs" aria-label="ビュー">
+        {VIEW_IDS.map((id) => (
+          <a
+            key={id}
+            className={id === activeView ? "explore-tab is-active" : "explore-tab"}
+            href={viewHref(id)}
+            aria-current={id === activeView ? "page" : undefined}
+            onClick={(event) => changeView(event, id)}
+          >
+            {VIEWS[id].label}
+          </a>
+        ))}
+      </nav>
+      <div className="explore-content">
+        <p className="explore-status" role="status" aria-live="polite">
+          {status}
+        </p>
+        {content}
+      </div>
     </main>
   );
 }

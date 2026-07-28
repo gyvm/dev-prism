@@ -75,9 +75,10 @@ jobs:
           # array-count instead of `ls | wc -l` so this survives a future
           # `shell: bash` that would add pipefail and abort the assignment.
           shopt -s nullglob
+          # Keep in sync with exploreDwhTableNames in src/warehouse/schema.ts.
           expected_parquet=(
             activities pull_requests pr_reviews pr_review_threads
-            pr_review_comments pr_commits actors repos
+            pr_review_comments pr_commits pr_review_requests actors repos
           )
           for table in "${expected_parquet[@]}"; do
             if [ -f "verify-dist/data/$table.parquet" ]; then
