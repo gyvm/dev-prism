@@ -57,10 +57,12 @@ export const NoComparison: Story = {
   },
 };
 
-// Zero merged PRs this period: lead time / failure rate / MTTR all read
-// "データなし" rather than N/A or 0%, distinct from the "0 reverts, but PRs did
-// merge" case below. The deploy card still gets a delta (the count is always
-// defined), but every other delta is null because their current-side
+// Zero merged PRs this period: lead time / failure rate / MTTR are undefined
+// for the one same reason, so all three read a muted "—" over
+// "マージ済みPRなし" — not 0%, and not the "0 reverts, but PRs did merge" case
+// below. The merge-count card keeps "0件" in full color: zero merges is a
+// measurement, not a gap. The deploy card still gets a delta (the count is
+// always defined), but every other delta is null because their current-side
 // denominator is null (docs/explore-screens.md データと数値の方針).
 export const NoMergedPrs: Story = {
   args: {

@@ -130,6 +130,10 @@ a.cycle-funnel-card:hover, a.cycle-funnel-card:focus-visible { border-color: var
 a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outline-offset: 2px; }
 .cycle-funnel-label { display: block; color: var(--fg-muted); font-size: 13px; font-weight: 650; }
 .cycle-funnel-value { display: block; font-size: 22px; line-height: 1.15; margin: 13px 0 0; color: var(--accent-cyan); }
+/* Same rule as .metric-card-muted one section up: a stage with no median shows
+   the "—" placeholder in neutral, not in the accent that says "here is your
+   measurement". Keeps an empty stage from out-shouting the ones with data. */
+.cycle-funnel-card-muted .cycle-funnel-value { color: var(--fg-subtle); }
 .cycle-funnel-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
 /* Trend chart (Explore-only; the frozen report has no trend section).
    Marks stay thin and the grid recessive so the data reads first. */

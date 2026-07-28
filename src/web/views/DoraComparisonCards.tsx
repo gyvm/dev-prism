@@ -1,6 +1,7 @@
 import type { DoraComparison, DoraDelta } from "../../analyses/dora-metrics/view-model.js";
 import type { DoraMetrics } from "../../shared/types.js";
 import { formatHours } from "../../renderers/utils.js";
+import { type Readout, absent, measured, NO_MERGED_PRS } from "./readout.js";
 
 // DORA cards with previous-period comparison (1-1b). A new component, not an
 // extension of renderers/metric-cards.tsx: that component is shared with the
@@ -32,10 +33,6 @@ type Card = Readonly<{
   muted: boolean;
   delta: CardDelta | null;
 }>;
-
-/** No measurement to show. Both no-revert cards land here — the metric is
- *  undefined, not zero, so the slot gets an em dash and the story goes to `n`. */
-const NO_VALUE = "—";
 
 /**
  * `value > 0` reads as an increase, `value < 0` as a decrease. Whether that is
@@ -71,27 +68,32 @@ function mergedCount(current: DoraMetrics): number {
   return current.deploymentFrequency;
 }
 
-/** The headline/sub-line/tone split for a card whose value can be absent. */
-type Readout = Readonly<{ value: string; n: string | null; muted: boolean }>;
-
-function measured(value: string, n: string | null): Readout {
-  return { value, n, muted: false };
-}
-
-function absent(n: string): Readout {
-  return { value: NO_VALUE, n, muted: true };
+/**
+ * Lead time, failure rate and MTTR are all undefined for the same reason — the
+ * period merged nothing — so all three say so in the same words. Previously
+ * this card printed formatHours()'s raw "N/A" in full accent color while the
+ * two beside it were already showing a muted "—", which made one empty period
+ * look like three different situations.
+ */
+function leadTimeReadout(current: DoraMetrics): Readout {
+  const merged = mergedCount(current);
+  if (merged === 0) return absent(NO_MERGED_PRS);
+  if (current.leadTimeForChangesHours === null) return absent(`計測不能 / n=${merged}`);
+  return measured(formatHours(current.leadTimeForChangesHours), `n=${merged}`);
 }
 
 function changeFailureRateReadout(current: DoraMetrics): Readout {
   const merged = mergedCount(current);
-  if (current.changeFailureRatePercent === null) return absent("データなし");
+  // null only ever means `deploys === 0` (dora-metrics/query.ts) — the same
+  // empty period the lead-time card reports, hence the same wording.
+  if (current.changeFailureRatePercent === null) return absent(NO_MERGED_PRS);
   if (current.changeFailureRatePercent === 0) return absent(`Revert 0件 / n=${merged}`);
   return measured(`${current.changeFailureRatePercent.toFixed(1)}%`, `n=${merged}`);
 }
 
 function mttrReadout(current: DoraMetrics): Readout {
   const merged = mergedCount(current);
-  if (merged === 0) return absent("データなし");
+  if (merged === 0) return absent(NO_MERGED_PRS);
   if (current.mttrHours === null) return absent(`Revert 0件 / n=${merged}`);
   return measured(formatHours(current.mttrHours), `n=${merged}`);
 }
@@ -112,9 +114,7 @@ function buildCards(comparison: DoraComparison): readonly Card[] {
     {
       tone: "lead-time",
       label: "変更のリードタイム",
-      value: formatHours(current.leadTimeForChangesHours),
-      n: mergedCount(current) > 0 ? `n=${mergedCount(current)}` : null,
-      muted: false,
+      ...leadTimeReadout(current),
       // formatHours, not a local copy: the delta must round the same way as the
       // headline value directly above it.
       delta: buildDelta(d("leadTimeForChangesHours"), "decrease", formatHours),
