@@ -1011,8 +1011,9 @@ fork の痛みは「コード・config・データが 1 repo に絡む」こと�
 | GitHub Action / 再利用ワークフロー | `uses: gyvm/dev-prism@v2` | **主軸(確定)**。GitHub 中心 |
 | npm CLI | `npx pr-weekly-analytics build` | 必要になったら追加(Node で CI を自由に組む利用者) |
 
-> **確定:Action 主軸 + Docker 従**。両者は同一タグから一括ビルドし、同じエンジンを参照する。
-> npm は需要が見えてから後付けで足す。
+> **確定:Action 単軸**。npm は需要が見えてから後付けで足す。
+>
+> ~~**確定:Action 主軸 + Docker 従**。両者は同一タグから一括ビルドし、同じエンジンを参照する。~~
 >
 > **撤回 (2026-07-31): Docker 従チャネルは廃止。** 収集専用イメージ (`Dockerfile` +
 > `publish-image.yml` による GHCR publish) とセルフホスト導線をリポジトリから削除した。

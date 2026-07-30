@@ -362,7 +362,7 @@ compute 分析は常に既定パラメータで実行されます。
 | `npm run report` | fetch → analyze → render の全体パイプライン (orchestrate 系) |
 | `npm run dwh:build -- [--config <path>] [--dwh-dir <dir>] [--from YYYY-MM-DD]` | PR を収集して DWH (parquet) を増分構築。`--from` で過去分を backfill |
 | `npm run report:dwh -- [--reports-config <path>] [--from <d> --to <d>] [--dwh-dir <dir>] [--reports-dir <dir>]` | DWH から frozen reports + `index.json` を生成 |
-| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
 | `npm run demo` | 同梱サンプル raw データ (`data/demo/`) でレポート生成 |
 
 ### 増分収集と backfill (`dwh:build`)
@@ -425,7 +425,7 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
   各カードは凍結レポート (`/reports/<id>.html`) へリンク。
 - **Explore** (`/explore`): `client:only` の React 島。ブラウザ内 **DuckDB-WASM** が画面用に絞った
   `dist/data/*.parquet` を直接クエリし、レポートと**同一のレンダラ・SQL**で DORA / レビュー相関 /
-  PR タイムラインをライブ集計。`explore:data` が置くのは画面で使う 8 テーブルだけで、完全 DWH の
+  PR タイムラインをライブ集計。`explore:data` が置くのは画面で使う 9 テーブルだけで、完全 DWH の
   `bodies.parquet` (PR 本文・コメント本文を含む) は AI／バッチ処理向けに `data/dwh/` に残し、
   **静的サイトには配信しない**。
   期間プリセット (今週/過去1ヶ月/3ヶ月/1年) + カレンダー、repo/user の multiselect で絞り込み。
@@ -438,7 +438,7 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
 |---|---|
 | `npm run web:dev` | Astro 開発サーバ (base `/`、`http://localhost:4321/`) |
 | `npm run web:build` | `nav.js` ビルド + `astro build` (本番 base `/dev-prism`)。**base は固定**なので、別 base で焼くときは `ASTRO_BASE=... astro build --root src/web` を直接叩く |
-| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
 | `npm run report:dwh -- --dwh-dir <dir> --reports-dir dist/reports --from <d> --to <d>` | 凍結レポート + `index.json` を生成 (`--index` は付けない: 一覧 HTML は Astro が生成) |
 
 > **描画の更新 (デザイン変更)** は `report:dwh` を再実行すれば凍結レポートを現行レンダラで再生成できます
