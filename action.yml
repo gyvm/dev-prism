@@ -54,8 +54,8 @@ inputs:
     required: false
     default: ''
 
-# Composite (not Docker): a single action runs both the collector and the site
-# build on the runner, sharing one `npm ci`. Because this action.yml lives at the
+# Composite: a single action runs both the collector and the site build on the
+# runner, sharing one `npm ci`. Because this action.yml lives at the
 # engine repo ROOT, ${{ github.action_path }} resolves to the whole checked-out
 # engine — so npm, src/web and the repo-root dist/ all resolve from there.
 #

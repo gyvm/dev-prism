@@ -1,6 +1,6 @@
 # Cut a release: bump the version, push a vX.Y.Z tag, and move the floating
-# major tag (v0). Pushing the vX.Y.Z tag triggers publish-image.yml (GHCR).
-# Run from Actions > Release > Run workflow and pick the bump type.
+# major tag (v0). Run from Actions > Release > Run workflow and pick the bump
+# type.
 #
 # Versioning (v0 line): minor = features/breaking, patch = fixes (semver's v0
 # contract allows breaking changes in a minor). Consumers pin the floating

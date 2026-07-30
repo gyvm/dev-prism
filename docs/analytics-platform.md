@@ -5,7 +5,7 @@ PR データを「事前にバケット集計した固定レポート」から�
 
 - 配布モデルは「エンジン / 利用者リポジトリの分離」(fork ではなく versioned 参照)
 - 探索はクライアント完全内製の DuckDB-WASM(常駐サーバー・認証基盤なし)
-- 成果物は「静的ファイルの塊」なので、Pages / Cloudflare / Docker どこへでも置ける
+- 成果物は「静的ファイルの塊」なので、Pages / Cloudflare / 自前の静的配信どこへでも置ける
 - **DWH が source of truth**(raw スナップショットは処理中の一時データで、取り込み後に破棄)
 
 ## 決定サマリ(高レベル)
@@ -34,7 +34,8 @@ PR データを「事前にバケット集計した固定レポート」から�
 - デプロイ:静的でどこでも。**既定は要認証(保護ホスト)**、public 公開は明示時のみ
 
 **高レベルは凍結**(同一粒度の決定は完了。以下も確定)
-1. 配布チャネル:**Action 主軸 + Docker 従**(npm は必要になったら追加)
+1. 配布チャネル:**Action 単軸**(当初は Docker 従を併走させる想定だったが 2026-07-31 に撤回。
+   npm は必要になったら追加)
 2. Explore 既定指標:**既存3分析(DORA / レビュー相関 / PR timeline)+ 件数推移**
 3. private 既定:**要認証(保護ホスト)を既定**、public 公開は明示時のみ
 
@@ -52,7 +53,7 @@ DWH (Parquet, star schema)  ← source of truth。永続。今回作る唯一の
         ├─② HTTP range → DuckDB-WASM + Explore   ← 期間・粒度・repo・人・bot を実行時に切替
         └─③ CI で集計 → 既存レンダラ → 自己完結レポート HTML(凍結・共有可能)
                   │  ②③ とも静的バンドル(dist/)
-        deploy adapter → Pages / Cloudflare / Docker / …
+        deploy adapter → Pages / Cloudflare / 自前の静的配信 / …
 ```
 
 設計の中心は **「いつ集計するか」の転換**。現状はパイプラインが週次バケットへ事前に
@@ -947,7 +948,7 @@ group-by はシングルスレッドでも **数十〜数百 ms** で返る。�
 |-----------------|-------------------------------|------------------|----------------------------------------|
 | GitHub Pages    | 既存 Actions で `dist/` を公開| 設定不可         | シングルスレッド WASM 前提なら問題なし |
 | Cloudflare Pages| `wrangler pages deploy dist`  | `_headers` で可  | private は Cloudflare Access で保護     |
-| Docker (nginx)  | `dist/` を配信する image      | nginx conf で可  | VPS 等に自前ホスト                      |
+| 自前の静的配信  | nginx 等で `dist/` を配信     | nginx conf で可  | VPS 等に自前ホスト                      |
 | S3 / Netlify 等 | 同上(静的配信)              | 各機能で可       | Range リクエスト対応が必要              |
 
 唯一デプロイ先で差が出るのは **COOP/COEP ヘッダ**(マルチスレッド WASM を使う場合のみ)。
@@ -960,7 +961,7 @@ group-by はシングルスレッドでも **数十〜数百 ms** で返る。�
 private repo の情報が含まれ得るため、**既定は要認証(保護ホスト)** とする:
 
 - **既定**:Cloudflare Access 等で**認証保護したデプロイ経路**(Cloudflare Pages + Access、
-  認証付き Docker/VPS など)。テンプレートの既定もこちらを指す。
+  認証付きの自前ホスト/VPS など)。テンプレートの既定もこちらを指す。
 - **public 公開は明示時のみ**:扱うデータが公開 repo のみ等、**意図的に公開してよい場合に限り**
   GitHub Pages 等の公開ホストを選ぶ(オプトイン)。
 - いずれも `dist/` は純静的なので、保護はホスト側のアクセス制御で行う(コアは関与しない)。
@@ -1008,11 +1009,14 @@ fork の痛みは「コード・config・データが 1 repo に絡む」こと�
 | チャネル | 参照例 | 向き |
 |---|---|---|
 | GitHub Action / 再利用ワークフロー | `uses: gyvm/dev-prism@v2` | **主軸(確定)**。GitHub 中心 |
-| Docker image | `gyvm/dev-prism:v2` | **従(確定)**。非 GitHub CI / 自前 cron / Docker ホスト |
 | npm CLI | `npx pr-weekly-analytics build` | 必要になったら追加(Node で CI を自由に組む利用者) |
 
 > **確定:Action 主軸 + Docker 従**。両者は同一タグから一括ビルドし、同じエンジンを参照する。
 > npm は需要が見えてから後付けで足す。
+>
+> **撤回 (2026-07-31): Docker 従チャネルは廃止。** 収集専用イメージ (`Dockerfile` +
+> `publish-image.yml` による GHCR publish) とセルフホスト導線をリポジトリから削除した。
+> 配布は **Action 単軸**。npm CLI は引き続き「必要になったら追加」のまま。
 
 ## DWH マイグレーション(DWH-as-truth の核心)
 
@@ -1114,7 +1118,7 @@ src/warehouse/migrations/
    アトミック swap、`dwh:build` が起動時に version-gate)。`migrations/` レジストリは v1 ベースラインで空、
    新版で追加。**残り**:エンジン / 利用者リポジトリ分離、テンプレート repo + versioned 参照
    (主軸 = GitHub Action)。
-8. **デプロイアダプタ**:Pages → Cloudflare → Docker。COOP/COEP は必要時のみ。
+8. **デプロイアダプタ**:Pages → Cloudflare → 自前の静的配信。COOP/COEP は必要時のみ。
 
 既存の静的レポート(`src/report` / `src/pipeline`)は移行中は並走させ、新フロントが
 機能等価になった段階で置き換える。
@@ -1162,7 +1166,6 @@ src/warehouse/migrations/
 ### F. 配布・テンプレート・運用
 - [ ] **テンプレート repo の具体形**(`report.yml`、secrets、`data/dwh` 運用)
 - [ ] 再利用ワークフロー `pipeline.yml` の inputs / secrets / permissions / `concurrency`
-- [ ] **Docker image** 構成(従チャネル)
 - [ ] `migrate.ts` + `migrations/` の骨格(版比較 → 順序適用 → アトミック swap)
 - [ ] **要認証デプロイの既定手順**(Cloudflare Access 等)をテンプレ既定に
 - [ ] コスト/レート制御(GraphQL secondary limits、AI トークン)、テスト戦略、セキュリティ(PAT スコープ)
