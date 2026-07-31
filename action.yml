@@ -54,10 +54,11 @@ inputs:
     required: false
     default: ''
 
-# Composite (not Docker): a single action runs both the collector and the site
-# build on the runner, sharing one `npm ci`. Because this action.yml lives at the
-# engine repo ROOT, ${{ github.action_path }} resolves to the whole checked-out
-# engine — so npm, src/web and the repo-root dist/ all resolve from there.
+# Composite (not a `runs.using: docker` action): a single action runs both the
+# collector and the site build on the runner, sharing one `npm ci`. Because this
+# action.yml lives at the engine repo ROOT, ${{ github.action_path }} resolves to
+# the whole checked-out engine — so npm, src/web and the repo-root dist/ all
+# resolve from there.
 #
 # Auth: the collector reads GITHUB_TOKEN (or the GITHUB_APP_* trio) from the
 # environment. Step-level `env:` on a `uses:` step does NOT reach a composite's

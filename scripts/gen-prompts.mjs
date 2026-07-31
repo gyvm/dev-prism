@@ -1,12 +1,16 @@
 // Embeds the AI prompt bodies (src/prompts/*.md) into a committed TypeScript
-// module (src/prompts/generated.ts) so they ship inside the compiled bundle —
-// no runtime filesystem access, and the published Docker image (which only
-// copies `dist`) always has them. See docs/adr/0002-ai-prompt-architecture.md §2.
+// module (src/prompts/generated.ts) so loading a prompt needs no filesystem
+// access at runtime: no resolving .md paths relative to cwd or to however the
+// CLI was invoked. See docs/adr/0002-ai-prompt-architecture.md §2 (written when
+// a Docker image was still a distribution channel; that channel has since been
+// dropped, but the import-don't-read argument stands on its own).
 //
-// This is intentionally NOT chained to `npm run build`: the Dockerfile does not
-// copy `scripts/`, so a `prebuild` hook would ENOENT in the image. Run it
-// manually via `npm run gen:prompts` after editing a prompt; the drift test
-// (src/prompts/generated.test.ts) fails CI if the committed file is stale.
+// This is intentionally NOT chained to a build step: generated.ts is a
+// committed artifact that tsx dev/test runs import directly, and a prebuild
+// hook would silently regenerate it — masking exactly the drift the test
+// guards against. Run it manually via `npm run gen:prompts` after editing a
+// prompt; the drift test (src/prompts/generated.test.ts) fails CI if the
+// committed file is stale.
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";

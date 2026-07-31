@@ -31,11 +31,9 @@ https://gyvm.github.io/dev-prism/demo/reports/2026-05-03.html
 |---|---|---|---|
 | **A. ローカル** | 手元の Node | ローカルの `dist/` を開く | まず試す / 単発で見たい |
 | **B. GitHub Actions + ホスティング** | GitHub-hosted runner | GitHub Pages / Cloudflare 等 | **推奨。** 週次自動化を最小手間で回したい |
-| **C. セルフホスト (Docker)** | 自前サーバ / インスタンス | nginx 等で自前配信 | GHES 社内配信 / Pages を使えない / データを外に出せない |
 
 > **迷ったら B。** GitHub Actions はホスト型 cron・無料の Pages 配信・`GITHUB_API_URL`
-> 自動注入・secret 管理をタダで提供します。C はそれらを全部自前で背負う代わりに、
-> インターネット非公開やオンプレ配信が可能になります。
+> 自動注入・secret 管理をタダで提供します。A は単発で中身を確認したいときに使ってください。
 
 ---
 
@@ -232,12 +230,6 @@ composite Action 1 本で、収集 → DWH 更新 → サイトビルドを順�
 `COPILOT_GITHUB_TOKEN` secret を設定していれば AI 分析も CI 上で実行されます。未設定の場合は
 自動的に `--skip-ai` にフォールバックし、AI 分析セクションは `skipped` になります。
 
-> **GHCR プリビルドイメージについて**: GitHub Actions (パターン B) の Action は composite で、
-> ランナー上で `npm ci` + ビルドを実行するため Docker イメージは使いません (キャッシュ済みの
-> `npm ci` で十分高速)。リリース時に `publish-image.yml` が GHCR へ publish する収集イメージは
-> **パターン C (セルフホスト) 専用**で、`docker compose` の `build: .` の代わりに
-> `ghcr.io/your-org/dev-prism:0` を pull して使えます。`:0` は v0 系の最新を指す浮動タグです。
-
 ---
 
 ## セキュリティとネットワーク境界
@@ -328,103 +320,7 @@ allowlist には Copilot 系エンドポイントが一切含まれておらず�
   回避できないため、GA したらこちらへの移行が望ましい構成です。エンタープライズなら
   Azure private networking + NSG の outbound ルールでも同等の制御ができます
 - Dev Prism の Action が **composite である**ことがこの制御の前提です (ランナー上で直接プロセスが
-  走るため harden-runner の監視対象になる)。パターン C の Docker イメージ経路は対象が変わります
-
----
-
-## パターン C: セルフホスト (Docker)
-
-Pages を使わず、収集からサイト配信まで自前サーバ / インスタンスで完結させる構成です。
-**新しいアプリコードは不要**で、既存の収集イメージ + Node ビルド + 静的配信を組み合わせます。
-
-> **トレードオフ**: GitHub Actions が無料で提供するホスト型 cron・Pages 配信・`GITHUB_API_URL`
-> 自動注入・secret 管理を自前で背負います。TLS・死活監視・更新も自分持ちです。社内 GHES での
-> インターネット非公開配信や、データを自社インフラから出したくない場合に選んでください。
-> それ以外はパターン B を推奨します。
-
-役割は 3 つに分かれます:
-
-1. **収集** — 既存の `Dockerfile` (収集専用) を回し、`data/dwh` の parquet を更新
-2. **サイトビルド** — `node:24` でリポジトリを bind-mount し `explore:data` → `report:dwh` →
-   astro build。サイト用イメージは無いので Node イメージを使う
-3. **配信** — nginx 等で `dist/` (parquet を含む) を配信
-
-### docker-compose 例
-
-```yaml
-# docker-compose.yml — リポジトリを clone した中で使う
-services:
-  # 1. PR 収集 → data/dwh (parquet) を増分更新。cron から `run` する想定。
-  collect:
-    build: .                       # 収集専用イメージ (Dockerfile)
-    environment:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
-    volumes:
-      - ./:/work
-    working_dir: /work
-    command: ["config.toml", "data/dwh"]   # 引数: <config> <dwh-dir> [<from>]
-
-  # 2. DWH → dist/ をビルド。base は root 配信なら "/"。
-  build:
-    image: node:24-slim
-    working_dir: /work
-    volumes:
-      - ./:/work
-    environment:
-      ASTRO_BASE: "/"
-      ASTRO_SITE: "https://reports.example.com"   # canonical/OG 用 (任意)
-    command:
-      - bash
-      - -c
-      - |
-        npm ci
-        npm run explore:data -- --dwh-dir data/dwh
-        npm run report:dwh -- --dwh-dir data/dwh --reports-dir dist/reports \
-          --from 2026-04-01 --to "$(date -u +%F)"   # gallery 用 frozen reports (任意)
-        npm run build:nav
-        ./node_modules/.bin/astro build --root src/web   # web:build は base を固定するため astro 直叩き
-
-  # 3. dist/ を配信。Explore はランタイムで /data/*.parquet を読むため dist/data も含めて配る。
-  web:
-    image: nginx:alpine
-    volumes:
-      - ./dist:/usr/share/nginx/html:ro
-    ports:
-      - "8080:80"
-```
-
-実行:
-
-```bash
-export GITHUB_TOKEN=github_pat_...
-docker compose run --rm collect      # 収集 (data/dwh 更新)
-docker compose run --rm build        # サイトビルド (dist/ 生成)
-docker compose up -d web             # http://localhost:8080/ で配信
-```
-
-### スケジューリング
-
-compose 単体に cron は無いため、ホスト cron 等で収集 + ビルドを定期実行します。
-
-```cron
-# 毎週月曜 00:00 に収集 → ビルド (web は up したまま新しい dist/ を配信)
-0 0 * * 1  cd /path/to/dev-prism && GITHUB_TOKEN=github_pat_... \
-  docker compose run --rm collect && docker compose run --rm build
-```
-
-### 注意点
-
-- **base の固定**: `npm run web:build` は base を `/dev-prism` にハードコードしているため、
-  セルフホスト (root 配信) では `ASTRO_BASE=/` を渡して `astro build` を直接叩く (上記 compose の通り)。
-  サブパス配信なら `ASTRO_BASE=/subpath/` を合わせる
-- **parquet の配信**: Explore はブラウザから `/<base>data/*.parquet` を読む。`explore:data` は
-  画面で使う 8 テーブルだけを `dist/data/` に置く。完全 DWH の `bodies.parquet`（PR 本文・
-  コメント本文を含む）は AI／バッチ処理向けに `data/dwh/` に残し、静的サイトには配信しない
-- **GHES**: `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` を `collect` の `environment` に明示する
-  (Actions と違い自動注入されない)
-- **レート制限 / 再開**: 収集はレート制限時に取得済み分を書いたうえで exit 1 で終了する (取りこぼしを
-  隠さないため)。書き込んだ分は残り、次回 `collect` 実行で DWH カーソルが自動的に続きから再開する
-  (`data/dwh` ボリュームを永続化しておくこと)
+  走るため harden-runner の監視対象になる)
 
 ---
 
@@ -456,7 +352,7 @@ compute 分析は常に既定パラメータで実行されます。
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | GitHub App 認証 (PAT の代替。3 点セットで有効) |
 | `LOOKBACK_DAYS` | 初回フルロードで遡る日数 (既定 `30`)。これより古い履歴は `dwh:build --from` で取得する |
 | `GITHUB_GRAPHQL_URL` / `GITHUB_API_URL` | GitHub Enterprise Server 用。未設定なら github.com。GitHub Actions ランナーでは自動設定される |
-| `ASTRO_BASE` / `ASTRO_SITE` | サイトの base path / canonical URL。セルフホストや独自ドメインで使う |
+| `ASTRO_BASE` / `ASTRO_SITE` | サイトの base path / canonical URL。独自ドメインやサブパス配信で使う |
 
 ## CLI
 
@@ -466,7 +362,7 @@ compute 分析は常に既定パラメータで実行されます。
 | `npm run report` | fetch → analyze → render の全体パイプライン (orchestrate 系) |
 | `npm run dwh:build -- [--config <path>] [--dwh-dir <dir>] [--from YYYY-MM-DD]` | PR を収集して DWH (parquet) を増分構築。`--from` で過去分を backfill |
 | `npm run report:dwh -- [--reports-config <path>] [--from <d> --to <d>] [--dwh-dir <dir>] [--reports-dir <dir>]` | DWH から frozen reports + `index.json` を生成 |
-| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
 | `npm run demo` | 同梱サンプル raw データ (`data/demo/`) でレポート生成 |
 
 ### 増分収集と backfill (`dwh:build`)
@@ -476,8 +372,9 @@ compute 分析は常に既定パラメータで実行されます。
 - **増分 (既定)**: 各 repo の `max(updated_at)` 以降のみ取得。初回は `LOOKBACK_DAYS` (既定 30 日) まで遡る。
 - **backfill (`--from YYYY-MM-DD`)**: 各 repo の `min(updated_at)` を読み、**未カバーの古い範囲
   `[from, min]` だけ**取得する。指定日が既に収集済みの repo は skip。取り込みは PR 単位の冪等 upsert なので、範囲が重複しても安全。
-- GitHub のレート制限に達したら、取得済み分を書き込んで停止し、リセット時刻と再実行を案内する
-  (カーソルが次回自動で続きから再開する)。
+- GitHub のレート制限に達したら、取得済み分を書き込んだうえで **exit 1 で終了する** (取りこぼしを
+  隠さないため)。リセット時刻と再実行を案内し、書き込んだ分は残るのでカーソルが次回自動で続きから
+  再開する。
 
 ### `npm run report` の主なフラグ
 
@@ -528,7 +425,9 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
   各カードは凍結レポート (`/reports/<id>.html`) へリンク。
 - **Explore** (`/explore`): `client:only` の React 島。ブラウザ内 **DuckDB-WASM** が画面用に絞った
   `dist/data/*.parquet` を直接クエリし、レポートと**同一のレンダラ・SQL**で DORA / レビュー相関 /
-  PR タイムラインをライブ集計。本文テキストは配信しない。
+  PR タイムラインをライブ集計。`explore:data` が置くのは画面で使う 9 テーブルだけで、完全 DWH の
+  `bodies.parquet` (PR 本文・コメント本文を含む) は AI／バッチ処理向けに `data/dwh/` に残し、
+  **静的サイトには配信しない**。
   期間プリセット (今週/過去1ヶ月/3ヶ月/1年) + カレンダー、repo/user の multiselect で絞り込み。
 - **サイドバー**: アプリ面 (一覧/Explore) は Astro が SSR。凍結レポートには閲覧時に `nav.js` が
   オーバーレイ描画する (本文は自己完結のまま・常に最新ナビ)。
@@ -539,7 +438,7 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
 |---|---|
 | `npm run web:dev` | Astro 開発サーバ (base `/`、`http://localhost:4321/`) |
 | `npm run web:build` | `nav.js` ビルド + `astro build` (本番 base `/dev-prism`)。**base は固定**なので、別 base で焼くときは `ASTRO_BASE=... astro build --root src/web` を直接叩く |
-| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 8 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
+| `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
 | `npm run report:dwh -- --dwh-dir <dir> --reports-dir dist/reports --from <d> --to <d>` | 凍結レポート + `index.json` を生成 (`--index` は付けない: 一覧 HTML は Astro が生成) |
 
 > **描画の更新 (デザイン変更)** は `report:dwh` を再実行すれば凍結レポートを現行レンダラで再生成できます
@@ -559,9 +458,6 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
      (bump は無視)。2 回目以降は最新タグから計算します。
 2. `release.yml` が `package.json` を更新 → `release: vX.Y.Z` をコミット → `vX.Y.Z` (固定) と
    `v0` (浮動・force) のタグを push。
-3. `vX.Y.Z` の push を受けて **`publish-image.yml`** が GHCR にマルチアーチイメージを publish します
-   (`X.Y.Z` / `0` / `latest` タグ)。浮動 `v0` タグの移動は **再ビルドを誘発しません**
-   (トリガは full semver `v*.*.*` のみ)。
 
 ### タグの対応関係
 
@@ -569,12 +465,9 @@ PR データを参照し、〜の観点で日本語のセクションを出力�
 |---|---|---|
 | `uses: your-org/dev-prism@v0` | 浮動 git タグ。毎リリースで最新 commit へ移動 | consumer が固定する推奨参照 |
 | `uses: your-org/dev-prism@v0.1.0` | 固定 git タグ | バージョン固定したい場合 |
-| `ghcr.io/your-org/dev-prism:0` | 浮動イメージタグ (v0 系最新) | Pattern C (セルフホスト収集) でビルドの代わりに pull |
-| `ghcr.io/your-org/dev-prism:0.1.0` | 固定イメージタグ | docker pull でのバージョン固定 |
 
-> 安定したら `major` bump で **v1** を切り、`@v0` 利用者を `@v1` に案内します。パターン B の
-> Action は composite なので consumer 側はイメージ不要 (`uses:` の参照だけ)。GHCR イメージは
-> パターン C のセルフホスト収集用です。
+> 安定したら `major` bump で **v1** を切り、`@v0` 利用者を `@v1` に案内します。Action は composite
+> なので、consumer 側が用意するのは `uses:` の参照だけです。
 
 > **main ブランチ保護について**: `release.yml` はタグを先に push してから bump コミットを
 > `main` へ push します。`main` が保護されていてコミット push が弾かれた場合でも、タグは
