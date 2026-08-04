@@ -19,6 +19,10 @@ export type RuntimeConfig = Readonly<{
   githubAppId: string | null;
   githubAppPrivateKey: string | null;
   githubAppInstallationId: number | null;
+  /** Optional owner -> installation ID map for multi-organization App auth. */
+  githubAppInstallationIds: Readonly<Record<string, number>>;
+  /** GitHub REST base URL, used by App token issuance on GHES. */
+  githubApiUrl?: string | null;
   lookbackDays: number;
   firstReviewThresholdHours: number;
   cutoffDate: Date;
@@ -155,11 +159,17 @@ export type CollectorDependencies = {
   collectionWindowForRepo?: (repository: RepositoryConfig) => CollectionWindow | null;
 };
 
+export type AppAuthentication = Readonly<{
+  token: string;
+  expiresAt?: string;
+}>;
+
 export type AppAuthFactory = (options: {
   appId: string;
   privateKey: string;
   installationId: number;
-}) => Promise<string>;
+  apiUrl?: string;
+}) => Promise<AppAuthentication>;
 
 // --- Metrics types ---
 

@@ -37,8 +37,20 @@ jobs:
           config: config.toml
           base: /${{ github.event.repository.name }}/
           from: ${{ github.event.inputs.from }}
-          # Read-only PAT with access to the target repos. Passed as an input (not
-          # env): a composite action does not inherit env set on its `uses:` step.
+          # Recommended for organizations: uncomment the GitHub App inputs below
+          # and keep github-token commented out. The private key must be an
+          # Actions secret; App ID and Installation ID can be Variables.
+          # github-app-id: ${{ vars.DEV_PRISM_APP_ID }}
+          # github-app-private-key: ${{ secrets.DEV_PRISM_APP_PRIVATE_KEY }}
+          # github-app-installation-id: ${{ vars.DEV_PRISM_INSTALLATION_ID }}
+          # For multiple organizations, use this instead of the singular ID:
+          # github-app-installation-ids: |
+          #   engineering=123456
+          #   subsidiary=789012
+
+          # PAT compatibility path. Keep this line active when using
+          # DEV_PRISM_GH_TOKEN. When using GitHub App credentials, comment this
+          # line out; if both paths are configured, PAT wins.
           github-token: ${{ secrets.DEV_PRISM_GH_TOKEN }}
 
       # 2. Persist the DWH so the next run resumes incrementally.

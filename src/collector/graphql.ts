@@ -678,16 +678,18 @@ export async function fetchRepositoryPullRequestPage(options: {
   q: string;
   repoLabel: string;
   token: string;
+  tokenForRequest?: () => Promise<string>;
   after: string | null;
   fetchFn?: typeof fetch;
 }): Promise<RepositoryPullRequestPage> {
   const fetchFn = options.fetchFn ?? fetch;
+  const token = options.tokenForRequest ? await options.tokenForRequest() : options.token;
 
   const data = await postGraphQL({
     query: pullRequestQuery,
     variables: { q: options.q, after: options.after },
     repoLabel: options.repoLabel,
-    token: options.token,
+    token,
     fetchFn,
   });
 
@@ -722,13 +724,15 @@ async function fetchNodeConnectionPage<T>(options: {
   context: string;
   repoLabel: string;
   token: string;
+  tokenForRequest?: () => Promise<string>;
   fetchFn: typeof fetch;
 }): Promise<GraphQLConnection<T>> {
+  const token = options.tokenForRequest ? await options.tokenForRequest() : options.token;
   const data = await postGraphQL({
     query: options.query,
     variables: { id: options.id, after: options.after },
     repoLabel: options.repoLabel,
-    token: options.token,
+    token,
     fetchFn: options.fetchFn,
   });
 
@@ -762,6 +766,7 @@ async function drainConnection<T>(options: {
   context: string;
   repoLabel: string;
   token: string;
+  tokenForRequest?: () => Promise<string>;
   fetchFn: typeof fetch;
 }): Promise<Array<T | null>> {
   const nodes: Array<T | null> = [...(options.firstPage.nodes ?? [])];
@@ -784,6 +789,7 @@ async function drainConnection<T>(options: {
       context: options.context,
       repoLabel: options.repoLabel,
       token: options.token,
+      ...(options.tokenForRequest ? { tokenForRequest: options.tokenForRequest } : {}),
       fetchFn: options.fetchFn,
     });
 
@@ -801,9 +807,10 @@ async function hydratePullRequestChildren(options: {
   pr: GraphQLPullRequestNode;
   repoLabel: string;
   token: string;
+  tokenForRequest?: () => Promise<string>;
   fetchFn: typeof fetch;
 }): Promise<void> {
-  const { pr, repoLabel, token, fetchFn } = options;
+  const { pr, repoLabel, token, tokenForRequest, fetchFn } = options;
   const prKey = `${repoLabel}#${pr.number ?? "?"}`;
 
   for (const spec of PR_CHILD_CONNECTIONS) {
@@ -825,6 +832,7 @@ async function hydratePullRequestChildren(options: {
       context: `${prKey} ${spec.connection}`,
       repoLabel,
       token,
+      ...(tokenForRequest ? { tokenForRequest } : {}),
       fetchFn,
     });
   }
@@ -849,6 +857,7 @@ async function hydratePullRequestChildren(options: {
       context: `${prKey} thread ${thread.id} comments`,
       repoLabel,
       token,
+      ...(tokenForRequest ? { tokenForRequest } : {}),
       fetchFn,
     });
   }
@@ -857,6 +866,7 @@ async function hydratePullRequestChildren(options: {
 export async function fetchRepositoryPullRequests(options: {
   repository: RepositoryConfig;
   token: string;
+  tokenForRequest?: () => Promise<string>;
   cutoffDate: Date;
   untilDate?: Date;
   fetchFn?: typeof fetch;
@@ -878,12 +888,19 @@ export async function fetchRepositoryPullRequests(options: {
       q,
       repoLabel,
       token: options.token,
+      ...(options.tokenForRequest ? { tokenForRequest: options.tokenForRequest } : {}),
       after,
       fetchFn,
     });
 
     for (const pr of page.nodes) {
-      await hydratePullRequestChildren({ pr, repoLabel, token: options.token, fetchFn });
+      await hydratePullRequestChildren({
+        pr,
+        repoLabel,
+        token: options.token,
+        ...(options.tokenForRequest ? { tokenForRequest: options.tokenForRequest } : {}),
+        fetchFn,
+      });
       allNodes.push(pr);
     }
 
