@@ -9,15 +9,14 @@ import type { NormalizedActor, NormalizedPullRequest } from "../shared/types.js"
 import { resolveScope } from "../analyses/scope.js";
 import { buildDwhFromPullRequests } from "../warehouse/build.js";
 import { withDwh } from "../warehouse/query.js";
+import { REPORT_INDEX_SCHEMA, type ReportIndexEntry } from "./report-index.js";
 import {
-  REPORT_INDEX_SCHEMA,
   buildFrozenReport,
   buildIndexHtmlFromIndex,
   deriveReportId,
   renderIndexHtml,
   upsertIndexEntry,
   writeFrozenReport,
-  type ReportIndexEntry,
 } from "./frozen-report.js";
 
 const alice: NormalizedActor = { sourceNodeId: "U_alice", type: "User", login: "alice", slug: null, name: "Alice", url: null };

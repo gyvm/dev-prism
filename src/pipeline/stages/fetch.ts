@@ -12,7 +12,7 @@ import type {
 } from "../../shared/types.js";
 import type { Period } from "../period.js";
 
-export type CollectionFailure = Readonly<{ repository: string; message: string }>;
+type CollectionFailure = Readonly<{ repository: string; message: string }>;
 
 export type FetchOptions = Readonly<{
   configPath?: string;

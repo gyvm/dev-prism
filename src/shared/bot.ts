@@ -9,10 +9,3 @@ export function createBotLoginMatcher(
   const regexes = patterns.map((pattern) => new RegExp(pattern, "i"));
   return (login: string) => regexes.some((regex) => regex.test(login));
 }
-
-export function isBotLogin(
-  login: string,
-  patterns: readonly string[],
-): boolean {
-  return createBotLoginMatcher(patterns)(login);
-}

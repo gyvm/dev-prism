@@ -14,12 +14,6 @@
 //   e0f4f8  date-range selection fill
 // Promote them into DESIGN.md if they start appearing elsewhere; until then a
 // token would be single-use indirection. Do not add new raw hex here.
-import { renderRootCss } from "../../ui/tokens.js";
-
-// The tokens themselves, so Explore keeps its palette once Step 4 stops
-// injecting PAGE_STYLES.
-export const EXPLORE_ROOT_CSS = renderRootCss();
-
 export const EXPLORE_STYLES = `
 /* Every control in the filter bar is --control-h tall and box-sizing:border-box,
    so the row aligns on one baseline regardless of which element type (button,

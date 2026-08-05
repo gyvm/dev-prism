@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import type { LeadTrend, LeadTrendBucket } from "../../analyses/cycle-time/view-model.js";
+import type { LeadTrendBucket } from "../../analyses/cycle-time/view-model.js";
 import LeadTrendChart from "./LeadTrendChart.js";
 
 const meta = {

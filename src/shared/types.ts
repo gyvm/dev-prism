@@ -209,7 +209,7 @@ export type DoraMetrics = Readonly<{
   mttrHours: number | null;
 }>;
 
-export type ActorKind = "human" | "bot";
+type ActorKind = "human" | "bot";
 
 export type AuthorActivity = Readonly<{
   login: string;

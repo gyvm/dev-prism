@@ -6,7 +6,6 @@ import type {
   LeadTrend,
   LeadTrendBucket,
 } from "../../analyses/cycle-time/view-model.js";
-import type { Grain } from "../../analyses/scope.js";
 import { formatHours } from "../../renderers/utils.js";
 import { placeEndLabels } from "./end-labels.js";
 import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
@@ -30,7 +29,7 @@ import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
 // chart, 1-2's stages are the whole point), so it swaps in --danger for
 // --success to avoid the failing pair. See deviations note in the delivering
 // task — this substitution was not re-run through the categorical validator.
-export const LEAD_TREND_COLORS: Readonly<Record<CycleStageKey, string>> = {
+const LEAD_TREND_COLORS: Readonly<Record<CycleStageKey, string>> = {
   commit_to_open: "var(--accent-blue)",
   open_to_review: "var(--accent-cyan)",
   review_to_approve: "var(--attention)",

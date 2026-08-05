@@ -45,7 +45,7 @@ export function prKey(pr: NormalizedPullRequest): string {
 type IdPart = string | number | boolean | null | undefined;
 
 /** Deterministic synthetic id from a fixed list of parts (null/undefined → ""). */
-export function fallbackId(prefix: string, parts: readonly IdPart[]): string {
+function fallbackId(prefix: string, parts: readonly IdPart[]): string {
   return `${prefix}:${stableHash(parts.map((part) => part ?? "").join("|"))}`;
 }
 

@@ -15,7 +15,7 @@ export type DwhColumnDefinition = Readonly<{
   nullable: boolean;
 }>;
 
-export type DwhTableKind = "fact" | "dimension" | "text";
+type DwhTableKind = "fact" | "dimension" | "text";
 
 export type DwhTableDefinition = Readonly<{
   name: string;
@@ -306,5 +306,3 @@ export function renderSchemaSql(): string {
   const tables = dwhTables.map((table) => renderCreateTableSql(table)).join("\n\n");
   return `${header}\n\n${tables}\n`;
 }
-
-export const dwhSchemaSql = renderSchemaSql();

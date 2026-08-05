@@ -52,7 +52,7 @@ function CandidateList({
   );
 }
 
-export function DevPrismSummary({ summary }: { summary: DevPrismSummary }) {
+function DevPrismSummary({ summary }: { summary: DevPrismSummary }) {
   return (
     <section className="dev-prism">
       <div className="dev-prism-intro">

@@ -24,7 +24,7 @@ const REVIEW_COMMENT_PAGE_SIZE = 50;
 const COMMIT_PAGE_SIZE = 50;
 const FILE_PAGE_SIZE = 100;
 
-export type GraphQLPageInfo = {
+type GraphQLPageInfo = {
   hasNextPage: boolean;
   endCursor: string | null;
 };
@@ -108,7 +108,7 @@ export type GraphQLPullRequestNode = {
   files?: GraphQLConnection<GraphQLChangedFileNode> | null;
 };
 
-export type GraphQLCommentNode = {
+type GraphQLCommentNode = {
   id?: string | null;
   author?: GraphQLActor | null;
   bodyText?: string | null;
@@ -124,7 +124,7 @@ export type GraphQLCommentNode = {
   pullRequestReview?: { id?: string | null } | null;
 };
 
-export type GraphQLReviewThreadNode = {
+type GraphQLReviewThreadNode = {
   id?: string | null;
   isResolved?: boolean | null;
   isOutdated?: boolean | null;
@@ -136,7 +136,7 @@ export type GraphQLReviewThreadNode = {
   comments?: GraphQLConnection<GraphQLCommentNode> | null;
 };
 
-export type GraphQLCommitNode = {
+type GraphQLCommitNode = {
   commit?: {
     oid?: string | null;
     committedDate?: string | null;
@@ -150,7 +150,7 @@ export type GraphQLCommitNode = {
   } | null;
 };
 
-export type GraphQLChangedFileNode = {
+type GraphQLChangedFileNode = {
   path?: string | null;
   additions?: number | null;
   deletions?: number | null;

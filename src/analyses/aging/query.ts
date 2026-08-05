@@ -95,13 +95,13 @@ function openFilters(scope: Scope): string {
 }
 
 /** `TIMESTAMP '…'` literal for the reference "now" (scope.to, else the supplied now). */
-export function agingNowTs(scope: Scope, now: Date): string {
+function agingNowTs(scope: Scope, now: Date): string {
   return `TIMESTAMP '${scopeTimestamp(scope.to ?? now)}'`;
 }
 
 // ── 4-2. Aging table ────────────────────────────────────────────────────────
 
-export function buildAgingTableSql(scope: Scope, nowTs: string): string {
+function buildAgingTableSql(scope: Scope, nowTs: string): string {
   return `
     WITH ${LATEST_REVIEW_CTE},
     ${LAST_COMMIT_CTE},
@@ -149,7 +149,7 @@ export async function queryAgingTable(
 
 // ── 4-1. Aging summary ──────────────────────────────────────────────────────
 
-export function buildAgingSummarySql(scope: Scope, nowTs: string): string {
+function buildAgingSummarySql(scope: Scope, nowTs: string): string {
   return `
     WITH ${LATEST_REVIEW_CTE},
     ${LAST_COMMIT_CTE},
@@ -190,7 +190,7 @@ export async function queryAgingSummary(
 
 // ── 4-3. Age histogram ──────────────────────────────────────────────────────
 
-export function buildAgingHistogramSql(scope: Scope, nowTs: string): string {
+function buildAgingHistogramSql(scope: Scope, nowTs: string): string {
   return `
     SELECT bucket, count(*) AS n
     FROM (

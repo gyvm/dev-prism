@@ -2,7 +2,7 @@ import { CopilotClient, approveAll } from "@github/copilot-sdk";
 
 import { ConfigError } from "../shared/errors.js";
 
-export type AiRunnerInput = Readonly<{
+type AiRunnerInput = Readonly<{
   id: string;
   prompt: string;
   payload: unknown;

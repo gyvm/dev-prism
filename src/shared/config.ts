@@ -124,7 +124,7 @@ export const DEFAULT_LIMITS: LimitsConfig = {
   maxBodyLength: 4_000,
 };
 
-export type AiConfig = Readonly<{
+type AiConfig = Readonly<{
   model?: string;
 }>;
 

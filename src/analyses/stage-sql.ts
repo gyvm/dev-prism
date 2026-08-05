@@ -35,7 +35,7 @@ export const FIRST_COMMIT_CTE = `first_commit AS (
 // predicate — the two paths agree exactly when there are no bot reviews, which is
 // what keeps includeBots=true (precomputed, fast) and includeBots=false (this CTE)
 // consistent. If the precompute rule ever changes, update this in lockstep.
-export const HUMAN_REVIEW_CTE = `human_review AS (
+const HUMAN_REVIEW_CTE = `human_review AS (
       SELECT rv.pr_id AS pr_id,
              min(rv.submitted_at) AS first_review_at,
              min(rv.submitted_at) FILTER (WHERE rv.state = 'APPROVED') AS first_approve_at

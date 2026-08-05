@@ -12,7 +12,7 @@ import { DWH_SCHEMA_VERSION } from "./schema.js";
 
 const META_FILE = "_meta.json";
 
-export type MigrationContext = Readonly<{ dwhDir: string }>;
+type MigrationContext = Readonly<{ dwhDir: string }>;
 
 export type Migration = Readonly<{
   /** Target version this migration produces (e.g. 2 migrates v1 → v2). */
@@ -23,7 +23,7 @@ export type Migration = Readonly<{
 }>;
 
 // No migrations yet: v1 is the baseline schema. New schema versions append here.
-export const MIGRATIONS: readonly Migration[] = [];
+const MIGRATIONS: readonly Migration[] = [];
 
 export type MigrateResult = Readonly<{ from: number; to: number; applied: readonly string[] }>;
 
