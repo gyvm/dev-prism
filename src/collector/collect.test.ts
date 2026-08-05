@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { collectNormalizedPullRequests, hasCollectionFailures } from "./collect.js";
 import { fetchRepositoryPullRequests, fetchRepositoryPullRequestPage } from "./graphql.js";
-import { resolveToken } from "./auth.js";
+import { createTokenResolver, resolveGitHubApiUrl, resolveToken } from "./auth.js";
 import { CollectorError, RateLimitError } from "../shared/errors.js";
 
 function responseWith(status: number, headers: Record<string, string>, body = ""): Response {
@@ -248,6 +248,37 @@ describe("fetchRepositoryPullRequests", () => {
     expect(body.query).toContain("updatedAt");
     expect(body.query).toContain("changedFiles");
     expect(body.query).toContain("... on Node");
+  });
+
+  it("requests a fresh token provider value for each GraphQL page", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        createJsonResponse(searchPayload([], { hasNextPage: true, endCursor: "cursor-1" })),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(searchPayload([], { hasNextPage: false, endCursor: null })),
+      );
+    const tokenForRequest = vi
+      .fn()
+      .mockResolvedValueOnce("fresh-token-1")
+      .mockResolvedValueOnce("fresh-token-2");
+
+    await fetchRepositoryPullRequests({
+      repository: { owner: "openai", name: "codex" },
+      token: "stale-token",
+      tokenForRequest,
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      fetchFn,
+    });
+
+    expect(tokenForRequest).toHaveBeenCalledTimes(2);
+    expect(new Headers((fetchFn.mock.calls[0]![1] as RequestInit).headers).get("authorization")).toBe(
+      "Bearer fresh-token-1",
+    );
+    expect(new Headers((fetchFn.mock.calls[1]![1] as RequestInit).headers).get("authorization")).toBe(
+      "Bearer fresh-token-2",
+    );
   });
 
   it("bounds the query and sorts ascending when an untilDate is given (backfill)", async () => {
@@ -863,12 +894,20 @@ describe("collectNormalizedPullRequests", () => {
 });
 
 describe("resolveToken", () => {
+  it("normalizes the GitHub API base URL for App authentication", () => {
+    expect(resolveGitHubApiUrl({ GITHUB_API_URL: "https://ghe.example.com/api/v3///" })).toBe(
+      "https://ghe.example.com/api/v3",
+    );
+    expect(resolveGitHubApiUrl({})).toBe("https://api.github.com");
+  });
+
   it("returns GITHUB_TOKEN directly when available", async () => {
     const token = await resolveToken({
       githubToken: "ghp_abc123",
       githubAppId: null,
       githubAppPrivateKey: null,
       githubAppInstallationId: null,
+      githubAppInstallationIds: {},
       lookbackDays: 90,
       firstReviewThresholdHours: 48,
       cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
@@ -884,11 +923,12 @@ describe("resolveToken", () => {
         githubAppId: "123",
         githubAppPrivateKey: "key",
         githubAppInstallationId: 456,
+        githubAppInstallationIds: {},
         lookbackDays: 90,
         firstReviewThresholdHours: 48,
         cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
       },
-      vi.fn().mockResolvedValue("app-token"),
+      vi.fn().mockResolvedValue({ token: "app-token" }),
     );
 
     expect(token).toBe("app-token");
@@ -902,6 +942,7 @@ describe("resolveToken", () => {
           githubAppId: "123",
           githubAppPrivateKey: "key",
           githubAppInstallationId: 456,
+          githubAppInstallationIds: {},
           lookbackDays: 90,
           firstReviewThresholdHours: 48,
           cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
@@ -909,6 +950,167 @@ describe("resolveToken", () => {
         vi.fn().mockRejectedValue(new Error("auth failed")),
       ),
     ).rejects.toThrow(/installation token/i);
+  });
+
+  it("resolves and caches one installation token per owner", async () => {
+    const authFactory = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "org-a-token" })
+      .mockResolvedValueOnce({ token: "org-b-token" });
+    const resolve = createTokenResolver(
+      {
+        githubToken: null,
+        githubAppId: "123",
+        githubAppPrivateKey: "key",
+        githubAppInstallationId: null,
+        githubAppInstallationIds: { "org-a": 456, "org-b": 789 },
+        lookbackDays: 90,
+        firstReviewThresholdHours: 48,
+        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      authFactory,
+    );
+
+    await expect(resolve("Org-A")).resolves.toBe("org-a-token");
+    await expect(resolve("org-a")).resolves.toBe("org-a-token");
+    await expect(resolve("org-b")).resolves.toBe("org-b-token");
+
+    expect(authFactory).toHaveBeenCalledTimes(2);
+    expect(authFactory).toHaveBeenNthCalledWith(1, {
+      appId: "123",
+      privateKey: "key",
+      installationId: 456,
+    });
+    expect(authFactory).toHaveBeenNthCalledWith(2, {
+      appId: "123",
+      privateKey: "key",
+      installationId: 789,
+    });
+  });
+
+  it("passes the configured GHES API URL to App token issuance", async () => {
+    const authFactory = vi.fn().mockResolvedValue({ token: "ghe-token" });
+    const resolve = createTokenResolver(
+      {
+        githubToken: null,
+        githubAppId: "123",
+        githubAppPrivateKey: "key",
+        githubAppInstallationId: 456,
+        githubAppInstallationIds: {},
+        githubApiUrl: "https://ghe.example.com/api/v3",
+        lookbackDays: 90,
+        firstReviewThresholdHours: 48,
+        cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      authFactory,
+    );
+
+    await expect(resolve("org-a")).resolves.toBe("ghe-token");
+    expect(authFactory).toHaveBeenCalledWith({
+      appId: "123",
+      privateKey: "key",
+      installationId: 456,
+      apiUrl: "https://ghe.example.com/api/v3",
+    });
+  });
+
+  it("fails clearly when an owner has no mapped installation", async () => {
+    const resolve = createTokenResolver({
+      githubToken: null,
+      githubAppId: "123",
+      githubAppPrivateKey: "key",
+      githubAppInstallationId: null,
+      githubAppInstallationIds: { "org-a": 456 },
+      lookbackDays: 90,
+      firstReviewThresholdHours: 48,
+      cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await expect(resolve("org-b")).rejects.toThrow(/No GitHub App installation ID.*org-b/);
+  });
+
+  it("refreshes an App token before its expiration", async () => {
+    vi.useFakeTimers();
+    try {
+      const authFactory = vi
+        .fn()
+        .mockResolvedValueOnce({
+          token: "first-token",
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        })
+        .mockResolvedValueOnce({
+          token: "second-token",
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        });
+      const resolve = createTokenResolver(
+        {
+          githubToken: null,
+          githubAppId: "123",
+          githubAppPrivateKey: "key",
+          githubAppInstallationId: 456,
+          githubAppInstallationIds: {},
+          lookbackDays: 90,
+          firstReviewThresholdHours: 48,
+          cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+        authFactory,
+      );
+
+      await expect(resolve("org-a")).resolves.toBe("first-token");
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      await expect(resolve("org-a")).resolves.toBe("second-token");
+      expect(authFactory).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("single-flights concurrent App token refreshes", async () => {
+    vi.useFakeTimers();
+    try {
+      let releaseRefresh!: (value: { token: string; expiresAt: string }) => void;
+      const refreshResult = new Promise<{ token: string; expiresAt: string }>((resolve) => {
+        releaseRefresh = resolve;
+      });
+      const authFactory = vi
+        .fn()
+        .mockResolvedValueOnce({
+          token: "first-token",
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        })
+        .mockReturnValueOnce(refreshResult);
+      const resolve = createTokenResolver(
+        {
+          githubToken: null,
+          githubAppId: "123",
+          githubAppPrivateKey: "key",
+          githubAppInstallationId: 456,
+          githubAppInstallationIds: {},
+          lookbackDays: 90,
+          firstReviewThresholdHours: 48,
+          cutoffDate: new Date("2026-01-01T00:00:00.000Z"),
+        },
+        authFactory,
+      );
+
+      await expect(resolve("org-a")).resolves.toBe("first-token");
+      vi.advanceTimersByTime(5 * 60 * 1000);
+
+      const firstRefresh = resolve("org-a");
+      const secondRefresh = resolve("org-a");
+      expect(authFactory).toHaveBeenCalledTimes(2);
+      releaseRefresh({
+        token: "second-token",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      await expect(Promise.all([firstRefresh, secondRefresh])).resolves.toEqual([
+        "second-token",
+        "second-token",
+      ]);
+      expect(authFactory).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

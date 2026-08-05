@@ -89,6 +89,23 @@ describe("expandRepositorySpecs", () => {
     expect(headers.get("Authorization")).toBe("Bearer tok123");
   });
 
+  it("resolves a wildcard token for its owner", async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      jsonResponse(searchResult([{ owner: "acme-corp", name: "gh-insights" }])),
+    );
+    const tokenForOwner = vi.fn().mockResolvedValue("owner-token");
+
+    await expandRepositorySpecs(
+      [{ kind: "wildcard", owner: "acme-corp" }],
+      { tokenForOwner, fetchFn },
+    );
+
+    expect(tokenForOwner).toHaveBeenCalledOnce();
+    expect(tokenForOwner).toHaveBeenCalledWith("acme-corp");
+    const headers = new Headers((fetchFn.mock.calls[0]![1] as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe("Bearer owner-token");
+  });
+
   it("paginates wildcard results until a short page is returned", async () => {
     const page1Items = Array.from({ length: 100 }, (_, i) => ({
       owner: "acme-corp",

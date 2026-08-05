@@ -39,7 +39,8 @@ https://gyvm.github.io/dev-prism/demo/reports/2026-05-03.html
 
 ## 認証 (全パターン共通)
 
-このツールは用途の異なる 2 つの Fine-grained PAT を使います (GitHub App でも可、後述)。
+このツールはPRデータ取得とAI分析で認証を分けます。PRデータ取得はFine-grained PATまたは
+GitHub App、AI分析はFine-grained PATを使います。
 
 | 環境変数 | 用途 |
 |---|---|
@@ -70,16 +71,74 @@ https://gyvm.github.io/dev-prism/demo/reports/2026-05-03.html
 > ローカルで `copilot` CLI のセッションを使って動作確認するだけなら `COPILOT_GITHUB_TOKEN` は
 > 省略可能です (パターン A の手順参照)。CI 等の非対話環境で AI 分析を回す場合は必須です。
 
-### GitHub App 認証 (代替)
+### GitHub App 認証 (企業向け推奨)
 
-`GITHUB_TOKEN` の代わりに GitHub App の 3 点セットでも認証できます。多数の組織・リポジトリを
-跨ぐ場合に有効です。3 つ揃っていれば installation token を自動発行します。
+企業や長期運用では、個人に紐づくPATよりGitHub Appを推奨します。Organization ownerが
+対象リポジトリとRead-only権限を承認でき、ユーザーの退職で認証が切れません。
+
+Dev Prismが使うのは「ユーザーのGitHubログイン」ではなく、App installationとしてPRを読む
+サーバー間認証です。AppをインストールしたOrganizationの範囲だけにアクセスし、取得した
+Installation Tokenは実行中に必要に応じて再発行します。
+
+#### App登録とインストール
+
+1. **Settings → Developer settings → GitHub Apps → New GitHub App** を開く
+2. App name / Homepage URLを設定する
+3. **Repository permissions** を次の最小構成で設定する
+   - **Metadata: Read-only**
+   - **Pull requests: Read-only**
+4. Webhook、Organization permissions、Write権限は現状不要
+5. Appを作成し、**Generate a private key** でPEM秘密鍵を発行する
+6. 対象OrganizationへAppをインストールし、**Only select repositories** または
+   **All repositories** を選ぶ
+7. App IDとInstallation IDを控える
+
+GraphQLでreviews / comments / commits / files / review threadsまで取得するため、権限不足が
+出た場合はRead-only権限を追加して代表リポジトリで検証してください。GitHub Appの権限は
+最小権限から始めるのが安全です。
+
+#### 環境変数
 
 | 環境変数 | 説明 |
 |---|---|
 | `GITHUB_APP_ID` | App ID |
-| `GITHUB_APP_PRIVATE_KEY` | App の秘密鍵 (PEM) |
-| `GITHUB_APP_INSTALLATION_ID` | インストール ID |
+| `GITHUB_APP_PRIVATE_KEY` | Appの秘密鍵 (PEM)。リポジトリへコミットしない |
+| `GITHUB_APP_INSTALLATION_ID` | 単一Organization用のInstallation ID |
+| `GITHUB_APP_INSTALLATION_IDS` | 複数Organization用。`owner=installation_id`を改行区切りで指定 |
+
+単一Organizationなら次の3つで十分です。`GITHUB_APP_PRIVATE_KEY`はActions Secret、App IDと
+Installation IDはActions Variablesへ入れる運用を推奨します。
+
+```yaml
+env:
+  GITHUB_APP_ID: ${{ vars.DEV_PRISM_APP_ID }}
+  GITHUB_APP_INSTALLATION_ID: ${{ vars.DEV_PRISM_APP_INSTALLATION_ID }}
+  GITHUB_APP_PRIVATE_KEY: ${{ secrets.DEV_PRISM_APP_PRIVATE_KEY }}
+```
+
+複数Organizationを対象にする場合は、Installation IDをOrganizationごとに登録します。
+
+```yaml
+env:
+  GITHUB_APP_ID: ${{ vars.DEV_PRISM_APP_ID }}
+  GITHUB_APP_PRIVATE_KEY: ${{ secrets.DEV_PRISM_APP_PRIVATE_KEY }}
+  GITHUB_APP_INSTALLATION_IDS: |
+    engineering=123456
+    subsidiary=789012
+```
+
+`GITHUB_APP_INSTALLATION_ID`が設定されている場合は、マッピングにないownerのフォールバック
+としても使われます。PATとAppを両方設定した場合は、既存互換のためPAT (`GITHUB_TOKEN` または
+Actionの`github-token`入力) が優先されます。Appへ切り替えるときはPAT入力を空にしてください。
+
+秘密鍵は長期的な認証情報です。Actions SecretやKey Vaultで管理し、ローテーション時は新しい
+鍵を追加してから古い鍵を削除してください。
+
+詳細はGitHub公式の
+[GitHub App登録](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app)、
+[Installation認証](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)、
+[秘密鍵管理](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)
+を参照してください。
 
 ---
 
@@ -214,12 +273,14 @@ composite Action 1 本で、収集 → DWH 更新 → サイトビルドを順�
   - `base` (Astro base path。Pages project page は `/<repo>/`、独自ドメイン/Cloudflare は `/`)
   - `output-dir` (既定 `dist`) / `site` (任意・canonical URL) / `reports-config` (任意・指定すると
     frozen reports で gallery を生成)
-  - `github-token` (PR 取得用の read-only PAT)
-- **認証**: read-only PAT は **`github-token` 入力**で渡す (`with: github-token: ${{ secrets.... }}`)。
-  composite アクションは **呼び出し `uses:` step の `env:` を内部 run step に伝播しない**ため、
-  env ではなく入力で渡す。GitHub App 認証を使う場合は `GITHUB_APP_ID` /
-  `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` を **job/workflow レベルの `env:`** に置く
-  (こちらは composite と共有される)。GHES では `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` が自動で渡る
+  - `github-token` (PR取得用のread-only PAT。App credentialsより優先)
+  - `github-app-id` / `github-app-private-key` / `github-app-installation-id` /
+    `github-app-installation-ids` (GitHub App認証)
+- **認証**: PATまたはInstallation Tokenは **`github-token` 入力**で渡す (`with: github-token: ${{ secrets.... }}`)。
+  GitHub App認証は `github-app-id` / `github-app-private-key` / `github-app-installation-id` を
+  `with:` で指定するか、対応する `GITHUB_APP_*` を **job/workflow レベルの `env:`** に置く。
+  `github-app-private-key`にはActions Secretを渡し、PATとAppを両方設定した場合はPATが優先される。
+  GHES では `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` が自動で渡る
 - **進捗ログ**: 各フェーズ (`npm ci` / 収集 / Explore データ配置 / astro build / dist 書き出し) を
   `::group::` でグルーピングし、節目に `::notice::` を出すので Actions ログで進行が追える
 - **レート制限時**: 収集は取得済み分を書き込んだうえで **exit 1 で fail loudly** し、stderr に reset 時刻を出す
@@ -349,7 +410,8 @@ compute 分析は常に既定パラメータで実行されます。
 |---|---|
 | `GITHUB_TOKEN` | Pull request の read-only 権限がある PAT |
 | `COPILOT_GITHUB_TOKEN` | AI 分析専用の PAT (任意) |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | GitHub App 認証 (PAT の代替。3 点セットで有効) |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | 単一Organization向けGitHub App認証 |
+| `GITHUB_APP_INSTALLATION_IDS` | 複数Organization向け。`owner=installation_id`の改行区切り |
 | `LOOKBACK_DAYS` | 初回フルロードで遡る日数 (既定 `30`)。これより古い履歴は `dwh:build --from` で取得する |
 | `GITHUB_GRAPHQL_URL` / `GITHUB_API_URL` | GitHub Enterprise Server 用。未設定なら github.com。GitHub Actions ランナーでは自動設定される |
 | `ASTRO_BASE` / `ASTRO_SITE` | サイトの base path / canonical URL。独自ドメインやサブパス配信で使う |

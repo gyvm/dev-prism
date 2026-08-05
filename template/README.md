@@ -22,9 +22,24 @@ config and the accumulating data; the engine is referenced by version.
 3. **Edit `config.toml`** — set `[repositories].include` to your repos
    (`["your-org/*"]` for everything under an owner).
 
-4. **Add a secret.** Settings → Secrets and variables → Actions →
-   `DEV_PRISM_GH_TOKEN` = a read-only PAT with access to the target repos.
-   (The workflow passes it to the action's `github-token` input.)
+4. **Choose an authentication method.** GitHub App is recommended for
+   organizations and long-running installations; PAT remains supported for
+   compatibility and quick local setup.
+
+   For GitHub App authentication:
+
+   - Register a GitHub App with `Metadata: Read-only` and
+     `Pull requests: Read-only` repository permissions.
+   - Install it on the target organization and select the repositories.
+   - Add `DEV_PRISM_APP_ID` and `DEV_PRISM_INSTALLATION_ID` under **Settings →
+     Secrets and variables → Actions → Variables**.
+   - Add the downloaded PEM contents as the
+     `DEV_PRISM_APP_PRIVATE_KEY` Actions secret.
+
+   For PAT authentication, add `DEV_PRISM_GH_TOKEN` as an Actions secret with
+   read-only access to the target repositories. The workflow contains both
+   paths; use exactly one. If both are set, the PAT path takes precedence for
+   backwards compatibility.
 
 5. **Enable Pages.** Settings → Pages → Source = **GitHub Actions**.
 
@@ -49,3 +64,7 @@ The dashboard appears at `https://<owner>.github.io/<repo>/`.
   after a GitHub rate limit).
 - GitHub Enterprise Server: the runner sets `GITHUB_API_URL` /
   `GITHUB_GRAPHQL_URL` automatically; no extra config needed.
+- Multiple organizations can be collected with a GitHub App by setting
+  the commented `github-app-installation-ids` input in
+  `.github/workflows/dashboard.yml` to one `owner=installation_id` entry per
+  line. Each organization must have its own installation ID.

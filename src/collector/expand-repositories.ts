@@ -22,7 +22,8 @@ type SearchResponse = {
 };
 
 export type ExpandOptions = Readonly<{
-  token: string;
+  token?: string;
+  tokenForOwner?: (owner: string) => Promise<string>;
   fetchFn?: typeof fetch;
 }>;
 
@@ -38,7 +39,15 @@ export async function expandRepositorySpecs(
       collected.push({ owner: spec.owner, name: spec.name });
       continue;
     }
-    const expanded = await fetchWildcardRepositories(spec.owner, fetchFn, options.token);
+    const token = options.tokenForOwner
+      ? await options.tokenForOwner(spec.owner)
+      : options.token;
+    if (!token) {
+      throw new CollectorError(
+        `No GitHub token is available to expand wildcard "${spec.owner}/*"`,
+      );
+    }
+    const expanded = await fetchWildcardRepositories(spec.owner, fetchFn, token);
     collected.push(...expanded);
   }
 

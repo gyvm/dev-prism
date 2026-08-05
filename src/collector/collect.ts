@@ -1,4 +1,4 @@
-import { resolveToken } from "./auth.js";
+import { createTokenResolver } from "./auth.js";
 import { expandRepositorySpecs } from "./expand-repositories.js";
 import { fetchRepositoryPullRequests } from "./graphql.js";
 import { normalizePullRequest } from "./normalize.js";
@@ -40,10 +40,10 @@ export async function collectNormalizedPullRequests(
 ): Promise<CollectionResult> {
   const { repositories: specs } = await loadRepoConfig(dependencies.configPath);
   const runtimeConfig = loadRuntimeConfig(dependencies.env, dependencies.now);
-  const token = await resolveToken(runtimeConfig, dependencies.authFactory);
+  const tokenForOwner = createTokenResolver(runtimeConfig, dependencies.authFactory);
   const fetchFn = dependencies.fetchFn;
   const repositories = await expandRepositorySpecs(specs, {
-    token,
+    tokenForOwner,
     ...(fetchFn ? { fetchFn } : {}),
   });
 
@@ -53,6 +53,7 @@ export async function collectNormalizedPullRequests(
     const repository = repositories[index]!;
     const repoLabel = `${repository.owner}/${repository.name}`;
     try {
+      const token = await tokenForOwner(repository.owner);
       const window = dependencies.collectionWindowForRepo
         ? dependencies.collectionWindowForRepo(repository)
         : { since: runtimeConfig.cutoffDate };
@@ -63,6 +64,7 @@ export async function collectNormalizedPullRequests(
       const rawPullRequests = await fetchRepositoryPullRequests({
         repository,
         token,
+        tokenForRequest: () => tokenForOwner(repository.owner),
         cutoffDate: window.since,
         ...(window.until ? { untilDate: window.until } : {}),
         ...(fetchFn ? { fetchFn } : {}),
