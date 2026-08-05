@@ -1,5 +1,3 @@
-import type { NormalizedPullRequest } from "../shared/types.js";
-
 export type ReportLimits = Readonly<{
   maxPrs: number;
   maxCommentsPerPr: number;
@@ -43,7 +41,7 @@ export type ReportCommentInput = Readonly<{
   state?: string | null;
 }>;
 
-export type ReportReviewThreadInput = Readonly<{
+type ReportReviewThreadInput = Readonly<{
   isResolved: boolean | null;
   isOutdated: boolean | null;
   path: string | null;
@@ -51,21 +49,21 @@ export type ReportReviewThreadInput = Readonly<{
   comments: readonly ReportCommentInput[];
 }>;
 
-export type ReportReviewInput = Readonly<{
+type ReportReviewInput = Readonly<{
   author: string | null;
   state: string | null;
   submittedAt: string | null;
   bodyText: string | null;
 }>;
 
-export type ReportFileInput = Readonly<{
+type ReportFileInput = Readonly<{
   path: string;
   additions: number;
   deletions: number;
   changeType: string | null;
 }>;
 
-export type ReportCommitInput = Readonly<{
+type ReportCommitInput = Readonly<{
   oid: string;
   committedDate: string;
   messageHeadline: string;

@@ -30,9 +30,7 @@ const REPORT_ANALYSES: readonly DwhAnalysisId[] = [
 
 // Index schema, types, and view helpers live in the dependency-free
 // report-index.ts (so the Astro gallery can import them without the DWH stack);
-// re-exported here for the existing public API.
-export { REPORT_INDEX_ENTRY_SCHEMA, REPORT_INDEX_SCHEMA, type ReportIndexEntry } from "./report-index.js";
-
+// the generator imports them directly where it needs them.
 export type BuildFrozenReportOptions = Readonly<{
   scope: Scope;
   generatedAt: Date;

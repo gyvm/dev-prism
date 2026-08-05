@@ -16,7 +16,7 @@ import {
 // (design D4 parity). Parquet is fetched whole and registered as a buffer
 // (registerFileBuffer), avoiding HTTP-range/CORS/httpfs concerns.
 
-export type WasmRunner = DwhQueryRunner & Readonly<{ close: () => Promise<void> }>;
+type WasmRunner = DwhQueryRunner & Readonly<{ close: () => Promise<void> }>;
 
 async function instantiate(): Promise<{ db: duckdb.AsyncDuckDB; worker: Worker }> {
   const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
@@ -101,7 +101,7 @@ function defaultDataBase(): string {
   return `${siteBase()}data`;
 }
 
-export async function createWasmRunner(dataBase = defaultDataBase()): Promise<WasmRunner> {
+async function createWasmRunner(dataBase = defaultDataBase()): Promise<WasmRunner> {
   // The WASM boot (multi-MB download + compile) and the Parquet fetches are
   // independent, so they run concurrently; serializing them was the dominant
   // cost of the old implementation. Per-table semantics are unchanged — only
@@ -170,6 +170,3 @@ export function getWasmRunner(): Promise<WasmRunner> {
 }
 
 /** Drops the cached runner without closing it. For tests only. */
-export function resetWasmRunnerForTests(): void {
-  cached = null;
-}

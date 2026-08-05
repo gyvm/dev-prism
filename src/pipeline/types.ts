@@ -4,7 +4,7 @@ export type RendererId =
   | "gantt-chart"
   | "bipartite-graph";
 
-export type AnalysisType = "compute" | "ai";
+type AnalysisType = "compute" | "ai";
 
 export type AnalysisFormat = "markdown" | "json";
 

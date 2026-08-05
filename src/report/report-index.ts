@@ -21,7 +21,7 @@ const KPI_SCHEMA = z.object({
   prMerged: z.number(),
 });
 
-export const REPORT_INDEX_ENTRY_SCHEMA = z.object({
+const REPORT_INDEX_ENTRY_SCHEMA = z.object({
   id: z.string(),
   title: z.string(),
   scope: SERIALIZED_SCOPE_SCHEMA,

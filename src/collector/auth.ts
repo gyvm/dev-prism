@@ -44,7 +44,7 @@ export async function resolveToken(
 }
 
 /** Resolve one owner explicitly when using GITHUB_APP_INSTALLATION_IDS. */
-export async function resolveTokenForOwner(
+async function resolveTokenForOwner(
   runtimeConfig: RuntimeConfig,
   owner: string,
   authFactory: AppAuthFactory = octokitAppAuthFactory,
@@ -169,6 +169,3 @@ export function createTokenResolver(
     return (await authentication).token;
   };
 }
-
-/** @deprecated Use resolveToken instead */
-export const createInstallationToken = resolveToken;

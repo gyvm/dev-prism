@@ -1,6 +1,5 @@
 import type { NormalizedPullRequest } from "./types.js";
 import { MetricsError } from "./errors.js";
-import { getWeekBoundaries } from "./timezone.js";
 
 function inRange(value: string | null | undefined, start: Date, end: Date): boolean {
   if (!value) return false;
@@ -9,10 +8,6 @@ function inRange(value: string | null | undefined, start: Date, end: Date): bool
     throw new MetricsError(`Invalid date in week filter: "${value}"`);
   }
   return timestamp >= start.getTime() && timestamp <= end.getTime();
-}
-
-export function getReportWeek(date: Date, timezone: string): { start: Date; end: Date } {
-  return getWeekBoundaries(date, timezone);
 }
 
 export function isMergedInWeek(

@@ -35,7 +35,8 @@ const view = resolveViewId(Astro.params.view);
 // preload cache — Chrome therefore logs "preloaded but not used". That warning
 // is benign: the worker's fetch coalesces with the in-flight download via the
 // HTTP cache, so the module still crosses the network exactly once.
-const wasmModuleUrl = getJsDelivrBundles().eh.mainModule;
+const wasmBundles = getJsDelivrBundles();
+const wasmModuleUrl = (wasmBundles.eh ?? wasmBundles.mvp).mainModule;
 ---
 
 <Layout title={viewTitle(view)} active="explore">

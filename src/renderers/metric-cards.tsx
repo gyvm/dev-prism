@@ -54,7 +54,7 @@ function cards(dora: DoraMetrics): readonly Card[] {
  * in the browser, so the two surfaces cannot drift. Tooltips are CSS-only hover
  * (no client JS) — see PAGE_STYLES `.metric-card-tooltip`.
  */
-export function MetricCards({ dora }: { dora: DoraMetrics }) {
+function MetricCards({ dora }: { dora: DoraMetrics }) {
   return (
     <section>
       <h2>DORAメトリクス</h2>

@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { SyntheticEvent } from "react";
 
 import type { Grain } from "../../analyses/scope.js";
 import MultiSelect from "./MultiSelect.js";
@@ -44,7 +44,7 @@ export default function ExploreFilters({
   onSubmit,
   timeControlsDisabled = false,
 }: Props) {
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };

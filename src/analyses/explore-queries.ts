@@ -45,15 +45,3 @@ export function buildDashboardSql(scope: Scope): DashboardSql {
     reviewerLead: buildReviewerLeadSql(scope),
   };
 }
-
-export {
-  buildActivityTrendSql,
-  buildCycleFunnelSql,
-  buildDoraSql,
-  buildLeadTrendSql,
-  buildPrStageTimesSql,
-  buildReviewCorrelationSql,
-  buildReviewerLeadSql,
-  buildReviewlessMergesSql,
-  buildSizePickupScatterSql,
-};

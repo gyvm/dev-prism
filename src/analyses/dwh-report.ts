@@ -29,15 +29,6 @@ export const DWH_ANALYSIS_REGISTRY: Readonly<Record<DwhAnalysisId, DwhAnalysisEn
   "pr-timeline": { query: queryPrTimeline, renderer: "gantt-chart" },
 };
 
-/** Runs an analysis against the DWH for `scope` and returns its view-model. */
-export async function queryDwhAnalysis(
-  runner: DwhQueryRunner,
-  id: DwhAnalysisId,
-  scope: Scope,
-): Promise<unknown> {
-  return DWH_ANALYSIS_REGISTRY[id].query(runner, scope);
-}
-
 /** Runs an analysis and renders it to HTML through the existing renderer. */
 export async function renderDwhAnalysis(
   runner: DwhQueryRunner,

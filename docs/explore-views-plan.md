@@ -226,11 +226,10 @@ React のライフサイクルに載せ、リスナは `useEffect` のクリー�
 
 ## 副次的な発見
 
-**`src/web` は型検査されていなかった。** ルート `tsconfig.json` の
-`exclude` に `src/web` があり、`web:check`（astro check）も `@astrojs/check` 未導入で
-動かないため、Explore 側は実質ノーチェックだった。`typecheck:web` スクリプトを追加し
-`typecheck` から呼ぶようにした。既存の型エラー2件（astro.config.mjs の Vite プラグイン
-`apply` の型）も解消済み。
+**`src/web` はルートの型検査から分離されている。** そのため `typecheck:web` を
+`typecheck` から呼ぶようにし、`@astrojs/check` を devDependency に追加して
+`web:check`（astro check）も実行可能にした。既存の型エラー2件（astro.config.mjs の
+Vite プラグイン `apply` の型）も解消済み。
 
 ## 今後の作業（積み残しではなく、新規の追加）
 
