@@ -6,17 +6,12 @@
    TypeScript; src/ui/tokens.test.ts asserts the two agree, so drift fails the
    test suite. Edit tokens.ts first, then mirror the value here.
 
-   The frozen report does NOT consume this file. It ships PAGE_STYLES
-   (src/renderers/page-styles.ts), which derives its :root from tokens.ts.
-   An earlier plan to route the Node CLI report path through Tailwind was
-   withdrawn — see docs/design-modernization-plan.md Phase 2.
-
    DESIGN.md palette mapped onto daisyUI semantic theme variables. No purple;
    borders over shadows; GitHub-inspired restraint. */
 @import "tailwindcss";
 /* themes: false disables daisyUI's bundled light/dark themes (whose palettes
    include pinks/purples that violate DESIGN.md). Only our custom `ghinsights`
-   theme below is emitted, keeping frozen-report CSS lean and deterministic. */
+   theme below is emitted, keeping the Explore CSS lean and deterministic. */
 @plugin "daisyui" {
   themes: false;
   logs: false;
@@ -35,7 +30,7 @@
   --color-base-300: #eef3f8;        /* muted surfaces / rails (--bg-muted) */
   --color-base-content: #202733;    /* primary text (--fg-default) */
 
-  --color-primary: #0891b2;         /* primary report accent (--accent-cyan) */
+  --color-primary: #0891b2;         /* primary Explore accent (--accent-cyan) */
   --color-primary-content: #ffffff;
   --color-secondary: #2563eb;       /* links / GitHub-adjacent (--accent-blue) */
   --color-secondary-content: #ffffff;

@@ -17,7 +17,7 @@ import { AGING_HISTOGRAM_BUCKETS } from "./view-model.js";
 // "as of now", not "in the window") but apply repo/user/bot filters. "Now" is
 // injected as a `TIMESTAMP '…'` literal (`nowTs`) resolved in the wrapper, so the
 // builders stay pure and deterministic — the codebase avoids non-deterministic
-// now() in SQL. Shared builders keep Explore and Reports in parity (design D4).
+// now() in SQL. Shared builders keep the Explore views in parity (design D4).
 
 // Latest review state per PR (the review with the greatest submitted_at) plus
 // that timestamp, used to detect "changes requested" and whether a newer commit

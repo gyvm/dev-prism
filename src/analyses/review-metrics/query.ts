@@ -12,7 +12,7 @@ import type {
 
 // SQL-native review metrics: review-less merges (2-1), size × review-pickup
 // scatter (2-3), and reviewer-by-reviewer request→first-review time (2-5).
-// Shared builders so Explore (WASM) and Reports (native) agree — design D4.
+// Shared builders keep the Explore views aligned — design D4.
 
 const DEFAULT_SCATTER_MAX_POINTS = 2000;
 

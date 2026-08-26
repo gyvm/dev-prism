@@ -26,11 +26,6 @@ jobs:
       # table a checked invariant instead of a promise, and gives consumers a
       # list they can paste into their own harden-runner step verbatim.
       #
-      # Deliberately absent: every Copilot / AI endpoint. verify.yml sets no
-      # COPILOT_GITHUB_TOKEN, so the pipeline must fall back to --skip-ai. A run
-      # that stays green here is positive evidence that AI-disabled means
-      # zero AI egress — the one invariant that is otherwise hard to test.
-      #
       # Adding a dependency that fetches at install/build time will fail this
       # step. That is the point: extend the list here AND the README table in
       # the same PR. To find what got blocked, open the run's Network Events in
@@ -68,7 +63,7 @@ jobs:
         run: |
           echo "::group::Verify dist/ contents"
           fail=0
-          for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
+          for f in verify-dist/index.html verify-dist/explore/index.html; do
             if [ -f "$f" ]; then echo "✓ $f"; else echo "✗ missing $f"; fail=1; fi
           done
           # nullglob so the glob expands to nothing (not a literal) when empty;
@@ -102,9 +97,9 @@ jobs:
             echo "✓ bodies.parquet is not published"
           fi
           # base path must be rewritten into every built page, not just the
-          # landing page — a regression that drops it on explore/ or reports/ is
+          # landing page — a regression that drops it on explore/ is
           # exactly the asset-404 mode the `base` input exists to prevent.
-          for f in verify-dist/index.html verify-dist/explore/index.html verify-dist/reports/index.html; do
+          for f in verify-dist/index.html verify-dist/explore/index.html; do
             if grep -q "/dev-prism/" "$f"; then echo "✓ base path applied in $f"; else echo "✗ base path not applied in $f"; fail=1; fi
           done
           echo "::endgroup::"

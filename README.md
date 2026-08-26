@@ -1,29 +1,17 @@
 # Dev Prism
 
-GitHub の Pull Request を集計し、リードタイムを入口にチームの開発フローを映し出す
-週次振り返りレポートを生成します。定量メトリクス (DORA / レビュー相関 / PR タイムライン) と
-AI 分析を組み合わせ、週次MTGで変化理由・拾うべきPR・フォローアップ候補を確認できます。
-
-デモページ:
-https://gyvm.github.io/dev-prism/demo/reports/2026-05-03.html
-
-<details>
-<summary>全体のスクリーンショット</summary>
-
-![dev-prism demo screenshot](docs/images/dev_prism_dist_demo_reports_2026-05-03.html.png)
-
-</details>
+GitHub の Pull Request を集計し、リードタイムを入口にチームの開発フローを探索する
+ブラウザダッシュボードを提供します。DWHに蓄積したPRデータをDuckDB-WASMでライブ集計し、
+期間・repo・userを切り替えながらDORA、レビュー、タイムライン、滞留を確認できます。
 
 ## 仕組み
 
-3 つの関心事に分かれています。導入パターンの違いは「どこで実行し、どこに配信するか」だけで、
-中身のパイプラインは共通です。
+2 つの関心事に分かれています。導入パターンの違いは「どこで実行し、どこに配信するか」です。
 
 | レイヤ | 実体 | 補足 |
 |---|---|---|
 | **データ** | `data/dwh/` の DuckDB parquet (DWH) | 真実の源。`updated_at` から収集カーソルを自己復元する増分収集 |
-| **サイト** | Astro 6 + React islands → `dist/` | Reports ギャラリーは SSG、Explore は DuckDB-WASM で parquet をライブクエリ |
-| **AI 分析** | GitHub Copilot SDK + `skills/` の prompt | 任意。トークン未設定なら自動で `--skip-ai` にフォールバック |
+| **サイト** | Astro 6 + React islands → `dist/` | ExploreはDuckDB-WASMでparquetをライブクエリ |
 
 ## 導入パターン早見表
 
@@ -39,17 +27,11 @@ https://gyvm.github.io/dev-prism/demo/reports/2026-05-03.html
 
 ## 認証 (全パターン共通)
 
-このツールはPRデータ取得とAI分析で認証を分けます。PRデータ取得はFine-grained PATまたは
-GitHub App、AI分析はFine-grained PATを使います。
+このツールはPRデータ取得のためにFine-grained PATまたはGitHub Appを使います。
 
 | 環境変数 | 用途 |
 |---|---|
 | `GITHUB_TOKEN` | PR データ取得 (GraphQL) |
-| `COPILOT_GITHUB_TOKEN` | AI 分析 (Copilot SDK)。任意 |
-
-本来は 1 つにまとめたいところですが、組織所有 (organization-owned) の Fine-grained PAT では
-`Copilot Requests` 権限が UI に出ない既知の制約
-([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)) があるため、現状は分けています。
 
 ### `GITHUB_TOKEN` (PR 取得用)
 
@@ -58,18 +40,6 @@ GitHub App、AI分析はFine-grained PATを使います。
 3. **Repository access** で対象リポジトリを選択
 4. **Permissions > Repository permissions** で **Pull requests** を **Read-only** に設定
 5. 生成された `github_pat_...` をコピー
-
-### `COPILOT_GITHUB_TOKEN` (AI 分析用・任意)
-
-1. https://github.com/settings/personal-access-tokens/new を開く
-2. **Token name** を設定 (例: `dev-prism-copilot`)
-3. **Resource owner** は自分のユーザーアカウントを選択
-4. **Repository access** は **Public Repositories (read-only)** で十分
-5. **Permissions > Account permissions** で **Copilot Requests** を **Read-only** に設定
-6. 生成された `github_pat_...` をコピー
-
-> ローカルで `copilot` CLI のセッションを使って動作確認するだけなら `COPILOT_GITHUB_TOKEN` は
-> 省略可能です (パターン A の手順参照)。CI 等の非対話環境で AI 分析を回す場合は必須です。
 
 ### GitHub App 認証 (企業向け推奨)
 
@@ -170,49 +140,15 @@ include = [
 
 詳しい設定項目は [設定 (`config.toml`)](#設定-configtoml) を参照。
 
-### 3. 動作確認 (AI 抜き)
+### 3. Exploreをローカルで起動
 
-まずは AI 分析を抜いて (Copilot セッション不要) 動かします。
-
-```bash
-GITHUB_TOKEN=github_pat_... npm run report -- --skip-ai
-```
-
-成功すると以下が生成されます:
-
-- `data/raw/<period>.json` — 取得した PR の生データ
-- `data/analysis/<period>/*.{json,md}` — 各分析の出力
-- `dist/reports/<period>.html` — 1 週分の HTML レポート
-- `dist/index.html` — 全期間のインデックスページ
-
-### 4. AI 分析込みで実行
-
-GitHub Copilot にローカルでログインしてから `--skip-ai` を外します。
-
-```bash
-GITHUB_TOKEN=github_pat_... \
-COPILOT_GITHUB_TOKEN=github_pat_... \
-npm run report
-```
-
-### サンプルデータで試す
-
-GitHub に問い合わせず試したい場合は同梱サンプル (`data/demo/2026-05-03.json`) を使えます。
-
-```bash
-npm run demo
-```
-
-### Explore も含めたローカル全ビルド
-
-DWH ベースのフルスタック (Explore + ギャラリー) をローカルで組む場合:
+DWHを作成し、Explore用のParquetを配置してからAstroを起動します:
 
 ```bash
 rm -rf dist
 GITHUB_TOKEN="$(gh auth token)" npx tsx src/cli/dwh-build.ts --config config.toml --dwh-dir /tmp/dwh
 npm run explore:data -- --dwh-dir /tmp/dwh                                  # Explore 用 parquet 8表 → dist/data
-npm run report:dwh -- --dwh-dir /tmp/dwh --reports-dir dist/reports --from 2026-04-01 --to 2026-05-18
-npm run web:build                                                           # 一覧 SSG + Explore 島 + nav.js → dist/
+npm run web:build                                                           # Exploreサイトをdist/へ生成
 ```
 
 開発サーバは `npm run web:dev` (`http://localhost:4321/`)。
@@ -226,7 +162,7 @@ npm run web:build                                                           # �
 
 | Action | 種類 | 役割 |
 |---|---|---|
-| `your-org/dev-prism@v0` | composite | PR 収集 → `data/dwh` (parquet) を増分更新 → そのまま Explore + Reports サイトを `dist/` にビルド |
+| `your-org/dev-prism@v0` | composite | PR 収集 → `data/dwh` (parquet) を増分更新 → Exploreサイトを `dist/` にビルド |
 
 > 収集とサイトビルドは 1 アクション・1 回の `npm ci` で連続実行します。consumer は
 > 「checkout → action → `data/dwh` を commit → Pages へ deploy」だけの最小ワークフローになります。
@@ -271,8 +207,7 @@ composite Action 1 本で、収集 → DWH 更新 → サイトビルドを順�
 - **入力**:
   - `config` (既定 `config.toml`) / `dwh-dir` (既定 `data/dwh`) / `from` (任意・過去分 backfill)
   - `base` (Astro base path。Pages project page は `/<repo>/`、独自ドメイン/Cloudflare は `/`)
-  - `output-dir` (既定 `dist`) / `site` (任意・canonical URL) / `reports-config` (任意・指定すると
-    frozen reports で gallery を生成)
+  - `output-dir` (既定 `dist`) / `site` (任意・canonical URL)
   - `github-token` (PR取得用のread-only PAT。App credentialsより優先)
   - `github-app-id` / `github-app-private-key` / `github-app-installation-id` /
     `github-app-installation-ids` (GitHub App認証)
@@ -285,11 +220,6 @@ composite Action 1 本で、収集 → DWH 更新 → サイトビルドを順�
   `::group::` でグルーピングし、節目に `::notice::` を出すので Actions ログで進行が追える
 - **レート制限時**: 収集は取得済み分を書き込んだうえで **exit 1 で fail loudly** し、stderr に reset 時刻を出す
   (CI を緑にして取りこぼしを隠さないため)。書き込んだ分は安全に残り、次回実行で DWH カーソルが自動的に続きから再開する
-
-### AI 分析を CI で回す
-
-`COPILOT_GITHUB_TOKEN` secret を設定していれば AI 分析も CI 上で実行されます。未設定の場合は
-自動的に `--skip-ai` にフォールバックし、AI 分析セクションは `skipped` になります。
 
 ---
 
@@ -310,12 +240,8 @@ Action 実行中に発生しうる外向き通信は以下がすべてです。
 | `raw.githubusercontent.com:443` / `objects.githubusercontent.com:443` / `nodejs.org:443` | `setup-node` のバージョン manifest と Node 本体 | ✅ |
 | `api.github.com:443` | PR の収集 (REST + GraphQL) | ✅ |
 | `GITHUB_API_URL` / `GITHUB_GRAPHQL_URL` のホスト | GHES 利用時の収集先 (ランナーが自動注入) | GHES 時のみ |
-| Copilot API | AI 分析 | ⬜ **任意** |
-
-**外部にデータが出る経路は AI 分析だけ**です。`COPILOT_GITHUB_TOKEN` が未設定なら自動的に
-`--skip-ai` にフォールバックし、Copilot への通信は一切発生しません
-([AI 分析を CI で回す](#ai-分析を-ci-で回す))。収集した PR データの保存先は実行環境の
-`dwh-dir` (既定 `data/dwh`) のみで、外部ストレージには送りません。
+収集したPRデータの保存先は実行環境の `dwh-dir` (既定 `data/dwh`) のみで、外部ストレージには
+送りません。
 
 ### 利用者側で egress を強制する
 
@@ -327,7 +253,7 @@ Action 実行中に発生しうる外向き通信は以下がすべてです。
 
 ```yaml
 jobs:
-  report:
+  dashboard:
     runs-on: ubuntu-latest
     steps:
       # 必ず最初に置く。これ以降のステップがすべて対象になる
@@ -351,9 +277,6 @@ jobs:
           github-token: ${{ secrets.DEV_PRISM_GH_TOKEN }}
 ```
 
-AI 分析を使う場合のみ、初回を `egress-policy: audit` で回して Copilot のエンドポイントを
-確認し、allowlist に追加してください。**AI を使わないなら上のリストのままで動きます。**
-
 Pages へデプロイするステップを同じジョブに置く場合は
 `*.actions.githubusercontent.com:443` の追加が必要になることがあります。収集ジョブと
 デプロイジョブを分けておくと、収集側の allowlist を最小に保てます。
@@ -363,10 +286,6 @@ Pages へデプロイするステップを同じジョブに置く場合は
 上の表は口約束ではありません。本リポジトリの `verify.yml` は **`egress-policy: block` と
 まったく同じ allowlist** で毎 PR の E2E を回しています。Dev Prism が表にないホストへ
 通信し始めた時点で CI が赤くなるため、**表と実装の乖離が検出される**仕組みです。
-
-同時にこれは「**AI 無効時に AI へ通信しない**」の実証にもなっています。`verify.yml` の
-allowlist には Copilot 系エンドポイントが一切含まれておらず、`COPILOT_GITHUB_TOKEN` も
-設定していません。この状態で E2E が緑になること自体が、AI 無効時の通信ゼロの証拠です。
 
 ### 制約と限界 (正直な注記)
 
@@ -396,20 +315,12 @@ allowlist には Copilot 系エンドポイントが一切含まれておらず�
 | `[repositories]` | `include` | 対象リポジトリの配列。各要素は `"owner/name"` または `"owner/*"` (ワイルドカードは archived を除く owner 配下の全リポジトリに展開) |
 | `[limits]` | `maxPrs` / `maxCommentsPerPr` / `maxReviewThreadsPerPr` / `maxFilesPerPr` / `maxCommitsPerPr` / `maxBodyLength` | 1 PR あたりの取得上限。GraphQL のページング負荷を抑える |
 | `[bots]` | `patterns` | bot と見なす GitHub login の正規表現配列。大文字小文字は区別しない |
-| `[ai]` | `model` | AI 分析で使う Copilot SDK のモデル ID。省略時は SDK のデフォルト |
-
-`skills/` 配下の AI skill と `src/pipeline/stages/analyze.ts` の `COMPUTE_REGISTRY` に登録された
-compute 分析は常に既定パラメータで実行されます。
-
-利用可能な Copilot モデル ID は `copilot` CLI 内で `/model` を実行するか、Copilot SDK の
-`client.listModels()` で確認できます。
 
 ## 環境変数
 
 | 変数 | 説明 |
 |---|---|
 | `GITHUB_TOKEN` | Pull request の read-only 権限がある PAT |
-| `COPILOT_GITHUB_TOKEN` | AI 分析専用の PAT (任意) |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | 単一Organization向けGitHub App認証 |
 | `GITHUB_APP_INSTALLATION_IDS` | 複数Organization向け。`owner=installation_id`の改行区切り |
 | `LOOKBACK_DAYS` | 初回フルロードで遡る日数 (既定 `30`)。これより古い履歴は `dwh:build --from` で取得する |
@@ -421,11 +332,8 @@ compute 分析は常に既定パラメータで実行されます。
 | コマンド | 役割 |
 |---|---|
 | `npm run collect` | PR データ取得のみ。`data/raw/<period>.json` を書く |
-| `npm run report` | fetch → analyze → render の全体パイプライン (orchestrate 系) |
 | `npm run dwh:build -- [--config <path>] [--dwh-dir <dir>] [--from YYYY-MM-DD]` | PR を収集して DWH (parquet) を増分構築。`--from` で過去分を backfill |
-| `npm run report:dwh -- [--reports-config <path>] [--from <d> --to <d>] [--dwh-dir <dir>] [--reports-dir <dir>]` | DWH から frozen reports + `index.json` を生成 |
 | `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` (→ `dist/data`) へ配置。完全 DWH は変更しない |
-| `npm run demo` | 同梱サンプル raw データ (`data/demo/`) でレポート生成 |
 
 ### 増分収集と backfill (`dwh:build`)
 
@@ -438,74 +346,23 @@ compute 分析は常に既定パラメータで実行されます。
   隠さないため)。リセット時刻と再実行を案内し、書き込んだ分は残るのでカーソルが次回自動で続きから
   再開する。
 
-### `npm run report` の主なフラグ
+## Web (Explore)
 
-| フラグ | 説明 |
-|---|---|
-| `--config <path>` | `config.toml` の場所 |
-| `--raw-dir <path>` | 生 PR データの出力先 |
-| `--analysis-dir <path>` | 分析結果の出力先 |
-| `--reports-dir <path>` | HTML レポートの出力先 |
-| `--index <path>` | インデックス HTML の出力先 |
-| `--skills <path>` | AI skill のルートディレクトリ |
-| `--week YYYY-MM-DD` | 対象週に含まれる日付。指定週 (月曜始まり) を集計 |
-| `--use-raw <path>` | 既存の raw snapshot を再利用し fetch をスキップ。analyze + render のみ走る |
-| `--skip-ai` | AI skill を全部 `skipped` 扱いにする (Copilot 不要) |
-
-## skill を追加して分析項目を追加する
-
-1. `skills/<NN>_<id>/SKILL.md` を新規作成 (ディレクトリ名がそのまま分析 ID になる)。先頭の `NN_`
-   プレフィックスで AI セクション内の表示順が決まる (`01_`, `02_`, ... 昇順)
-2. YAML frontmatter の `name` はディレクトリ名と完全に一致させる (例: `name: 04_my-analysis`)。
-   Copilot SDK はこの `name` でスキルを識別する
-3. 本文に Markdown プロンプトを書く。**出力先頭の `## ...` セクション見出しはプロンプト本文に
-   ハードコードする** (例: `先頭は必ず "## 議論があったPR" にする`)
-4. これだけで自動発見される (`skills/` を `discoverAiSkillIds()` がスキャンしてディレクトリ名でソート)
-
-最小例:
-
-```markdown
----
-name: 04_my-analysis
-description: 何を分析する skill かの 1 行説明
----
-
-PR データを参照し、〜の観点で日本語のセクションを出力してください。
-
-出力:
-- 先頭は必ず `## 〜〜のサマリ` にする
-- ...
-```
-
-既存実例: `skills/01_project-progress/SKILL.md`、`skills/02_follow-up-prs/SKILL.md`、`skills/03_debated-prs/SKILL.md`。
-
-## Web (Explore + Reports ギャラリー)
-
-フロントは **Astro 6 + React islands** (`src/web`)。2 つのモードを共有の開閉サイドバーで行き来できます。
-
-- **Reports ギャラリー** (`/`): `report:dwh` が出力する `dist/reports/index.json` から **ビルド時に SSG**。
-  各カードは凍結レポート (`/reports/<id>.html`) へリンク。
-- **Explore** (`/explore`): `client:only` の React 島。ブラウザ内 **DuckDB-WASM** が画面用に絞った
-  `dist/data/*.parquet` を直接クエリし、レポートと**同一のレンダラ・SQL**で DORA / レビュー相関 /
+フロントは **Astro 6 + React islands** (`src/web`)。Exploreは`client:only`のReact島として動作し、
+ブラウザ内 **DuckDB-WASM** が画面用に絞った `dist/data/*.parquet` を直接クエリして、
+ DORA / レビュー相関 /
   PR タイムラインをライブ集計。`explore:data` が置くのは画面で使う 9 テーブルだけで、完全 DWH の
-  `bodies.parquet` (PR 本文・コメント本文を含む) は AI／バッチ処理向けに `data/dwh/` に残し、
+  `bodies.parquet` (PR 本文・コメント本文を含む) は `data/dwh/` に残し、
   **静的サイトには配信しない**。
   期間プリセット (今週/過去1ヶ月/3ヶ月/1年) + カレンダー、repo/user の multiselect で絞り込み。
-- **サイドバー**: アプリ面 (一覧/Explore) は Astro が SSR。凍結レポートには閲覧時に `nav.js` が
-  オーバーレイ描画する (本文は自己完結のまま・常に最新ナビ)。
 
 ### スクリプト
 
 | コマンド | 役割 |
 |---|---|
 | `npm run web:dev` | Astro 開発サーバ (base `/`、`http://localhost:4321/`) |
-| `npm run web:build` | `nav.js` ビルド + `astro build` (本番 base `/dev-prism`)。**base は固定**なので、別 base で焼くときは `ASTRO_BASE=... astro build --root src/web` を直接叩く |
+| `npm run web:build` | `astro build` (本番 base `/dev-prism`)。**base は固定**なので、別 base で焼くときは `ASTRO_BASE=... astro build --root src/web` を直接叩く |
 | `npm run explore:data -- --dwh-dir <dir>` | Explore 用の 9 Parquet を `src/web/public/data` へ配置。完全 DWH は変更しない |
-| `npm run report:dwh -- --dwh-dir <dir> --reports-dir dist/reports --from <d> --to <d>` | 凍結レポート + `index.json` を生成 (`--index` は付けない: 一覧 HTML は Astro が生成) |
-
-> **描画の更新 (デザイン変更)** は `report:dwh` を再実行すれば凍結レポートを現行レンダラで再生成できます
-> (データ凍結 / 描画オンデマンド再生成)。サイドバーの更新は `nav.js` の再デプロイのみで反映され、
-> レポート再生成は不要です。
 
 ## リリース (メンテナ向け)
 

@@ -2,22 +2,17 @@
 import { ClientRouter } from "astro:transitions";
 
 import "../../ui/theme.css";
-import { siteBase } from "../base-path.ts";
-import { sidebarHtml, SIDEBAR_STYLES, type SidebarActive } from "../shell/sidebar.ts";
 
 interface Props {
   title?: string;
-  active?: SidebarActive;
 }
 
-const { title = "PR Analytics", active = null } = Astro.props;
-// Reports and Explore are clean child paths of the base (the base root itself
-// redirects to Explore — see pages/index.astro).
+const { title = "PR Analytics" } = Astro.props;
+// The site root redirects to Explore — see pages/index.astro.
 // Trailing slashes are required: a bare `/explore` collides with the sibling
 // module src/web/explore.ts in dev (Vite serves it as JS); `/explore/` resolves
 // to the page. Slashes are also the canonical directory-format URLs in prod.
-const base = siteBase();
-const links = { reportsHref: `${base}reports/`, exploreHref: `${base}explore/`, active };
+const base = import.meta.env.BASE_URL;
 ---
 
 <!doctype html>
@@ -30,17 +25,11 @@ const links = { reportsHref: `${base}reports/`, exploreHref: `${base}explore/`, 
     {/* Client-side navigation, so moving between Explore views swaps the body
         without tearing down the JS realm. That is what lets the module-scope
         DuckDB runner (duckdb-runner.ts) outlive the island remount and skip the
-        multi-second WASM boot. See docs/explore-views-plan.md D3. */}
+        multi-second WASM boot. */}
     <ClientRouter />
     <slot name="head" />
-    <style is:global set:html={SIDEBAR_STYLES}></style>
   </head>
   <body>
-    <Fragment set:html={sidebarHtml(links)} />
     <slot />
-    <script>
-      import { mountSidebar } from "../shell/sidebar.ts";
-      mountSidebar();
-    </script>
   </body>
 </html>

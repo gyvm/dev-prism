@@ -6,8 +6,8 @@ const DAY_MS = 86_400_000;
 const DEFAULT_WINDOW_DAYS = 365;
 
 /**
- * Reads scope from the URL and fills a default window (a report needs concrete
- * from/to — pr-timeline requires `to`). `now` is injectable for tests.
+ * Reads scope from the URL and fills a default window. `now` is injectable for
+ * tests.
  */
 export function scopeFromUrl(search: string, now: Date): Scope {
   const parsed = scopeFromSearchParams(new URLSearchParams(search));

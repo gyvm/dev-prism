@@ -1,5 +1,5 @@
-// Deps-free query-runner contract shared by the DuckDB-native runner (Reports,
-// `warehouse/query.ts`) and the DuckDB-WASM runner (Explore). Kept free of any
+// Deps-free query-runner contract used by the DuckDB-WASM Explore runner. Kept
+// free of any
 // Node-only imports (`@duckdb/node-api`, `node:fs`) so the browser bundle can
 // `import type` it without pulling those in. No query function passes `params`
 // today (scope is escaped into SQL literals), so it is typed loosely and may be

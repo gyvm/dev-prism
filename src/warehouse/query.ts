@@ -29,10 +29,9 @@ export type DwhHandle = Readonly<{
 
 /**
  * Opens a DWH directory as a set of queryable relations. Each table is exposed
- * by its schema name (`pull_requests`, `activities`, `actors`, …) so analysis
- * SQL is identical whether it runs here (DuckDB native, Reports) or in
- * DuckDB-WASM (Explore). Tables without a Parquet file yet are created empty so
- * queries never error on a partially-populated DWH.
+ * by its schema name (`pull_requests`, `activities`, `actors`, …) for the
+ * analysis SQL consumed by DuckDB-WASM (Explore). Tables without a Parquet file
+ * yet are created empty so queries never error on a partially-populated DWH.
  */
 export async function openDwh(dwhDir: string): Promise<DwhHandle> {
   const root = resolve(dwhDir);

@@ -11,8 +11,8 @@ export type ActivityTrendBucket = Readonly<{
 
 /**
  * View-model for the "件数推移" (activity trend) indicator. Aggregated from the
- * long `activities` fact at the requested grain — the contract a trend chart
- * (Explore live, or a future frozen Reports chart) consumes.
+ * long `activities` fact at the requested grain — the contract the Explore
+ * trend chart consumes.
  */
 export type ActivityTrend = Readonly<{
   grain: Grain;

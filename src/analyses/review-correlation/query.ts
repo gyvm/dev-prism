@@ -23,8 +23,8 @@ function kindOf(isBot: boolean): "bot" | "human" {
 
 /**
  * SQL for review correlation (authors / reviewers / pairs). Exported so
- * DuckDB-WASM (Explore) and DuckDB-native (Reports) run identical queries —
- * parity by shared module (design D4).
+ * DuckDB-WASM (Explore) runs the canonical queries — parity by shared module
+ * (design D4).
  */
 export function buildReviewCorrelationSql(
   scope: Scope,

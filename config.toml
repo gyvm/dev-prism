@@ -26,10 +26,3 @@ patterns = [
   "^dependabot$",
   "\\[bot\\]$",
 ]
-
-# [ai] は省略可。Copilot SDK が使うモデルを指定する。
-# 省略時は Copilot SDK のデフォルト (Claude Sonnet 4.5 など)。
-# 利用可能なモデル ID は `copilot` CLI 内で `/model` を実行するか、
-# Copilot SDK の `client.listModels()` で確認できる。
-[ai]
-model = "gpt-5.3-codex"

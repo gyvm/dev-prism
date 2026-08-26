@@ -3,13 +3,9 @@ import type { CSSProperties, MouseEvent } from "react";
 
 import type { queryReviewCorrelation } from "../../analyses/review-correlation/query.js";
 
-// React port of src/renderers/bipartite-graph.ts (docs/explore-views-plan.md
-// Step 4 / D2). The frozen-report renderer is left untouched on purpose — it
-// stays self-contained (HTML string + inline <script> IIFE) for the
-// no-bundler report path. This component reproduces the same DOM/SVG
-// structure, the same `.bg-*` classes, and the same CSS custom properties
-// from PAGE_STYLES (`--role-color` `--role-fill` `--role-line` `--bar-w`
-// `--w`), driven by React state instead of imperative DOM writes.
+// Explore's React bipartite graph uses stable `.bg-*` classes and CSS custom
+// properties (`--role-color`, `--role-fill`, `--role-line`, `--bar-w`, `--w`),
+// driven by React state instead of imperative DOM writes.
 //
 // Behavior ported from the IIFE (bipartite-graph.ts ~150-230):
 //   - hovering a node highlights itself, the edges it participates in, and
@@ -24,8 +20,7 @@ import type { queryReviewCorrelation } from "../../analyses/review-correlation/q
 // data-default-* attributes — they are simply recomputed from props/state
 // on every render, so there is nothing to leak or get out of sync. Hover is
 // delegated through React's own onMouseOver/onMouseLeave on the root, so there
-// is no listener to unregister in the first place (the IIFE never removed its
-// listeners; see docs/explore-views-plan.md Step 4 "現存するリークの解消").
+// is no listener to unregister in the first place.
 
 type ReviewCorrelation = Awaited<ReturnType<typeof queryReviewCorrelation>>;
 type AuthorActivity = ReviewCorrelation["authors"][number];

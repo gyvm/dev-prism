@@ -21,8 +21,8 @@ type DoraRow = {
 };
 
 /**
- * SQL for the DORA metrics. Exported so DuckDB-WASM (Explore) and DuckDB-native
- * (Reports) run the identical query — parity by shared module (design D4).
+ * SQL for the DORA metrics. Exported so DuckDB-WASM (Explore) runs the
+ * canonical query — parity by shared module (design D4).
  */
 export function buildDoraSql(scope: Scope): string {
   const repoFilter = inListFilter("r.repo_key", scope.repos);
@@ -83,7 +83,7 @@ function diffDora(current: DoraMetrics, previous: DoraMetrics): DoraDelta {
 /**
  * DORA metrics for the current period plus the same-length immediately-preceding
  * period (1-1b). Runs the unchanged `buildDoraSql` twice — once per scope — so it
- * stays byte-for-byte parity-safe with the frozen report, and derives the prior
+ * stays deterministic, and derives the prior
  * window in TS via `previousScope`.
  */
 export async function queryDoraComparison(

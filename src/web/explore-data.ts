@@ -12,8 +12,8 @@ export const DEFAULT_DWH_DIR = "data/dwh";
 export const DEFAULT_OUT_DIR = "src/web/public/data";
 
 // Copies only the tables required by Explore into the static site's public
-// assets. The complete DWH (including bodies.parquet for AI/batch work) stays
-// in dwhDir and is never copied merely because the dashboard is built.
+// assets. The complete DWH (including bodies.parquet) stays in dwhDir and is
+// never copied merely because the dashboard is built.
 export async function copyExploreData(
   options: CopyExploreDataOptions = {},
 ): Promise<readonly string[]> {

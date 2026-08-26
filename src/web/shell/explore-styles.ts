@@ -1,11 +1,10 @@
 // Explore shell CSS (filter bar, period picker, multiselect, view tabs).
 //
-// Extracted verbatim from the former pages/explore.astro so the per-view route
-// keeps one copy. Injected with `is:global` because <Explore client:only>
+// Shared by every per-view route. Injected with `is:global` because <Explore client:only>
 // renders entirely in the browser, where Astro's scoped selectors never match.
 //
 // Palette values reference src/ui/tokens.ts through var(); the hand-inlined hex
-// this file shipped with (issue ③ in docs/explore-views-plan.md) is gone.
+// this file shipped with is gone.
 //
 // Six literals remain on purpose — interaction shades DESIGN.md does not define:
 //   1d4fd7  submit-button hover (darker accent-blue)
@@ -88,13 +87,7 @@ export const EXPLORE_STYLES = `
 .explore-ms__opt input { width: 15px; height: 15px; }
 .explore-ms__empty { padding: 8px 6px; color: var(--fg-subtle); font-size: 13px; }
 .explore-main { max-width: 1100px; margin: 0 auto; padding: 20px 20px 48px; }
-/* The sidebar toggle is position:fixed at 12px/12px and 40px square, so it
-   occupies x < 52px. While the centered container's left margin clears that,
-   the two never meet; below it the toggle lands on top of the <h1>. 1220px =
-   1100 content + 2×(52 toggle + 8 breathing room). */
-@media (max-width: 1220px) { .explore-main { padding-top: 56px; } }
-/* Basic, operational UI treatment for Explore only. PAGE_STYLES is also used
-   by generated reports, so keep this delta scoped to the interactive island. */
+/* Basic, operational UI treatment for Explore only. */
 body:has(.explore-main)::before { content: none; }
 .explore-main section { border-radius: 10px; box-shadow: none; }
 .explore-main .metric-card { border-top: 1px solid var(--border-muted); box-shadow: none; }
@@ -103,9 +96,7 @@ body:has(.explore-main)::before { content: none; }
 .explore-main .bg-dot { border-radius: 3px; }
 .explore-main .bg-root[data-hovered] .bg-node.bg-active { background: color-mix(in srgb, var(--accent-cyan) 8%, var(--panel)); box-shadow: none; }
 .explore-main .bg-root[data-hovered] .bg-node.bg-active .bg-bar { background: color-mix(in srgb, var(--accent-cyan) 12%, transparent); border-color: color-mix(in srgb, var(--accent-cyan) 24%, transparent); }
-/* DORA comparison cards (1-1b). Reuses .metric-grid/.metric-card/the four
-   metric-card-TONE accent colors from PAGE_STYLES (report parity); these
-   two rules are the delta/n addition that only exists in Explore. */
+/* DORA comparison cards (1-1b). */
 .metric-card-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
 /* A card whose headline is a placeholder ("—") keeps its category accent on the
    top border but drops the value to neutral. The tone colors are verdicts —
@@ -129,7 +120,7 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
    measurement". Keeps an empty stage from out-shouting the ones with data. */
 .cycle-funnel-card-muted .cycle-funnel-value { color: var(--fg-subtle); }
 .cycle-funnel-n { display: block; margin-top: 4px; color: var(--fg-subtle); font-size: 11px; }
-/* Trend chart (Explore-only; the frozen report has no trend section).
+/* Trend chart (Explore-only).
    Marks stay thin and the grid recessive so the data reads first. */
 .trend { background: var(--panel); border: 1px solid var(--border-default); border-radius: 10px; padding: 20px; margin-top: 18px; box-shadow: none; }
 .trend h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
@@ -158,7 +149,7 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
    MetricCards' hover tooltip pattern doesn't need here (always visible). */
 .metric-grid-single { grid-template-columns: minmax(0, 240px); }
 /* 3 cards in the 4-column .metric-grid leave a hole; give aging its own count.
-   EXPLORE_STYLES is injected after PAGE_STYLES, so the base grid's media
+   Explore styles are injected after the base grid, so the base grid's media
    queries lose to this rule — restate the collapse points here. */
 .metric-grid-triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 860px) { .metric-grid-triple { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -167,7 +158,7 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .metric-card-note { margin: 8px 0 0; color: var(--fg-muted); font-size: 12px; line-height: 1.4; }
 
 /* Size × pickup scatter (2-3). Grid/axis-tick/empty/readout/table classes are
-   shared with .trend-* (TrendChart) and .empty (PAGE_STYLES) — generic enough
+   shared with .trend-* (TrendChart) and .empty — generic enough
    to reuse verbatim; only the plot height and mark styling are scatter-specific. */
 .scatter-svg { display: block; width: 100%; max-width: 960px; height: auto; aspect-ratio: 720 / 320; margin: 0 auto; overflow: visible; }
 .scatter-axis-label { fill: var(--fg-muted); font-size: 11px; font-weight: 650; }
@@ -220,12 +211,12 @@ a.cycle-funnel-card:focus-visible { outline: 2px solid rgba(37,99,235,.28); outl
 .aging-histogram-bar[data-empty="true"] { background: var(--border-muted); }
 .aging-histogram-label { font-size: 12px; color: var(--fg-subtle); }
 
-/* PR timeline (gantt) track (1-3/Timeline). Replaces the report's pill rail +
-   repeating-gradient day grid with the flat bordered vocabulary the rest of
+/* PR timeline (gantt) track (1-3/Timeline). Uses the flat bordered vocabulary
+   the rest of
    Explore uses (compare .aging-histogram-bar's border-radius, .trend-grid's
    thin border-left day dividers). legend-swatch/timeline-tooltip-swatch stay
-   circular in PAGE_STYLES for the frozen report; these gantt-* parallels are
-   Explore-only so they can go square without touching the shared classes. */
+   circular in the shared vocabulary; these gantt-* classes are Explore-only so
+   they can go square. */
 .gantt-track { position: relative; height: 20px; border: 1px solid var(--border-muted); border-radius: 4px; background: var(--bg-muted); overflow: hidden; cursor: help; }
 .gantt-daygrid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); pointer-events: none; }
 .gantt-daygrid-cell:not(:first-child) { border-left: 1px solid var(--border-muted); }

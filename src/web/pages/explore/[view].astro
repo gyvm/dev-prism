@@ -3,7 +3,7 @@ import { getJsDelivrBundles } from "@duckdb/duckdb-wasm";
 
 import Layout from "../../layouts/Layout.astro";
 import Explore from "../../islands/Explore";
-import { PAGE_STYLES } from "../../../renderers/page-styles.js";
+import { EXPLORE_BASE_STYLES } from "../../shell/explore-base-styles.js";
 import { EXPLORE_STYLES } from "../../shell/explore-styles.js";
 import { VIEW_IDS, resolveViewId, viewTitle } from "../../views/registry.js";
 
@@ -12,13 +12,6 @@ import { VIEW_IDS, resolveViewId, viewTitle } from "../../views/registry.js";
 // the JS realm — so the module-scope DuckDB runner survives and the multi-second
 // WASM boot happens once per session, not once per view.
 //
-// Explore still injects PAGE_STYLES, and "one stylesheet per path" is NOT done.
-// The React chart components reuse its class names (.timeline-row, .bg-node,
-// .metric-card) by design, and those rules are interleaved with report-only
-// chrome — `section`, `h2`, `.section-head` and `.empty` are used by both. A
-// correct split is its own change, tracked in docs/explore-views-plan.md as
-// deferred work, not something to eyeball mid-refactor.
-
 export function getStaticPaths() {
   return VIEW_IDS.map((view) => ({ params: { view } }));
 }
@@ -39,7 +32,7 @@ const wasmBundles = getJsDelivrBundles();
 const wasmModuleUrl = (wasmBundles.eh ?? wasmBundles.mvp).mainModule;
 ---
 
-<Layout title={viewTitle(view)} active="explore">
+<Layout title={viewTitle(view)}>
   <Fragment slot="head">
     <link rel="preload" as="fetch" crossorigin="anonymous" href={wasmModuleUrl} />
   </Fragment>
@@ -47,7 +40,7 @@ const wasmModuleUrl = (wasmBundles.eh ?? wasmBundles.mvp).mainModule;
       the whole island in the browser, so Astro-scoped selectors (cid-attributed)
       never match its DOM. Without it these rules are dead code and the controls
       fall back to UA defaults — which Tailwind preflight then strips. */}
-  <style is:global set:html={PAGE_STYLES}></style>
+  <style is:global set:html={EXPLORE_BASE_STYLES}></style>
   <style is:global set:html={EXPLORE_STYLES}></style>
 
   <Explore client:only="react" view={view} />

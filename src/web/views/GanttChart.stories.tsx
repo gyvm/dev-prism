@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
+import type { PrTimelineOutput } from "../../analyses/pr-timeline/types.js";
 import GanttChart from "./GanttChart.js";
 
 const meta = {

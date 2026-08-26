@@ -6,7 +6,7 @@ import type {
   SizePickupPoint,
   SizePickupScatter as SizePickupScatterData,
 } from "../../analyses/review-metrics/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 
 // Review block A, 2-3: size × review-pickup scatter (docs/explore-screens.md
 // "## 2. レビュー", docs/explore-screens-sql-design.md "## 2-3"). Follows the

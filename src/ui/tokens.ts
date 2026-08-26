@@ -1,13 +1,12 @@
 // Single source of truth for the DESIGN.md palette.
 //
 // Before this module the same values were hand-written in three places
-// (docs/explore-views-plan.md issue ③): the PAGE_STYLES `:root` block, the
-// `@theme` block in theme.css, and raw hex literals in the Explore shell CSS.
+// the Explore base stylesheet, the `@theme` block in theme.css, and raw hex
+// literals in the Explore shell CSS.
 // Consumers now derive from here instead:
 //
-//   - src/renderers/page-styles.ts  → renderRootCss() for the frozen report
-//   - src/web/shell/explore-styles.ts → renderRootCss() for Explore, so Explore
-//     keeps its tokens once Step 4 stops injecting PAGE_STYLES
+//   - src/web/shell/explore-base-styles.ts → renderRootCss() for Explore
+//   - src/web/shell/explore-styles.ts → interactive Explore controls
 //   - src/ui/theme.css → still literal, because Tailwind's CSS-first config
 //     cannot import TypeScript. tokens.test.ts asserts the two agree, so drift
 //     fails the suite instead of shipping.
@@ -47,8 +46,7 @@ export const DESIGN_TOKENS: Readonly<Record<string, string>> = {
 /**
  * The `:root` declaration carrying every token.
  *
- * Byte-identical to the block it replaced, so the frozen-report output does not
- * change: same order, same single-space separators, same `color-scheme` lead.
+ * Keep the order stable so the generated Explore stylesheet remains deterministic.
  */
 export function renderRootCss(): string {
   const declarations = Object.entries(DESIGN_TOKENS)

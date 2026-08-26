@@ -1,5 +1,5 @@
 import type { ReviewerLeadTimes } from "../../analyses/review-metrics/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 
 // Review block B, 2-5: reviewer-by-reviewer request→first-review time
 // (docs/explore-screens.md "## 2. レビュー", docs/explore-screens-sql-design.md

@@ -9,8 +9,7 @@ import { renderWipView } from "./WipView.js";
 
 /**
  * The Explore views. Adding an insight means adding one entry here plus its
- * React component — the contract the whole plan is built around
- * (docs/explore-views-plan.md).
+ * React component — the contract the Explore shell is built around.
  *
  * Each view owns its own query so the registry stays free of per-view data
  * types; the alternative (a generic `{load, Component}` pair) leaks a type

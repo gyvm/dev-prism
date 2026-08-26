@@ -74,7 +74,7 @@ export function isScopeParamName(name: string): boolean {
   return SCOPE_PARAM_NAMES.includes(name) || name.startsWith(THRESHOLD_PREFIX);
 }
 
-/** Link from a report (or anywhere) into Explore carrying the given scope. */
+/** Link into Explore carrying the given scope. */
 export function exploreHref(scope: Scope, basePath = "/explore"): string {
   const query = scopeToSearchParams(scope).toString();
   return query ? `${basePath}?${query}` : basePath;
