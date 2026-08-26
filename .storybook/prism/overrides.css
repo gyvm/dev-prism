@@ -1,10 +1,10 @@
 /* Basic candidate component overrides — Storybook evaluation only.
-   Rule: copy an existing PAGE_STYLES / EXPLORE_STYLES selector verbatim and
+   Rule: copy an existing Explore base styles / EXPLORE_STYLES selector verbatim and
    prefix it with `:root.prism `. That adds 2 classes of specificity, so these
    win regardless of injection order (preview.tsx appends the shipped sheets
    at runtime, after this file is imported). */
 
-/* The basic candidate uses a flat report canvas. */
+/* The basic candidate uses a flat dashboard canvas. */
 :root.prism body::before {
   content: none;
 }

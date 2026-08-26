@@ -1,8 +1,8 @@
 /* Basic candidate design tokens — Storybook evaluation only.
-   Scoped to :root.prism so the shipped design (tokens.ts → PAGE_STYLES /
+   Scoped to :root.prism so the shipped design (tokens.ts → Explore base styles /
    EXPLORE_STYLES / theme.css) is untouched; the ThemeFrame decorator in
    preview.tsx toggles the class. This is a compact, GitHub-adjacent report
-   treatment: white panels, clear borders, small radii, and one cyan accent. */
+   dashboard treatment: white panels, clear borders, small radii, and one cyan accent. */
 
 :root.prism {
   --bg-default: #f7f9fc;
