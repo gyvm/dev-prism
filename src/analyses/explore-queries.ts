@@ -9,10 +9,9 @@ import {
 } from "./review-metrics/query.js";
 import type { Scope } from "./scope.js";
 
-// Shared SQL for the Explore default dashboard. DuckDB-WASM (Explore) imports
-// this and runs the identical SQL that DuckDB-native (Reports) runs through the
-// per-analysis query functions — the design D4 parity guarantee, by sharing one
-// module instead of duplicating SQL on the browser side.
+// Shared SQL for the Explore default dashboard. DuckDB-WASM imports this and
+// runs the canonical SQL through the per-analysis query functions — the design
+// D4 consistency guarantee, by sharing one module instead of duplicating SQL.
 //
 // Two analyses are deliberately absent. pr-timeline is a TS state machine over
 // thin-pulled rows, not one SQL statement. The aging-page queries need a `nowTs`

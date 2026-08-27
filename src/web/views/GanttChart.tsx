@@ -2,22 +2,17 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 
-import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
+import type { PrTimelineOutput } from "../../analyses/pr-timeline/types.js";
 import type { PrTimeline, TimelineAuxiliary, TimelineState } from "../../shared/types.js";
 import { VISIBLE_ROW_LIMIT } from "./row-limit.js";
 
 /**
  * Explore's PR timeline (gantt) chart.
  *
- * This is a from-scratch React port of src/renderers/gantt-chart.ts, not a
- * refactor of it (docs/explore-views-plan.md D1/D2). The frozen-report
- * renderer is left untouched and keeps emitting an HTML string plus an inline
- * `<script>` IIFE for hover/tooltip behavior. That IIFE never unregisters the
- * `window` scroll/blur listeners or the tooltip node it appends to
- * `document.body` (see gantt-chart.ts comments) — it leaks on every re-run.
+ * This is a from-scratch React chart with state-driven hover/tooltip behavior.
  *
- * This component reproduces the same visual output — same CSS classes and DOM
- * shape, which PAGE_STYLES targets — and the same hover behavior (segment
+ * This component uses stable CSS classes and DOM shape, with the same hover
+ * behavior (segment
  * tooltip with aux details, repo/author hover highlighting), but as ordinary
  * React state. The window listeners are registered and removed in a single
  * `useEffect`, and the tooltip node is a portal that unmounts with the
@@ -162,7 +157,7 @@ type RowData = Readonly<{
   auxRows: ReadonlyArray<readonly [string, string]>;
   /** `auxRows` serialized for the `data-aux` attribute the string renderer also
    *  emits. Nothing in this component reads it back — the tooltip is driven by
-   *  state — but the DOM shape is kept in parity with src/renderers/gantt-chart.ts.
+   *  state — but the DOM shape stays stable for CSS and accessibility.
    *  Serialized here so it is paid once per data load, not once per hover. */
   auxJson: string;
 }>;
@@ -293,9 +288,8 @@ export default function GanttChart({ weekStart, weekEnd, timezone, timelines }: 
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
 
-  // gantt-chart.ts's inline IIFE registers window scroll/blur listeners it
-  // never removes (docs/explore-views-plan.md Step 4 "現存するリークの解消").
-  // The effect cleanup below is the fix: mount/unmount is now symmetric.
+  // Keep tooltip dismissal symmetric with mount/unmount so the view never
+  // leaves global listeners behind.
   useEffect(() => {
     function hide(): void {
       setTooltip(null);

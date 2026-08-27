@@ -13,7 +13,7 @@ import type {
   PrStageTimes,
 } from "../../analyses/cycle-time/view-model.js";
 import type { DoraComparison } from "../../analyses/dora-metrics/view-model.js";
-import type { PrTimelineOutput } from "../../analyses/pr-timeline/compute.js";
+import type { PrTimelineOutput } from "../../analyses/pr-timeline/types.js";
 import type {
   ReviewerLeadTimes,
   ReviewlessMerges,

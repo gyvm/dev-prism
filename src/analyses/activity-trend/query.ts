@@ -21,8 +21,8 @@ function toIso(bucketText: string): string {
 }
 
 /**
- * SQL for the activity trend. Exported so DuckDB-WASM (Explore) runs the exact
- * same query as DuckDB-native (Reports) — parity by shared module (design D4).
+ * SQL for the activity trend. Exported so DuckDB-WASM (Explore) uses the
+ * canonical query — parity by shared module (design D4).
  */
 export function buildActivityTrendSql(scope: Scope): string {
   const repoFilter = inListFilter("r.repo_key", scope.repos);

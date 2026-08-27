@@ -19,8 +19,8 @@ import { CYCLE_STAGE_KEYS } from "./view-model.js";
 
 // SQL-native cycle-time funnel (1-2), lead-time trend (1-3) and per-PR stage
 // table (3-2). All three share the same four stage definitions from stage-sql.ts,
-// so Explore (WASM) and Reports (native) compute identical numbers — parity by
-// shared module (design D4) — and the funnel can never disagree with the table
+// so the Explore views compute identical numbers — parity by shared module
+// (design D4) — and the funnel can never disagree with the table
 // the funnel drills down into.
 //
 // Negative stage durations (e.g. a rebase that moves the first commit after PR

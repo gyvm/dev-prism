@@ -3,21 +3,12 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { PAGE_STYLES } from "../../renderers/page-styles.js";
+import { EXPLORE_BASE_STYLES } from "../shell/explore-base-styles.js";
 import { EXPLORE_STYLES } from "../shell/explore-styles.js";
 
 /**
- * Explore's React views deliberately reuse the frozen report's class names so
- * both paths render the same visual language (docs/explore-views-plan.md D1:
- * the *renderers* diverge, the styling vocabulary does not).
- *
- * That coupling is invisible in the source — PAGE_STYLES is one opaque string,
- * and nothing stops someone renaming `.timeline-row` while tidying report CSS
- * and silently unstyling the Explore gantt. These tests make the dependency
- * explicit and enforced, which is the safety the (rejected) plan to physically
- * split the stylesheet was really after. Splitting it buys ~3KB of dead CSS in
- * Explore — noise next to a 7.1MB WASM boot — at the cost of reordering a
- * cascade that both paths depend on.
+ * Explore's React views render a shared set of chart class names. Keep the
+ * stylesheet contract explicit so a view cannot silently lose its styling.
  */
 
 const viewsDir = fileURLToPath(new URL(".", import.meta.url));
@@ -50,13 +41,12 @@ describe("Explore view styling contract", () => {
   it.each(viewFiles)("%s only uses classes some stylesheet defines", (file) => {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     const undefinedClasses = [...classNamesUsedBy(source)].filter(
-      (name) => !definesClass(PAGE_STYLES, name) && !definesClass(EXPLORE_STYLES, name),
+      (name) => !definesClass(EXPLORE_BASE_STYLES, name) && !definesClass(EXPLORE_STYLES, name),
     );
     expect(undefinedClasses, `${file} references unstyled classes`).toEqual([]);
   });
 
-  it("keeps the report classes the Explore charts depend on", () => {
-    // Renaming any of these in PAGE_STYLES silently unstyles an Explore view.
+  it("keeps the chart classes the Explore views depend on", () => {
     const loadBearing = [
       "timeline-list",
       "timeline-row",
@@ -78,7 +68,7 @@ describe("Explore view styling contract", () => {
       "bg-legend",
       "empty",
     ];
-    const missing = loadBearing.filter((name) => !definesClass(PAGE_STYLES, name));
-    expect(missing, "PAGE_STYLES dropped a class Explore renders").toEqual([]);
+    const missing = loadBearing.filter((name) => !definesClass(EXPLORE_BASE_STYLES, name));
+    expect(missing, "Explore base styles dropped a class Explore renders").toEqual([]);
   });
 });

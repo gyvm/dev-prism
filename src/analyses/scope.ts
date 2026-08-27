@@ -3,8 +3,8 @@ import { isoToSqlTimestamp } from "../warehouse/rows.js";
 export type Grain = "day" | "week" | "month";
 
 /**
- * Canonical query scope shared by Reports (frozen, fixed values) and Explore
- * (live values). The same shape is fed to every analysis `query.ts`.
+ * Canonical query scope for Explore. The same shape is fed to every analysis
+ * `query.ts`.
  *
  * - `from` / `to`: inclusive bounds (UTC). `null` means unbounded on that side.
  * - `repos`: repo keys (`owner/name`). Empty = all repositories.

@@ -6,7 +6,7 @@ import type {
   LeadTrend,
   LeadTrendBucket,
 } from "../../analyses/cycle-time/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 import { placeEndLabels } from "./end-labels.js";
 import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
 

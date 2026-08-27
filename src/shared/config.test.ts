@@ -196,7 +196,6 @@ include = ["openai/codex"]
     expect(config.timezone).toBe("UTC");
     expect(config.limits).toEqual(DEFAULT_LIMITS);
     expect(config.bots.patterns).toEqual([]);
-    expect(config.ai.model).toBeUndefined();
   });
 
   it("loads [limits] overrides", async () => {
@@ -209,30 +208,6 @@ maxBodyLength = 100
     expect(config.limits.maxPrs).toBe(5);
     expect(config.limits.maxBodyLength).toBe(100);
     expect(config.limits.maxCommentsPerPr).toBe(DEFAULT_LIMITS.maxCommentsPerPr);
-  });
-
-  it("leaves ai.model unset when [ai] is absent", async () => {
-    const filePath = await writeTempConfig(baseConfig);
-    const config = await loadUnifiedConfig(filePath);
-    expect(config.ai.model).toBeUndefined();
-  });
-
-  it("loads ai.model override", async () => {
-    const filePath = await writeTempConfig(`${baseConfig}
-[ai]
-model = "claude-sonnet-4-5"
-`);
-    const config = await loadUnifiedConfig(filePath);
-    expect(config.ai.model).toBe("claude-sonnet-4-5");
-  });
-
-  it("treats empty ai.model as unset", async () => {
-    const filePath = await writeTempConfig(`${baseConfig}
-[ai]
-model = ""
-`);
-    const config = await loadUnifiedConfig(filePath);
-    expect(config.ai.model).toBeUndefined();
   });
 
   it("loads bot patterns", async () => {

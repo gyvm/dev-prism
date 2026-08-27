@@ -1,6 +1,6 @@
 // Pure date-window presets for the Explore period picker. Framework-free and
 // unit-tested (the React picker only renders these). All bounds are UTC; weeks
-// start Monday to match the report period convention.
+// start Monday.
 
 export type DatePreset = Readonly<{ id: string; label: string; from: Date; to: Date }>;
 

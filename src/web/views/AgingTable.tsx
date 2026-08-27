@@ -1,5 +1,5 @@
 import type { AgingPr, AgingStatus, AgingTable as AgingTableData } from "../../analyses/aging/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 
 // 4-2: one row per open PR, in the order the caller supplies (age-descending
 // is the data layer's responsibility per docs/explore-screens.md 4-2 — this

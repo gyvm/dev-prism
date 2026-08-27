@@ -5,9 +5,8 @@ import type { Grain } from "../../analyses/scope.js";
 import { placeEndLabels } from "./end-labels.js";
 import { formatBucket, GRAIN_LABEL } from "./grain-format.js";
 
-// Line chart for activity counts over time. Explore-only (the frozen report has
-// no trend section), so it is a plain React component with no inline script —
-// the pattern every new Explore view follows. See docs/explore-views-plan.md.
+// Line chart for activity counts over time. It is a plain React component with
+// no inline script — the pattern every Explore view follows.
 //
 // Two series per chart, never four: PR counts and comment counts differ by an
 // order of magnitude, so one shared y-axis flattens the PR lines. Callers render

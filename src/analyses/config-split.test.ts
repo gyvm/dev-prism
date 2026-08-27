@@ -14,7 +14,6 @@ const config: UnifiedConfig = {
     maxCommitsPerPr: 80,
     maxBodyLength: 4000,
   },
-  ai: {},
   bots: { patterns: ["\\[bot\\]$", "dependabot"] },
 };
 

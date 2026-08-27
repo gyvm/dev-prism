@@ -1,15 +1,12 @@
 import type { DoraComparison, DoraDelta } from "../../analyses/dora-metrics/view-model.js";
 import type { DoraMetrics } from "../../shared/types.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 import { type Readout, absent, measured, NO_MERGED_PRS } from "./readout.js";
 
-// DORA cards with previous-period comparison (1-1b). A new component, not an
-// extension of renderers/metric-cards.tsx: that component is shared with the
-// frozen report (SSR, no delta), so it stays untouched (docs/explore-screens.md
-// "設計上の決定事項"). This one reuses its class names (.metric-grid,
-// .metric-card, the four `metric-card-<tone>` accent colors) so both paths
-// still read as the same visual language, and adds delta/`n` rows that live
-// only in EXPLORE_STYLES.
+// DORA cards with previous-period comparison (1-1b). This reuses the existing
+// class names (.metric-grid, .metric-card, and the four
+// `metric-card-<tone>` accent colors) and adds delta/`n` rows that live only in
+// EXPLORE_STYLES.
 
 type CardTone = "deploy" | "lead-time" | "failure-rate" | "mttr";
 type DeltaTone = "good" | "bad" | "neutral";

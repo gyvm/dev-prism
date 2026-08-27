@@ -4,7 +4,7 @@ import type { DwhQueryRunner } from "../../warehouse/query.js";
 import type { Scope } from "../scope.js";
 import { inListFilter, timeRangeFilter } from "../scope-sql.js";
 import { selectTimelinePrs } from "./internal/timeline.js";
-import type { PrTimelineOutput } from "./compute.js";
+import type { PrTimelineOutput } from "./types.js";
 
 // PR timeline is a state machine that is awkward in SQL (design D2/D6), so we
 // thin-pull only the rows for the PRs in scope and reconstruct a partial

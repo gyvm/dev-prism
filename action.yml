@@ -1,9 +1,9 @@
 name: 'PR Insights — Collect & Build Dashboard'
 description: >-
   In one step: collect GitHub pull requests into a committed DuckDB warehouse
-  (incremental, with on-demand history backfill) AND build the static Explore +
-  Reports dashboard into dist/. Run inside a consumer repo that holds the config
-  and the accumulating data/dwh; commit the DWH and deploy dist/ afterwards.
+  (incremental, with on-demand history backfill) AND build the static Explore
+  dashboard into dist/. Run inside a consumer repo that holds the config and the
+  accumulating data/dwh; commit the DWH and deploy dist/ afterwards.
 author: 'dev-prism'
 branding:
   icon: 'git-pull-request'
@@ -39,10 +39,6 @@ inputs:
     description: 'Where to write the built site in the consumer workspace.'
     required: false
     default: 'dist'
-  reports-config:
-    description: 'Path to reports.toml; when set, frozen reports populate the gallery.'
-    required: false
-    default: ''
   github-token:
     description: >-
       Read-only PAT with access to the target repos, read as GITHUB_TOKEN. When
@@ -106,8 +102,8 @@ runs:
         # "Some specified paths were not resolved, unable to cache dependencies."
         # The npm ci below runs fine uncached.
 
-    # Full install (NOT --omit=dev): the site build needs astro, esbuild, react
-    # and tailwind, all devDependencies. Assumes a linux-x64/arm64 glibc runner
+    # Full install (NOT --omit=dev): the site build needs astro, React, and
+    # tailwind, all devDependencies. Assumes a linux-x64/arm64 glibc runner
     # (matches the duckdb prebuilt; GitHub-hosted ubuntu qualifies).
     - name: Install engine dependencies
       shell: bash
@@ -194,25 +190,7 @@ runs:
         echo "::endgroup::"
         echo "::notice title=dev-prism::Explore data staged."
 
-    # 3. Optional: render frozen reports so the gallery is populated.
-    - name: Render frozen reports
-      if: ${{ inputs.reports-config != '' }}
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      env:
-        REPORTS_CONFIG: ${{ inputs.reports-config }}
-        DWH_DIR: ${{ inputs.dwh-dir }}
-      run: |
-        set -euo pipefail
-        echo "::group::Render reports from $REPORTS_CONFIG"
-        npm run report:dwh -- \
-          --reports-config "$GITHUB_WORKSPACE/$REPORTS_CONFIG" \
-          --dwh-dir "$GITHUB_WORKSPACE/$DWH_DIR" \
-          --reports-dir dist/reports
-        echo "::endgroup::"
-        echo "::notice title=dev-prism::Frozen reports rendered."
-
-    # 4. Build the Astro site directly (the web:build npm script hardcodes a base,
+    # 3. Build the Astro site directly (the web:build npm script hardcodes a base,
     #    so we invoke astro with the caller's base/site instead). outDir is the
     #    repo-root dist/ (see src/web/astro.config.mjs).
     - name: Build dashboard site
@@ -223,15 +201,12 @@ runs:
         ASTRO_SITE: ${{ inputs.site }}
       run: |
         set -euo pipefail
-        echo "::group::Build navigation bundle (esbuild)"
-        npm run build:nav
-        echo "::endgroup::"
         echo "::group::Astro build (base=${ASTRO_BASE})"
         ./node_modules/.bin/astro build --root src/web
         echo "::endgroup::"
         echo "::notice title=dev-prism::Dashboard built into dist/."
 
-    # 5. Hand the built site back to the consumer workspace (dist/. copies the
+    # 4. Hand the built site back to the consumer workspace (dist/. copies the
     #    contents, avoiding a dist/dist nesting).
     - name: Export dist to workspace
       shell: bash

@@ -70,15 +70,6 @@ const limitsSchema = z
   })
   .default({});
 
-const aiSchema = z
-  .object({
-    model: z.preprocess(
-      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-      z.string().trim().min(1).optional(),
-    ),
-  })
-  .default({});
-
 const botsSchema = z
   .object({
     patterns: z
@@ -102,7 +93,6 @@ const botsSchema = z
 
 const unifiedConfigSchema = baseConfigSchema.extend({
   limits: limitsSchema,
-  ai: aiSchema,
   bots: botsSchema,
 });
 
@@ -124,10 +114,6 @@ export const DEFAULT_LIMITS: LimitsConfig = {
   maxBodyLength: 4_000,
 };
 
-type AiConfig = Readonly<{
-  model?: string;
-}>;
-
 export type BotsConfig = Readonly<{
   patterns: readonly string[];
 }>;
@@ -136,7 +122,6 @@ export type UnifiedConfig = Readonly<{
   timezone: string;
   repositories: readonly RepositorySpec[];
   limits: LimitsConfig;
-  ai: AiConfig;
   bots: BotsConfig;
 }>;
 
@@ -238,9 +223,6 @@ export async function loadUnifiedConfig(configPath = "config.toml"): Promise<Uni
     timezone: parsed.data.general.timezone,
     repositories,
     limits,
-    ai: {
-      ...(parsed.data.ai.model ? { model: parsed.data.ai.model } : {}),
-    },
     bots: {
       patterns: parsed.data.bots.patterns,
     },

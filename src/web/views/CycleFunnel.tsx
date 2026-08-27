@@ -1,5 +1,5 @@
 import type { CycleFunnel, CycleStageKey } from "../../analyses/cycle-time/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 import { NO_VALUE } from "./readout.js";
 
 // Cycle-time funnel (1-2). Four stage cards, side by side, in funnel order.

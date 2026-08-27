@@ -1,7 +1,7 @@
 # Explore 画面仕様
 
 Explore の各ページが「何を確認するための画面か」「何をどう表示するか」を定義する。
-実装計画・アーキテクチャは `explore-views-plan.md`、数値定義は `glossary.md` を参照。
+実装は `src/web/views/` と `src/analyses/*/query.ts`、数値定義は各 view-model を参照。
 
 ## 全体像
 
@@ -52,8 +52,8 @@ Explore は「チームの開発フローを、問いの単位で切ったペー
 
 ### データと数値の方針
 
-- データは DuckDB-WASM による parquet ライブクエリ。集計定義は凍結レポートと同一の query 関数を
-  共有する(数値の parity)
+- データは DuckDB-WASM による parquet ライブクエリ。集計定義は `src/analyses/*/query.ts` の
+  query 関数を共有する
 - **低サンプル方針**: 数値カードには母数 n を併記する(週次 × フィルタで n が数件になると率・p50 は
   激しく振れるため)。変更障害率 / MTTR は「Revert 0件(n=X)」と「データなし」を表示で区別する
 - **進行中期間の前期間比較**: 選択期間が進行中(例: 今週3日目)の場合、同じ長さの直前期間との

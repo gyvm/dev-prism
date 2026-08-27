@@ -1,8 +1,8 @@
 # PR Dashboard (consumer repo)
 
 A thin repo that references the **dev-prism** engine to collect GitHub
-pull-request data and publish an Explore + Reports dashboard. You hold only the
-config and the accumulating data; the engine is referenced by version.
+pull-request data and publish an Explore dashboard. You hold only the config and
+the accumulating data; the engine is referenced by version.
 
 ## Setup
 

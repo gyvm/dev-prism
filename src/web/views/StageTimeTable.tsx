@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { CYCLE_STAGE_KEYS } from "../../analyses/cycle-time/view-model.js";
 import type { CycleStageKey, PrStageTimes } from "../../analyses/cycle-time/view-model.js";
-import { formatHours } from "../../renderers/utils.js";
+import { formatHours } from "./format-hours.js";
 import { VISIBLE_ROW_LIMIT } from "./row-limit.js";
 
 // 3-2: stage-by-stage duration table, same data as GanttChart (3-1) in tabular

@@ -11,8 +11,7 @@ const themeCss = readFileSync(fileURLToPath(new URL("./theme.css", import.meta.u
  * theme.css restates part of the palette as literals because Tailwind's
  * CSS-first config cannot import TypeScript. These tests are what keeps that
  * copy honest — without them the two drift silently, which is exactly how the
- * codebase ended up with three divergent definitions (issue ③ in
- * docs/explore-views-plan.md).
+ * codebase ended up with three divergent definitions.
  */
 describe("design tokens", () => {
   it("emits a :root block that opens with color-scheme and closes cleanly", () => {

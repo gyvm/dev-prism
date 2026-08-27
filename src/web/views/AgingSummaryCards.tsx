@@ -1,7 +1,7 @@
 import type { AgingSummary } from "../../analyses/aging/view-model.js";
 
-// 4-1: three headline numbers for the open-PR backlog. Reuses MetricCards'
-// `.metric-card` class (src/renderers/metric-cards.tsx, PAGE_STYLES) so the
+// 4-1: three headline numbers for the open-PR backlog. Reuses the
+// `.metric-card` class so the
 // aging page reads as the same visual language as the DORA cards on the flow
 // page. Unlike DORA, these three numbers carry no per-metric semantics, so
 // every card keeps the default accent tone — a red "oldest age" would imply

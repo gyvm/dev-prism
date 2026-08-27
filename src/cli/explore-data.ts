@@ -2,7 +2,8 @@ import { copyExploreData, DEFAULT_DWH_DIR, DEFAULT_OUT_DIR } from "../web/explor
 
 // Copies the Explore-specific DWH subset into the public dir so the dev server /
 // build serves it for DuckDB-WASM to fetch (registerFileBuffer). The complete
-// DWH, including bodies.parquet, remains in the source directory for AI/batch use.
+// DWH, including bodies.parquet, remains in the source directory for other
+// batch consumers.
 // Usage: npm run explore:data -- [--dwh-dir data/dwh] [--out src/web/public/data]
 
 function parseArgs(argv: readonly string[]): { dwhDir: string; outDir: string } {

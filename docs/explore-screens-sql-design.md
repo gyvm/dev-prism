@@ -1,8 +1,8 @@
 # Explore 新画面要素のデータ取得 SQL 設計
 
 Explore ダッシュボード（DuckDB-WASM がブラウザ内で parquet をライブクエリ）に追加する画面要素の
-**データ取得 SQL 設計と実装メモ**。集計ロジックは凍結レポート（DuckDB-native）と Explore で
-**同一の `buildXxxSql(scope)` を共有**し数値 parity を保証する（設計 D4）。
+**データ取得 SQL 設計と実装メモ**。Exploreの各ビューは
+**同一の `buildXxxSql(scope)` とDWH query関数**を使い、集計定義を一貫させる。
 
 > **注**: 本文中の「実装」ファイルパスは設計時のリファレンス実装
 > （[PR #22](https://github.com/gyvm/dev-prism/pull/22)、マージせずクローズ）を指す。
@@ -291,12 +291,12 @@ type AgingHistogramBucket = { bucket:string; count:number };
   4-1 の依頼解消精度）。actor 参照のみで本文を含まないため公開範囲として安全。`schema.test.ts` の期待値も更新。
   他要素（1-1b/1-2/1-3/2-1/2-3/2-5/4-3）は既存 allowlist で充足。
 
-### 凍結レポートとの parity
+### Query関数の一貫性
 - **1-1b** は `buildDoraSql` を変更しない（2回実行）。`previousScope` は `scope.ts` へ移設し
   `dev-prism-summary` と共用。
 - **bot 再計算（1-2/1-3/2-1/2-3）** は事前計算列＝`min(pr_reviews.submitted_at)` 定義と一致するため
   **既存列・collector の改変は不要**。parity テストは includeBots 両値で確認。
-- 段階定義は新規共有 `stage-sql.ts`。レポート/Explore 双方が同一 import を使う限り parity は構造的に保証。
+- 段階定義は共有 `stage-sql.ts`。各Exploreビューが同一importを使う限り、段階定義の重複を避けられる。
 
 ### DuckDB-WASM パフォーマンス
 - 1-2/1-3 の `first_commit`（pr_commits 全走査 → pr_id で min）が最重量。各 SQL は独立実行で **CTE は
