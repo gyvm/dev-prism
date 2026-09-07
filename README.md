@@ -4,6 +4,23 @@ GitHub の Pull Request を集計し、リードタイムを入口にチーム�
 ブラウザダッシュボードを提供します。DWHに蓄積したPRデータをDuckDB-WASMでライブ集計し、
 期間・repo・userを切り替えながらDORA、レビュー、タイムライン、滞留を確認できます。
 
+## AI分析への受け渡し
+
+Explore上部の「AI分析」から、現在のフィルターと表示中の集計をMarkdownとしてクリップボードへ
+コピーできます。4種類の分析テンプレート（フロー、レビュー、タイムライン、滞留）に対応し、
+ChatGPT・Codex CLI・Claude Codeなどへそのまま貼り付けられます。Dev PrismからAIサービスやCLIを
+自動起動することはありません。
+
+コピー内容は集計値と指標定義に限定され、PR本文・レビュー本文・コメント本文・PR単位のタイトルや
+URL・番号は含みません。Clipboard APIを利用できない場合は表示されたMarkdownを手動でコピーできます。
+
+WebMCP対応環境では、同じ集計コンテキストを返すread-onlyツール
+`get_dev_prism_analysis_context`もfeature detection付きで公開します。未対応環境では何も登録せず、
+コピー機能をフォールバックとして利用します。WebMCPは仕様変更中のため、詳細は
+[ChromeのImperative APIドキュメント](https://developer.chrome.com/docs/ai/webmcp/imperative-api)を参照してください。
+
+設計とデータ境界の詳細は [`docs/ai-analysis-plan.md`](docs/ai-analysis-plan.md) を参照してください。
+
 ## 仕組み
 
 2 つの関心事に分かれています。導入パターンの違いは「どこで実行し、どこに配信するか」です。

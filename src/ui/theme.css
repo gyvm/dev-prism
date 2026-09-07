@@ -68,3 +68,11 @@
   --color-border-muted: #e2e8f0;
   --color-panel-subtle: #f5f8fb;
 }
+
+/* Explore AI analysis controls use the same semantic tokens as the shell. The
+   structural rules live with the client-only Explore stylesheet; these small
+   defaults keep the fallback textarea legible if the shell is embedded alone. */
+.explore-ai-fallback {
+  color: var(--fg-default);
+  background: var(--bg-muted);
+}

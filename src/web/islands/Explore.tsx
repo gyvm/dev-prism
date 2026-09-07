@@ -5,7 +5,9 @@ import { isScopeParamName, scopeToSearchParams } from "../../analyses/scope-url.
 import { siteBase } from "../base-path.js";
 import { getWasmRunner } from "../duckdb-runner.js";
 import { queryFilterOptions, scopeFromUrl } from "../explore.js";
+import type { DwhQueryRunner } from "../../warehouse/runner.js";
 import { isViewId, VIEW_IDS, VIEWS, viewTitle, type ViewId } from "../views/registry.js";
+import ExploreAiActions from "./ExploreAiActions.js";
 import ExploreFilters, { type ExploreFilterOptions, type ExploreFilterValue } from "./ExploreFilters.js";
 
 // One persistent Explore shell. Changing a view swaps only its analysis below
@@ -70,6 +72,9 @@ export default function Explore({ view }: { view: ViewId }) {
   const [initialScope] = useState<Scope>(() => scopeFromUrl(window.location.search, new Date()));
   const [draft, setDraft] = useState<ExploreFilterValue>(() => draftFromScope(initialScope));
   const [options, setOptions] = useState<ExploreFilterOptions>({ repos: [], users: [] });
+  const [runner, setRunner] = useState<DwhQueryRunner | null>(null);
+  const [queryReady, setQueryReady] = useState(false);
+  const [appliedScope, setAppliedScope] = useState(initialScope);
   // Monotonic guard: a slower earlier run must not overwrite a newer one.
   const generation = useRef(0);
 
@@ -78,16 +83,23 @@ export default function Explore({ view }: { view: ViewId }) {
       const gen = ++generation.current;
       syncScopeToUrl(scope);
       setStatus("集計中…");
+      setQueryReady(false);
       try {
         const runner = await getWasmRunner();
+        setRunner(runner);
         // Read per run, not per mount: the wip snapshot should reflect the
         // instant the user asked, not when the tab happened to open.
         const element = await definition.render(runner, scope, new Date());
         if (gen !== generation.current) return; // superseded by a later run
         setContent(element);
+        setAppliedScope(scope);
+        setQueryReady(true);
         setStatus(`集計完了 (${dateLabel(scope.from)} 〜 ${dateLabel(scope.to)})`);
       } catch (error) {
-        if (gen === generation.current) setStatus(`エラー: ${errorMessage(error)}`);
+        if (gen === generation.current) {
+          setQueryReady(false);
+          setStatus(`エラー: ${errorMessage(error)}`);
+        }
       }
     },
     [definition],
@@ -161,7 +173,19 @@ export default function Explore({ view }: { view: ViewId }) {
   return (
     <main className="explore-main">
       <header>
-        <h1>Explore</h1>
+        <div className="explore-heading-row">
+          <h1>Explore</h1>
+          <ExploreAiActions
+            view={activeView}
+            scope={appliedScope}
+            runner={runner}
+            queryReady={queryReady}
+            onContextError={(error) => {
+              setQueryReady(false);
+              setStatus(`エラー: ${errorMessage(error)}`);
+            }}
+          />
+        </div>
         <ExploreFilters
           value={draft}
           options={options}
